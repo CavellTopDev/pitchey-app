@@ -27,7 +27,7 @@ echo "----------------------------------------"
 # List of backend endpoints to check
 BACKENDS=(
     "https://pitchey-api-prod.ndlovucavelle.workers.dev"
-    "https://pitchey-production.cavelltheleaddev.workers.dev"
+    "https://pitchey-api-prod.ndlovucavelle.workers.dev"
 )
 
 for BACKEND in "${BACKENDS[@]}"; do

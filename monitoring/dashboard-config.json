@@ -9,7 +9,7 @@
     },
     "prometheus": {
       "type": "prometheus",
-      "url": "https://pitchey-production.cavelltheleaddev.workers.dev/metrics",
+      "url": "https://pitchey-production.ndlovucavelle.workers.dev/metrics",
       "interval": "30s"
     },
     "sentry": {

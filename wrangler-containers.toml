@@ -12,7 +12,7 @@ account_id = "02967e39e44b6266e7873829e94849f5"
 
 # Custom domain routing
 routes = [
-  { pattern = "pitchey-production.cavelltheleaddev.workers.dev/*", custom_domain = true },
+  { pattern = "pitchey-production.ndlovucavelle.workers.dev/*", custom_domain = true },
   { pattern = "containers.pitchey.com/*", custom_domain = true }
 ]
 
@@ -413,8 +413,8 @@ PLATFORM_NAME = "Pitchey"
 VERSION = "2.0-containers"
 
 # URLs and Endpoints
-FRONTEND_URL = "https://pitchey.pages.dev"
-BACKEND_URL = "https://pitchey-production.cavelltheleaddev.workers.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
+BACKEND_URL = "https://pitchey-production.ndlovucavelle.workers.dev"
 CONTAINER_GATEWAY_URL = "https://containers.pitchey.com"
 
 # Container Configuration
@@ -557,8 +557,8 @@ account_id = "02967e39e44b6266e7873829e94849f5"
 
 [env.staging.vars]
 ENVIRONMENT = "staging"
-FRONTEND_URL = "https://staging.pitchey.pages.dev"
-BACKEND_URL = "https://pitchey-staging.cavelltheleaddev.workers.dev"
+FRONTEND_URL = "https://staging.pitchey-5o8.pages.dev"
+BACKEND_URL = "https://pitchey-staging.ndlovucavelle.workers.dev"
 CONTAINER_AUTO_SCALING = "true"
 MIN_CONTAINER_INSTANCES = "1"
 MAX_CONTAINER_INSTANCES = "5"

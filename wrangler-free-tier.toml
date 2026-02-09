@@ -23,7 +23,7 @@ preview_id = "your-kv-preview-id"
 # Environment variables (non-sensitive)
 [vars]
 ENVIRONMENT = "production"
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 
 # Secrets (set via wrangler secret put)
 # wrangler secret put DATABASE_URL
@@ -54,7 +54,7 @@ workers_dev = true
 
 [env.staging.vars]
 ENVIRONMENT = "staging"
-FRONTEND_URL = "https://staging.pitchey.pages.dev"
+FRONTEND_URL = "https://staging.pitchey-5o8.pages.dev"
 
 # Production environment
 [env.production]
@@ -68,7 +68,7 @@ workers_dev = false
 
 [env.production.vars]
 ENVIRONMENT = "production"
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 
 # Limits configuration (respecting free tier)
 [limits]

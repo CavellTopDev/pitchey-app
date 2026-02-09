@@ -7,20 +7,20 @@ account_id = "e16d3bf549153de23459a6c6a06a431b"
 
 [vars]
 # Better Auth Configuration
-BETTER_AUTH_URL = "https://pitchey-production.cavelltheleaddev.workers.dev"
+BETTER_AUTH_URL = "https://pitchey-production.ndlovucavelle.workers.dev"
 SESSION_COOKIE_NAME = "pitchey-session"
 SESSION_MAX_AGE = "2592000"
 ENVIRONMENT = "production"
 
 # App Configuration  
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 SENTRY_DSN = "https://fd5664ae577039ccb7cce31e91f54533@o4510137537396736.ingest.de.sentry.io/4510138308755536"
 SENTRY_ENVIRONMENT = "production"
 SENTRY_RELEASE = "better-auth-v1.0"
 NODE_ENV = "production"
 
 # Security Configuration
-CORS_ORIGINS = "https://pitchey.pages.dev,https://pitchey-production.cavelltheleaddev.workers.dev"
+CORS_ORIGINS = "https://pitchey-5o8.pages.dev,https://pitchey-production.ndlovucavelle.workers.dev"
 RATE_LIMIT_ENABLED = "true"
 RATE_LIMIT_WINDOW = "60"
 RATE_LIMIT_MAX_REQUESTS = "100"
@@ -82,7 +82,7 @@ new_sqlite_classes = ["NotificationRoom"]
 name = "pitchey-production-auth"
 
 [env.production.vars]
-BETTER_AUTH_URL = "https://pitchey-production.cavelltheleaddev.workers.dev"
+BETTER_AUTH_URL = "https://pitchey-production.ndlovucavelle.workers.dev"
 ENVIRONMENT = "production"
 SESSION_SECURE = "true"
 EMAIL_VERIFICATION_ENABLED = "true"
@@ -91,7 +91,7 @@ EMAIL_VERIFICATION_ENABLED = "true"
 name = "pitchey-preview-auth"
 
 [env.preview.vars]
-BETTER_AUTH_URL = "https://pitchey-preview.cavelltheleaddev.workers.dev"
+BETTER_AUTH_URL = "https://pitchey-preview.ndlovucavelle.workers.dev"
 ENVIRONMENT = "preview"
 SESSION_SECURE = "true"
 EMAIL_VERIFICATION_ENABLED = "false"

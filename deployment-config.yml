@@ -66,7 +66,7 @@ environments:
           name: "pitchey-production"
           script: "src/worker-production-db.ts"
           routes:
-            - pattern: "pitchey-production.cavelltheleaddev.workers.dev/*"
+            - pattern: "pitchey-api-prod.ndlovucavelle.workers.dev/*"
             - pattern: "api.pitchey.com/*"
           resources:
             memory: "256MB"
@@ -108,7 +108,7 @@ environments:
           name: "pitchey-staging"
           script: "src/worker-production-db.ts"
           routes:
-            - pattern: "pitchey-staging.cavelltheleaddev.workers.dev/*"
+            - pattern: "pitchey-staging.ndlovucavelle.workers.dev/*"
           resources:
             memory: "128MB"
             cpuTime: "50ms"
@@ -146,7 +146,7 @@ environments:
           name: "pitchey-dev"
           script: "src/worker-production-db.ts"
           routes:
-            - pattern: "pitchey-dev.cavelltheleaddev.workers.dev/*"
+            - pattern: "pitchey-dev.ndlovucavelle.workers.dev/*"
           resources:
             memory: "64MB"
             cpuTime: "25ms"

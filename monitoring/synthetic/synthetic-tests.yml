@@ -37,10 +37,10 @@ global:
   # Environment configuration
   environments:
     production:
-      base_url: "https://pitchey.pages.dev"
-      api_url: "https://pitchey-production.cavelltheleaddev.workers.dev"
+      base_url: "https://pitchey-5o8.pages.dev"
+      api_url: "https://pitchey-production.ndlovucavelle.workers.dev"
     staging:
-      base_url: "https://staging.pitchey.pages.dev"
+      base_url: "https://staging.pitchey-5o8.pages.dev"
       api_url: "https://staging.pitchey.workers.dev"
 
 # Test suites for different user journeys

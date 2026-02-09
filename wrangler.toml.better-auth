@@ -14,8 +14,8 @@ cpu_ms = 10
 # Better Auth Environment Variables
 [vars]
 ENVIRONMENT = "production"
-FRONTEND_URL = "https://pitchey.pages.dev"
-TRUSTED_ORIGINS = "https://pitchey.pages.dev,https://pitchey-production.cavelltheleaddev.workers.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
+TRUSTED_ORIGINS = "https://pitchey-5o8.pages.dev,https://pitchey-production.ndlovucavelle.workers.dev"
 
 # KV Namespaces for session storage (free tier: 1 namespace)
 [[kv_namespaces]]
@@ -33,9 +33,9 @@ bucket_name = "pitchey-production-files"
 name = "pitchey-production"
 vars = { 
   ENVIRONMENT = "production",
-  BETTER_AUTH_URL = "https://pitchey-production.cavelltheleaddev.workers.dev",
-  FRONTEND_URL = "https://pitchey.pages.dev",
-  TRUSTED_ORIGINS = "https://pitchey.pages.dev,https://pitchey-production.cavelltheleaddev.workers.dev"
+  BETTER_AUTH_URL = "https://pitchey-production.ndlovucavelle.workers.dev",
+  FRONTEND_URL = "https://pitchey-5o8.pages.dev",
+  TRUSTED_ORIGINS = "https://pitchey-5o8.pages.dev,https://pitchey-production.ndlovucavelle.workers.dev"
 }
 
 [env.development]

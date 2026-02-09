@@ -5,9 +5,9 @@ compatibility_date = "2024-11-01"
 account_id = "002bd5c0e90ae753a387c60546cf6869"
 
 [vars]
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 ENVIRONMENT = "production"
-CORS_ORIGINS = "https://pitchey.pages.dev,https://localhost:5173"
+CORS_ORIGINS = "https://pitchey-5o8.pages.dev,https://localhost:5173"
 
 # KV Namespaces
 [[kv_namespaces]]

@@ -23,7 +23,7 @@ deno run --allow-all --no-check https://deno.land/x/deploy@1.12.0/deployctl.ts d
   --env="SENTRY_RELEASE=pitchey-backend-v3.4" \
   --env="DATABASE_URL=${DATABASE_URL}" \
   --env="JWT_SECRET=${JWT_SECRET}" \
-  --env="FRONTEND_URL=https://pitchey.pages.dev" \
+  --env="FRONTEND_URL=https://pitchey-5o8.pages.dev" \
   --env="UPSTASH_REDIS_REST_URL=${UPSTASH_REDIS_REST_URL}" \
   --env="UPSTASH_REDIS_REST_TOKEN=${UPSTASH_REDIS_REST_TOKEN}" \
   --env="CACHE_ENABLED=true" \

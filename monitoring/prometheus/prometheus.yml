@@ -34,10 +34,10 @@ scrape_configs:
       module: [http_2xx]
     static_configs:
       - targets:
-        - https://pitchey-production.cavelltheleaddev.workers.dev/api/health
-        - https://pitchey-production.cavelltheleaddev.workers.dev/api/health/detailed
-        - https://pitchey.pages.dev
-        - https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/browse/enhanced?limit=5
+        - https://pitchey-production.ndlovucavelle.workers.dev/api/health
+        - https://pitchey-production.ndlovucavelle.workers.dev/api/health/detailed
+        - https://pitchey-5o8.pages.dev
+        - https://pitchey-production.ndlovucavelle.workers.dev/api/pitches/browse/enhanced?limit=5
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
@@ -56,7 +56,7 @@ scrape_configs:
   - job_name: 'pitchey-app-metrics'
     metrics_path: /api/metrics
     static_configs:
-      - targets: ['pitchey-production.cavelltheleaddev.workers.dev']
+      - targets: ['pitchey-production.ndlovucavelle.workers.dev']
     scrape_interval: 30s
     scrape_timeout: 10s
     scheme: https
@@ -70,8 +70,8 @@ scrape_configs:
       module: [ssl_expire]
     static_configs:
       - targets:
-        - pitchey.pages.dev:443
-        - pitchey-production.cavelltheleaddev.workers.dev:443
+        - pitchey-5o8.pages.dev:443
+        - pitchey-production.ndlovucavelle.workers.dev:443
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target

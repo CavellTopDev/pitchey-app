@@ -21,6 +21,6 @@ vars = { FRONTEND_URL = "http://localhost:5173", DATABASE_URL = "postgresql://te
 name = "pitchey-api-prod"
 
 [env.production.vars]
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 # Secrets will be injected at deploy time via GitHub Actions
 # DATABASE_URL, JWT_SECRET, SENTRY_DSN, UPSTASH_REDIS_* are set as secrets

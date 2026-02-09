@@ -13,9 +13,9 @@ updates:
       timezone: "UTC"
     open-pull-requests-limit: 10
     reviewers:
-      - "cavelltheleaddev"
+      - "ndlovucavelle"
     assignees:
-      - "cavelltheleaddev"
+      - "ndlovucavelle"
     commit-message:
       prefix: "deps"
       include: "scope"
@@ -46,9 +46,9 @@ updates:
       timezone: "UTC"
     open-pull-requests-limit: 5
     reviewers:
-      - "cavelltheleaddev"
+      - "ndlovucavelle"
     assignees:
-      - "cavelltheleaddev"
+      - "ndlovucavelle"
     commit-message:
       prefix: "deps(worker)"
       include: "scope"
@@ -67,9 +67,9 @@ updates:
       timezone: "UTC"
     open-pull-requests-limit: 5
     reviewers:
-      - "cavelltheleaddev"
+      - "ndlovucavelle"
     assignees:
-      - "cavelltheleaddev"
+      - "ndlovucavelle"
     commit-message:
       prefix: "ci"
       include: "scope"
@@ -88,9 +88,9 @@ updates:
       timezone: "UTC"
     open-pull-requests-limit: 3
     reviewers:
-      - "cavelltheleaddev"
+      - "ndlovucavelle"
     assignees:
-      - "cavelltheleaddev"
+      - "ndlovucavelle"
     commit-message:
       prefix: "deps(docker)"
       include: "scope"

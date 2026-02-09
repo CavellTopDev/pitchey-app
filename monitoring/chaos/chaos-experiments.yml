@@ -62,7 +62,7 @@ experiments:
       probes:
         - name: "health_check_passes"
           type: "http"
-          url: "https://pitchey-production.cavelltheleaddev.workers.dev/health"
+          url: "https://pitchey-production.ndlovucavelle.workers.dev/health"
           expected_status: 200
           timeout: "5s"
         - name: "error_rate_normal"

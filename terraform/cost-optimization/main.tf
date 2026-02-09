@@ -239,7 +239,7 @@ resource "cloudflare_load_balancer_pool" "primary" {
   
   origins {
     name    = "primary-worker"
-    address = "pitchey-production.cavelltheleaddev.workers.dev"
+    address = "pitchey-api-prod.ndlovucavelle.workers.dev"
     weight  = 1
     enabled = true
   }
@@ -255,7 +255,7 @@ resource "cloudflare_load_balancer_pool" "secondary" {
   
   origins {
     name    = "secondary-worker"
-    address = "pitchey-production-2.cavelltheleaddev.workers.dev"
+    address = "pitchey-production-2.ndlovucavelle.workers.dev"
     weight  = 1
     enabled = true
   }

@@ -413,10 +413,10 @@ verify_deployment() {
     local base_url
     case "$ENVIRONMENT" in
         "production")
-            base_url="https://pitchey-production.cavelltheleaddev.workers.dev"
+            base_url="https://pitchey-api-prod.ndlovucavelle.workers.dev"
             ;;
         "staging")
-            base_url="https://pitchey-staging.cavelltheleaddev.workers.dev"
+            base_url="https://pitchey-staging.ndlovucavelle.workers.dev"
             ;;
         *)
             warning "Skipping verification for $ENVIRONMENT environment"

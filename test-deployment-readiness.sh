@@ -96,7 +96,7 @@ if [ "$READY" = true ]; then
     echo "Next steps:"
     echo "1. Push to GitHub: git push origin main"
     echo "2. Monitor deployment: https://github.com/YOUR_REPO/actions"
-    echo "3. View your site: https://pitchey.pages.dev"
+    echo "3. View your site: https://pitchey-5o8.pages.dev"
 else
     echo -e "${RED}❌ NOT READY FOR DEPLOYMENT${NC}"
     echo ""

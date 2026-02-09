@@ -13,25 +13,25 @@ main = "src/worker-load-balancer.ts"
 [[deployments]]
 name = "pitchey-us-east"
 region = "enam"  # Eastern North America
-route = "pitchey-us-east.cavelltheleaddev.workers.dev/*"
+route = "pitchey-us-east.ndlovucavelle.workers.dev/*"
 workers_dev = true
 
 [[deployments]]
 name = "pitchey-us-west"
 region = "wnam"  # Western North America  
-route = "pitchey-us-west.cavelltheleaddev.workers.dev/*"
+route = "pitchey-us-west.ndlovucavelle.workers.dev/*"
 workers_dev = true
 
 [[deployments]]
 name = "pitchey-europe"
 region = "eeur"  # Eastern Europe
-route = "pitchey-eu.cavelltheleaddev.workers.dev/*"
+route = "pitchey-eu.ndlovucavelle.workers.dev/*"
 workers_dev = true
 
 [[deployments]]
 name = "pitchey-asia"
 region = "apac"  # Asia Pacific
-route = "pitchey-asia.cavelltheleaddev.workers.dev/*"
+route = "pitchey-asia.ndlovucavelle.workers.dev/*"
 workers_dev = true
 
 # Smart Placement for optimal performance
@@ -42,10 +42,10 @@ mode = "smart"
 [vars]
 JWT_SECRET = "vYGh89KjLmNpQrStUwXyZ123456789ABCDEFGHIJKLMNOPQRSTuvwxyz"
 # Regional worker URLs
-US_EAST_WORKER = "https://pitchey-us-east.cavelltheleaddev.workers.dev"
-US_WEST_WORKER = "https://pitchey-us-west.cavelltheleaddev.workers.dev"
-EU_WORKER = "https://pitchey-eu.cavelltheleaddev.workers.dev"
-ASIA_WORKER = "https://pitchey-asia.cavelltheleaddev.workers.dev"
+US_EAST_WORKER = "https://pitchey-us-east.ndlovucavelle.workers.dev"
+US_WEST_WORKER = "https://pitchey-us-west.ndlovucavelle.workers.dev"
+EU_WORKER = "https://pitchey-eu.ndlovucavelle.workers.dev"
+ASIA_WORKER = "https://pitchey-asia.ndlovucavelle.workers.dev"
 # Fallback configuration
 PRIMARY_REGION = "us-east"
 FALLBACK_REGION = "us-west"
@@ -187,16 +187,16 @@ metrics_enabled = true
 
 # Traffic routing rules
 [[routes]]
-pattern = "pitchey.pages.dev/*"
-zone_name = "cavelltheleaddev.com"
+pattern = "pitchey-5o8.pages.dev/*"
+zone_name = "ndlovucavelle.com"
 
 [[routes]]
 pattern = "api.pitchey.com/*"
-zone_name = "cavelltheleaddev.com"
+zone_name = "ndlovucavelle.com"
 
 [[routes]]
 pattern = "ws.pitchey.com/*"
-zone_name = "cavelltheleaddev.com"
+zone_name = "ndlovucavelle.com"
 
 # Canary deployment configuration
 [canary]

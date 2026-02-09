@@ -67,11 +67,11 @@ enabled = true
 
 # Custom cache rules for better performance
 [[routes]]
-pattern = "pitchey-production-optimized.cavelltheleaddev.workers.dev/api/*"
+pattern = "pitchey-production-optimized.ndlovucavelle.workers.dev/api/*"
 zone_name = ""
 
 [[routes]]
-pattern = "pitchey-production-optimized.cavelltheleaddev.workers.dev/static/*"
+pattern = "pitchey-production-optimized.ndlovucavelle.workers.dev/static/*"
 zone_name = ""
 
 # Production deployment settings

@@ -12,7 +12,7 @@ account_id = "e16d3bf549153de23459a6c6a06a431b"
 # DATABASE_URL - Set in Cloudflare dashboard
 # UPSTASH_REDIS_REST_URL - Set in Cloudflare dashboard
 # UPSTASH_REDIS_REST_TOKEN - Set in Cloudflare dashboard
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 ENVIRONMENT = "production"
 
 # KV for static content caching and sessions

@@ -36,7 +36,7 @@ required_secrets:
 # Required variables (configure in GitHub UI)
 required_variables:
   - ENVIRONMENT_NAME: staging
-  - API_URL: https://pitchey-staging.cavelltheleaddev.workers.dev
+  - API_URL: https://pitchey-staging.ndlovucavelle.workers.dev
   - FRONTEND_URL: https://pitchey-staging.pages.dev
   - ALLOWED_ORIGINS: https://pitchey-staging.pages.dev
   - LOG_LEVEL: debug
@@ -60,7 +60,7 @@ auto_deployment:
 
 # Monitoring and alerting
 monitoring:
-  health_check_url: https://pitchey-staging.cavelltheleaddev.workers.dev/health
+  health_check_url: https://pitchey-staging.ndlovucavelle.workers.dev/health
   uptime_check_interval: 300 # 5 minutes
   alert_channels:
     - slack

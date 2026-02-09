@@ -30,7 +30,7 @@ spec:
     # Environment variables (non-sensitive)
     env_vars:
       ENVIRONMENT: production
-      FRONTEND_URL: https://pitchey.pages.dev
+      FRONTEND_URL: https://pitchey-5o8.pages.dev
     
     # Resource limits
     resources:
@@ -55,7 +55,7 @@ spec:
     
     # Routes
     routes:
-      - pattern: "pitchey-production.cavelltheleaddev.workers.dev/*"
+      - pattern: "pitchey-api-prod.ndlovucavelle.workers.dev/*"
         zone_id: ""  # Optional if using worker subdomain
     
     # Cron triggers (if needed)
@@ -72,23 +72,23 @@ spec:
       
     # Custom domains
     custom_domains:
-      - domain: pitchey.pages.dev
+      - domain: pitchey-5o8.pages.dev
         ssl: flexible
   
   # Domain configuration
-  domain: pitchey.pages.dev
+  domain: pitchey-5o8.pages.dev
   
   # Monitoring and health checks
   monitoring:
     health_checks:
       - name: api-health
-        url: https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+        url: https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
         interval: 30s
         timeout: 10s
         retries: 3
       
       - name: frontend-health
-        url: https://pitchey.pages.dev
+        url: https://pitchey-5o8.pages.dev
         interval: 60s
         timeout: 15s
         retries: 2

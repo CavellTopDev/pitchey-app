@@ -11,7 +11,7 @@ echo "========================================="
 echo ""
 
 # Configuration
-API_URL="${API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
+API_URL="${API_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
 BASE_URL="${BASE_URL:-$API_URL}"
 
 # Colors for output

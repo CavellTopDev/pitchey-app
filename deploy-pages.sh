@@ -43,7 +43,7 @@ if [ -f "wrangler.json" ]; then
     
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✅ Deployment successful!${NC}"
-        echo "Your app is available at: https://pitchey.pages.dev"
+        echo "Your app is available at: https://pitchey-5o8.pages.dev"
         exit 0
     else
         echo -e "${YELLOW}⚠️  Deployment with wrangler.json failed, trying alternative method...${NC}"
@@ -59,7 +59,7 @@ wrangler pages deploy frontend/dist \
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✅ Deployment successful!${NC}"
-    echo "Your app is available at: https://pitchey.pages.dev"
+    echo "Your app is available at: https://pitchey-5o8.pages.dev"
 else
     echo -e "${RED}❌ Deployment failed${NC}"
     echo ""

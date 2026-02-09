@@ -146,7 +146,7 @@ receivers:
       - api_url: '${SLACK_WEBHOOK_URL}'
         channel: '#alerts-critical'
         title: '🔴 FRONTEND DOWN'
-        text: 'Pitchey frontend is unreachable at https://pitchey.pages.dev'
+        text: 'Pitchey frontend is unreachable at https://pitchey-5o8.pages.dev'
         send_resolved: true
 
   - name: 'database-alerts'

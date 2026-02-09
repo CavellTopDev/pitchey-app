@@ -55,7 +55,7 @@ spec:
     
     # Routes
     routes:
-      - pattern: "pitchey-staging.cavelltheleaddev.workers.dev/*"
+      - pattern: "pitchey-staging.ndlovucavelle.workers.dev/*"
         zone_id: ""
   
   # Pages configuration
@@ -79,7 +79,7 @@ spec:
   monitoring:
     health_checks:
       - name: api-health
-        url: https://pitchey-staging.cavelltheleaddev.workers.dev/api/health
+        url: https://pitchey-staging.ndlovucavelle.workers.dev/api/health
         interval: 120s
         timeout: 10s
         retries: 2

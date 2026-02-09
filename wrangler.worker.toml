@@ -5,7 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 # Used for CORS and redirects
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 
 # Progressive migration: proxy unmatched API routes to existing Deno backend
 ORIGIN_URL = "https://pitchey-backend-fresh-yfjwdv4z663e.deno.dev"
@@ -44,7 +44,7 @@ compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
 
 [env.production.vars]
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 ORIGIN_URL = "https://pitchey-backend-fresh-yfjwdv4z663e.deno.dev"
 
 [[env.production.kv_namespaces]]

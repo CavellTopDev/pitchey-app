@@ -5,7 +5,7 @@ compatibility_date = "2024-11-01"
 account_id = "002bd5c0e90ae753a387c60546cf6869"
 
 [vars]
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 ENVIRONMENT = "production"
 
 # Development settings

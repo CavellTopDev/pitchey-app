@@ -327,7 +327,7 @@
     },
     {
       "name": "Frontend Availability", 
-      "url": "https://72a15a37.pitchey.pages.dev",
+      "url": "https://72a15a37.pitchey-5o8.pages.dev",
       "method": "GET",
       "expected_status": 200,
       "frequency": "2m",

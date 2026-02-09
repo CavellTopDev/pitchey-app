@@ -7,7 +7,7 @@ groups:
     rules:
       # Service Availability Alerts
       - alert: WorkerDown
-        expr: probe_success{instance=~"https://pitchey-production.cavelltheleaddev.workers.dev.*"} == 0
+        expr: probe_success{instance=~"https://pitchey-production.ndlovucavelle.workers.dev.*"} == 0
         for: 1m
         labels:
           severity: critical
@@ -20,7 +20,7 @@ groups:
           action_required: "Immediate investigation required"
 
       - alert: FrontendDown
-        expr: probe_success{instance="https://pitchey.pages.dev"} == 0
+        expr: probe_success{instance="https://pitchey-5o8.pages.dev"} == 0
         for: 2m
         labels:
           severity: critical
@@ -33,7 +33,7 @@ groups:
 
       # Performance Alerts
       - alert: HighResponseTime
-        expr: probe_duration_seconds{instance=~"https://pitchey-production.cavelltheleaddev.workers.dev.*"} > 2
+        expr: probe_duration_seconds{instance=~"https://pitchey-production.ndlovucavelle.workers.dev.*"} > 2
         for: 5m
         labels:
           severity: warning
@@ -45,7 +45,7 @@ groups:
           runbook_url: "https://github.com/supremeisbeing/pitchey/wiki/runbooks#high-response-time"
 
       - alert: CriticalResponseTime
-        expr: probe_duration_seconds{instance=~"https://pitchey-production.cavelltheleaddev.workers.dev.*"} > 5
+        expr: probe_duration_seconds{instance=~"https://pitchey-production.ndlovucavelle.workers.dev.*"} > 5
         for: 2m
         labels:
           severity: critical
@@ -59,7 +59,7 @@ groups:
 
       # HTTP Error Alerts
       - alert: HttpErrorRate
-        expr: (rate(probe_http_status_code{instance=~"https://pitchey-production.cavelltheleaddev.workers.dev.*"}[5m]) * 100) > 5
+        expr: (rate(probe_http_status_code{instance=~"https://pitchey-production.ndlovucavelle.workers.dev.*"}[5m]) * 100) > 5
         for: 3m
         labels:
           severity: warning

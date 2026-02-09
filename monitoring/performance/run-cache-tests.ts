@@ -486,7 +486,7 @@ async function main() {
     },
     staging: {
       environment: 'staging' as const,
-      baseUrl: 'https://pitchey-staging.cavelltheleaddev.workers.dev',
+      baseUrl: 'https://pitchey-staging.ndlovucavelle.workers.dev',
       concurrentUsers: 10,
       testDuration: 5
     },

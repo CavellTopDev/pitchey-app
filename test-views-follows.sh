@@ -80,7 +80,7 @@ if login_user "$INVESTOR_EMAIL" "investor"; then
             -d "{
                 \"pitchId\": \"$PITCH_ID\",
                 \"duration\": 30,
-                \"referrer\": \"https://pitchey.pages.dev/marketplace\"
+                \"referrer\": \"https://pitchey-5o8.pages.dev/marketplace\"
             }")
         
         if echo "$VIEW_RESPONSE" | grep -q "success"; then

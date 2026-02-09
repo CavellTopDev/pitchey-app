@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Verify NDA workflow implementation on production
-echo "🔐 Verifying NDA Workflow on pitchey.pages.dev"
+echo "🔐 Verifying NDA Workflow on pitchey-5o8.pages.dev"
 echo "=============================================="
 
 GREEN='\033[0;32m'
@@ -17,7 +17,7 @@ curl -s "$API_URL/api/pitches/public/1" | python3 -m json.tool | head -20
 
 echo -e "\n${YELLOW}2. Checking Frontend NDA Components${NC}"
 # Check if frontend is loading properly
-FRONTEND_CHECK=$(curl -s "https://pitchey.pages.dev" | grep -c "Request NDA")
+FRONTEND_CHECK=$(curl -s "https://pitchey-5o8.pages.dev" | grep -c "Request NDA")
 if [ "$FRONTEND_CHECK" -gt 0 ]; then
     echo -e "${GREEN}✓ NDA request buttons found in frontend${NC}"
 else
@@ -32,7 +32,7 @@ echo "- Individual pitch data retrievable ✓"
 echo "- Frontend deployed and accessible ✓"
 echo "- NDA workflow components in place ✓"
 
-echo -e "\n🎉 ${GREEN}Your marketplace is now live at https://pitchey.pages.dev${NC}"
+echo -e "\n🎉 ${GREEN}Your marketplace is now live at https://pitchey-5o8.pages.dev${NC}"
 echo "Users can:"
 echo "1. Browse public pitches"
 echo "2. View pitch details"

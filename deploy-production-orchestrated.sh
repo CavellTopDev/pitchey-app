@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 🚀 Pitchey Production Deployment Orchestrator
-# Account: cavelltheleaddev@gmail.com
+# Account: ndlovucavelle@gmail.com
 # This script orchestrates the complete production deployment with validation
 
 set -euo pipefail
@@ -46,7 +46,7 @@ print_header() {
     echo "=================================="
     echo "🚀 PITCHEY PRODUCTION DEPLOYMENT"
     echo "=================================="
-    echo "Account: cavelltheleaddev@gmail.com"
+    echo "Account: ndlovucavelle@gmail.com"
     echo "Timestamp: $(date)"
     echo "Log: $LOG_FILE"
     echo "=================================="
@@ -383,7 +383,7 @@ generate_report() {
 # 🚀 Pitchey Production Deployment Report
 
 **Date**: $(date)  
-**Account**: cavelltheleaddev@gmail.com  
+**Account**: ndlovucavelle@gmail.com  
 **Deployment Engineer**: Claude
 
 ## 📊 Deployment Summary

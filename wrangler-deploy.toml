@@ -5,12 +5,12 @@ node_compat = true
 
 account_id = "b1f6495b07f1a7573dbbf75b7ea2fa48"
 workers_dev = false
-route = { pattern = "pitchey-production.cavelltheleaddev.workers.dev/*", zone_name = "cavelltheleaddev.workers.dev" }
+route = { pattern = "pitchey-production.ndlovucavelle.workers.dev/*", zone_name = "ndlovucavelle.workers.dev" }
 
 [vars]
 DENO_ENV = "production"
 NODE_ENV = "production"
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 CACHE_ENABLED = "true"
 
 [[kv_namespaces]]

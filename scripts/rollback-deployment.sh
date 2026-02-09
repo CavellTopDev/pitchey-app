@@ -35,7 +35,7 @@ echo_header() {
     echo -e "${RED}${BOLD}======================================${NC}"
     echo -e "${RED}${BOLD}🚨 EMERGENCY ROLLBACK SYSTEM 🚨${NC}"
     echo -e "${RED}${BOLD}======================================${NC}"
-    echo -e "${YELLOW}Account: cavelltheleaddev@gmail.com${NC}"
+    echo -e "${YELLOW}Account: ndlovucavelle@gmail.com${NC}"
     echo -e "${YELLOW}Platform: Cloudflare Workers + Pages${NC}"
     echo -e "${YELLOW}Timestamp: $(date)${NC}"
     echo -e "${YELLOW}Log: $ROLLBACK_LOG${NC}"
@@ -399,7 +399,7 @@ generate_rollback_report() {
 # 🔄 Pitchey Emergency Rollback Report
 
 **Date**: $(date)  
-**Account**: cavelltheleaddev@gmail.com  
+**Account**: ndlovucavelle@gmail.com  
 
 ## 🚨 Rollback Summary
 

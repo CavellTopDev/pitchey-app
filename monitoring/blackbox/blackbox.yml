@@ -56,7 +56,7 @@ modules:
     prober: dns
     timeout: 5s
     dns:
-      query_name: pitchey.pages.dev
+      query_name: pitchey-5o8.pages.dev
       query_type: A
       valid_rcodes:
         - NOERROR

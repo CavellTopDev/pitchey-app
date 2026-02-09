@@ -8,7 +8,7 @@ account_id = "002bd5c0e90ae753a387c60546cf6869"
 [vars]
 FRONTEND_URL = "https://pitchey-frontend-ndlovu.pages.dev"
 ENVIRONMENT = "production"
-CORS_ORIGINS = "https://pitchey-frontend-ndlovu.pages.dev,https://pitchey-5o8.pages.dev,https://pitchey.pages.dev"
+CORS_ORIGINS = "https://pitchey-frontend-ndlovu.pages.dev,https://pitchey-5o8.pages.dev,https://pitchey-5o8.pages.dev"
 
 # KV and R2 disabled - not available on free account
 # [[kv_namespaces]]

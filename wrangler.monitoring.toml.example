@@ -11,7 +11,7 @@ account_id = "your-cloudflare-account-id"
 # Environment Configuration
 ENVIRONMENT = "production"
 VERSION = "1.0.0"
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 
 # Monitoring Configuration
 MONITORING_ENABLED = "true"

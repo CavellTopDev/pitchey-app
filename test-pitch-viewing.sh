@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Test script to verify pitch viewing functionality on production
-echo "🔍 Testing Pitch Viewing Functionality on pitchey.pages.dev"
+echo "🔍 Testing Pitch Viewing Functionality on pitchey-5o8.pages.dev"
 echo "=========================================================="
 
 # Colors for output
@@ -71,8 +71,8 @@ else
 fi
 
 echo -e "\n${YELLOW}4. Testing Frontend Access${NC}"
-echo "GET https://pitchey.pages.dev"
-frontend_response=$(curl -s -o /dev/null -w "%{http_code}" "https://pitchey.pages.dev")
+echo "GET https://pitchey-5o8.pages.dev"
+frontend_response=$(curl -s -o /dev/null -w "%{http_code}" "https://pitchey-5o8.pages.dev")
 
 if [ "$frontend_response" = "200" ]; then
     echo -e "${GREEN}✓ Frontend is accessible (Status: $frontend_response)${NC}"
@@ -105,4 +105,4 @@ echo "4. Frontend is accessible"
 echo "5. Individual pitches can be retrieved"
 
 echo -e "\n${GREEN}Testing complete!${NC}"
-echo "If all tests pass, users should be able to view pitches on https://pitchey.pages.dev"
+echo "If all tests pass, users should be able to view pitches on https://pitchey-5o8.pages.dev"

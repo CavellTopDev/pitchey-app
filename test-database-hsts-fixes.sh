@@ -13,7 +13,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 API_URL="${API_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
-FRONTEND_URL="${FRONTEND_URL:-https://pitchey.pages.dev}"
+FRONTEND_URL="${FRONTEND_URL:-https://pitchey-5o8.pages.dev}"
 
 echo "🔍 Testing Database Fix and HSTS Implementation"
 echo "API URL: $API_URL"

@@ -53,7 +53,7 @@ account_id = "$ACCOUNT_ID"
 
 # Routes
 routes = [
-  { pattern = "pitchey-api.cavelltheleaddev.workers.dev/*", zone_name = "" }
+  { pattern = "pitchey-api.ndlovucavelle.workers.dev/*", zone_name = "" }
 ]
 
 # Durable Objects (NEW - Paid Plan Feature!)
@@ -253,7 +253,7 @@ echo ""
 echo "✅ Step 9: Verifying deployment..."
 echo "----------------------------------"
 
-WORKER_URL="https://$WORKER_NAME.cavelltheleaddev.workers.dev"
+WORKER_URL="https://$WORKER_NAME.ndlovucavelle.workers.dev"
 
 echo "Testing health endpoint..."
 curl -s "$WORKER_URL/api/health" | jq '.'
@@ -277,7 +277,7 @@ echo "🔗 URLs:"
 echo "--------"
 echo "Worker API: $WORKER_URL"
 echo "Frontend: $PAGES_URL"
-echo "WebSocket: wss://$WORKER_NAME.cavelltheleaddev.workers.dev/ws"
+echo "WebSocket: wss://$WORKER_NAME.ndlovucavelle.workers.dev/ws"
 echo ""
 echo "📊 Monitor your usage:"
 echo "----------------------"
@@ -286,7 +286,7 @@ echo "Analytics: https://dash.cloudflare.com/$ACCOUNT_ID/workers/analytics"
 echo ""
 echo "🧪 Test WebSocket connection:"
 echo "-----------------------------"
-echo "wscat -c wss://$WORKER_NAME.cavelltheleaddev.workers.dev/ws"
+echo "wscat -c wss://$WORKER_NAME.ndlovucavelle.workers.dev/ws"
 echo ""
 echo "📝 Next steps:"
 echo "--------------"
