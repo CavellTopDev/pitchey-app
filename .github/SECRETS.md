@@ -5,44 +5,36 @@ This document outlines the required GitHub secrets for the CI/CD pipeline.
 ## Required Secrets
 
 ### 🔑 Deployment Tokens
-| Secret Name | Description | Example |
-|-------------|-------------|---------|
-| `DENO_DEPLOY_TOKEN` | Deno Deploy API token for automated deployments | `ddp_abcd1234...` |
-| `DENO_DEPLOY_PROJECT_STAGING` | Staging project name on Deno Deploy | `pitchey-api-staging` |
-| `DENO_DEPLOY_PROJECT_PROD` | Production project name on Deno Deploy | `pitchey-api-production` |
-
-### 🗄️ Database Configuration  
-| Secret Name | Description | Example |
-|-------------|-------------|---------|
-| `DATABASE_URL_STAGING` | Staging database connection string | `postgresql://user:pass@staging-db.com/pitchey` |
-| `DATABASE_URL_PROD` | Production database connection string | `postgresql://user:pass@prod-db.com/pitchey` |
-
-### 🔐 Authentication & Security
-| Secret Name | Description | Example |
-|-------------|-------------|---------|
-| `JWT_SECRET_STAGING` | JWT signing secret for staging | `staging-super-secret-key-256-bits-long` |
-| `JWT_SECRET_PROD` | JWT signing secret for production | `production-super-secret-key-256-bits-long` |
-
-### 📊 Monitoring & Observability
 | Secret Name | Description | Required |
 |-------------|-------------|----------|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token for Workers and Pages deployments | Yes |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account identifier | Yes |
+
+### 🗄️ Database Configuration
+| Secret Name | Description | Example |
+|-------------|-------------|---------|
+| `DATABASE_URL_STAGING` | Staging Neon PostgreSQL connection string | `postgresql://user:pass@ep-xxx.neon.tech/neondb?sslmode=require` |
+| `DATABASE_URL_PROD` | Production Neon PostgreSQL connection string | `postgresql://user:pass@ep-xxx.neon.tech/neondb?sslmode=require` |
+
+### 📊 Monitoring & Error Tracking
+| Secret Name | Description | Required |
+|-------------|-------------|----------|
+| `SENTRY_AUTH_TOKEN` | Sentry authentication token for source map uploads | Yes |
+| `SENTRY_ORG` | Sentry organization slug | Yes |
+| `SENTRY_PROJECT` | Sentry project slug | Yes |
 | `SENTRY_DSN` | Sentry error tracking DSN | Optional |
-| `SLACK_WEBHOOK` | Slack webhook for deployment notifications | Optional |
 
-### 🚀 Performance & Caching
+### 🚀 Caching (Upstash Redis)
 | Secret Name | Description | Required |
 |-------------|-------------|----------|
-| `REDIS_URL_STAGING` | Staging Redis connection string | Optional |
-| `REDIS_URL_PROD` | Production Redis connection string | Optional |
 | `UPSTASH_REDIS_REST_URL` | Upstash Redis REST URL | Optional |
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST token | Optional |
 
 ### 🌐 Environment URLs
 | Secret Name | Description | Example |
 |-------------|-------------|---------|
-| `STAGING_URL` | Staging environment URL | `https://staging-api.pitchey.com` |
-| `PRODUCTION_URL` | Production environment URL | `https://api.pitchey.com` |
-| `API_URL` | Default API URL for frontend builds | `https://api.pitchey.com` |
+| `PRODUCTION_URL` | Production Worker API URL | `https://pitchey-api-prod.ndlovucavelle.workers.dev` |
+| `FRONTEND_URL` | Production frontend URL | `https://pitchey-5o8.pages.dev` |
 
 ## Setting Up Secrets
 
@@ -55,58 +47,46 @@ This document outlines the required GitHub secrets for the CI/CD pipeline.
 
 ### 2. Via GitHub CLI
 
-\`\`\`bash
+```bash
 # Set deployment secrets
-gh secret set DENO_DEPLOY_TOKEN --body "your_deno_deploy_token"
-gh secret set DENO_DEPLOY_PROJECT_STAGING --body "pitchey-api-staging"
-gh secret set DENO_DEPLOY_PROJECT_PROD --body "pitchey-api-production"
+gh secret set CLOUDFLARE_API_TOKEN --body "your_cloudflare_api_token"
+gh secret set CLOUDFLARE_ACCOUNT_ID --body "your_cloudflare_account_id"
 
 # Set database secrets
-gh secret set DATABASE_URL_STAGING --body "postgresql://user:pass@staging-db/pitchey"
-gh secret set DATABASE_URL_PROD --body "postgresql://user:pass@prod-db/pitchey"
+gh secret set DATABASE_URL_STAGING --body "postgresql://user:pass@ep-xxx.neon.tech/neondb?sslmode=require"
+gh secret set DATABASE_URL_PROD --body "postgresql://user:pass@ep-xxx.neon.tech/neondb?sslmode=require"
 
-# Set authentication secrets
-gh secret set JWT_SECRET_STAGING --body "$(openssl rand -base64 64)"
-gh secret set JWT_SECRET_PROD --body "$(openssl rand -base64 64)"
+# Set error tracking secrets
+gh secret set SENTRY_AUTH_TOKEN --body "your_sentry_auth_token"
+gh secret set SENTRY_ORG --body "your_sentry_org"
+gh secret set SENTRY_PROJECT --body "your_sentry_project"
 
-# Set monitoring secrets
-gh secret set SENTRY_DSN --body "https://your-dsn@sentry.io/project-id"
-gh secret set SLACK_WEBHOOK --body "https://hooks.slack.com/services/..."
+# Set caching secrets
+gh secret set UPSTASH_REDIS_REST_URL --body "https://xxx.upstash.io"
+gh secret set UPSTASH_REDIS_REST_TOKEN --body "your_upstash_token"
 
 # Set environment URLs
-gh secret set STAGING_URL --body "https://staging-api.pitchey.com"
-gh secret set PRODUCTION_URL --body "https://api.pitchey.com"
-\`\`\`
+gh secret set PRODUCTION_URL --body "https://pitchey-api-prod.ndlovucavelle.workers.dev"
+gh secret set FRONTEND_URL --body "https://pitchey-5o8.pages.dev"
+```
 
 ## Environment-Specific Configuration
 
 ### Staging Environment
 - **Purpose**: Testing and QA validation before production
-- **Database**: Separate staging database with test data
-- **Authentication**: Weaker JWT secrets acceptable
+- **Database**: Separate Neon PostgreSQL branch with test data
+- **Authentication**: Better Auth session-based cookies
 - **Monitoring**: Optional but recommended
-- **Caching**: Optional Redis instance
+- **Caching**: Optional Upstash Redis instance
 
-### Production Environment  
+### Production Environment
 - **Purpose**: Live production system serving real users
-- **Database**: Production database with real data
-- **Authentication**: Strong JWT secrets (64+ characters)
+- **Database**: Production Neon PostgreSQL with real data
+- **Authentication**: Better Auth session-based cookies (secure HTTP-only)
 - **Monitoring**: Required for observability and alerting
-- **Caching**: Recommended for performance
+- **Caching**: Recommended Upstash Redis for performance
 
 ## Security Best Practices
-
-### 🔐 Secret Generation
-\`\`\`bash
-# Generate strong JWT secrets
-openssl rand -base64 64
-
-# Generate UUID for session secrets
-uuidgen
-
-# Generate hex secrets
-openssl rand -hex 32
-\`\`\`
 
 ### 🛡️ Secret Management
 - **Rotation**: Rotate secrets quarterly or after security incidents
@@ -122,11 +102,10 @@ openssl rand -hex 32
 - ❌ Not rotating secrets regularly
 
 ### ✅ Security Checklist
-- [ ] All secrets are at least 32 characters long
-- [ ] Staging and production use different secrets
-- [ ] JWT secrets are cryptographically strong
+- [ ] Cloudflare API token has minimal required permissions
+- [ ] Staging and production use different database credentials
+- [ ] Sentry tokens are configured for error tracking
 - [ ] Database credentials have minimal required permissions
-- [ ] Monitoring secrets are configured for alerting
 - [ ] Secrets are documented but values are not shared
 - [ ] Regular secret rotation schedule is established
 
@@ -139,38 +118,35 @@ openssl rand -hex 32
 - Check that the secret is set at the repository level, not organization level
 - Ensure the secret value is not empty
 
-**❌ "Invalid token" during deployment**
-- Verify the Deno Deploy token has correct permissions
-- Check that the token hasn't expired
-- Confirm the project names match exactly
+**❌ Cloudflare deployment failures**
+- Verify the Cloudflare API token has Workers and Pages permissions
+- Check that the account ID is correct
+- Confirm `wrangler.toml` references match the configured project
 
 **❌ Database connection failures**
-- Verify database URL format and credentials
-- Check network access from GitHub Actions runners
-- Ensure database accepts connections from external IPs
+- Verify Neon PostgreSQL connection string format and credentials
+- Ensure `?sslmode=require` is included in the connection string
+- Check that the Neon project allows connections from GitHub Actions IPs
 
 ### Debug Commands
 
-\`\`\`bash
+```bash
 # List all secrets (names only, not values)
 gh secret list
 
 # Test secret access in workflow
-echo "Secret length: \${#SECRET_NAME}"
-
-# Validate JWT secret strength
-echo "\$JWT_SECRET" | wc -c  # Should be 64+ characters
-\`\`\`
+echo "Secret length: ${#SECRET_NAME}"
+```
 
 ## Workflow Integration
 
 The secrets are automatically injected into the CI/CD workflow environments:
 
-\`\`\`yaml
+```yaml
 env:
-  DATABASE_URL: \${{ secrets.DATABASE_URL_PROD }}
-  JWT_SECRET: \${{ secrets.JWT_SECRET_PROD }}
-  SENTRY_DSN: \${{ secrets.SENTRY_DSN }}
-\`\`\`
+  DATABASE_URL: ${{ secrets.DATABASE_URL_PROD }}
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+```
 
 For more information about the CI/CD pipeline, see [ci-cd.yml](./workflows/ci-cd.yml).

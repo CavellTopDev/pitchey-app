@@ -21,20 +21,13 @@ required_secrets:
   - CLOUDFLARE_ACCOUNT_ID
   
   # Development-specific secrets
-  - DEV_JWT_SECRET
   - DEV_KV_NAMESPACE_ID
   - DEV_DATABASE_URL
-  
+
   # Third-party services (test/dev keys)
   - DEV_SENTRY_DSN
-  - DEV_STRIPE_SECRET_KEY
-  - DEV_TWILIO_ACCOUNT_SID
-  - DEV_TWILIO_AUTH_TOKEN
   - DEV_UPSTASH_REDIS_REST_URL
   - DEV_UPSTASH_REDIS_REST_TOKEN
-  
-  # Notification services
-  - DEV_SLACK_WEBHOOK_URL
 
 # Required variables (configure in GitHub UI)
 required_variables:
@@ -143,8 +136,7 @@ local_environment:
   # Environment setup
   auto_install_deps: true
   check_node_version: true
-  check_deno_version: true
-  
+
   # Development scripts
   setup_script: scripts/dev-setup.sh
   teardown_script: scripts/dev-teardown.sh

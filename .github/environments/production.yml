@@ -23,41 +23,22 @@ required_secrets:
   - CLOUDFLARE_ACCOUNT_ID
   
   # Production-specific secrets
-  - PRODUCTION_JWT_SECRET
   - PRODUCTION_KV_NAMESPACE_ID
   - PRODUCTION_HYPERDRIVE_ID
   - PRODUCTION_DATABASE_URL
-  
+
   # Third-party services
   - PRODUCTION_SENTRY_DSN
   - PRODUCTION_SENTRY_AUTH_TOKEN
-  - PRODUCTION_STRIPE_SECRET_KEY
-  - PRODUCTION_STRIPE_WEBHOOK_SECRET
-  - PRODUCTION_TWILIO_ACCOUNT_SID
-  - PRODUCTION_TWILIO_AUTH_TOKEN
   - PRODUCTION_UPSTASH_REDIS_REST_URL
   - PRODUCTION_UPSTASH_REDIS_REST_TOKEN
-  
-  # Admin and monitoring
-  - ADMIN_API_TOKEN
-  - DATADOG_API_KEY
-  - CODECOV_TOKEN
-  
-  # Notification services
-  - SLACK_WEBHOOK_URL
-  - PAGERDUTY_ROUTING_KEY
-  - DISCORD_WEBHOOK_URL
-  
-  # Backup and disaster recovery
-  - BACKUP_STORAGE_URL
-  - DR_DATABASE_URL
 
 # Required variables (configure in GitHub UI)
 required_variables:
   - ENVIRONMENT_NAME: production
-  - API_URL: https://pitchey-production.cavelltheleaddev.workers.dev
-  - FRONTEND_URL: https://pitchey.pages.dev
-  - ALLOWED_ORIGINS: https://pitchey.pages.dev,https://www.pitchey.com
+  - API_URL: https://pitchey-api-prod.ndlovucavelle.workers.dev
+  - FRONTEND_URL: https://pitchey-5o8.pages.dev
+  - ALLOWED_ORIGINS: https://pitchey-5o8.pages.dev,https://www.pitchey.com
   - LOG_LEVEL: info
   - RATE_LIMIT_ENABLED: true
   - RATE_LIMIT_MAX_REQUESTS: 500
@@ -76,7 +57,7 @@ auto_deployment:
 
 # Monitoring and alerting
 monitoring:
-  health_check_url: https://pitchey-production.cavelltheleaddev.workers.dev/health
+  health_check_url: https://pitchey-api-prod.ndlovucavelle.workers.dev/health
   uptime_check_interval: 60 # 1 minute
   alert_channels:
     - slack
