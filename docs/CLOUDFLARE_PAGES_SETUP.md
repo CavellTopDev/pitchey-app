@@ -8,7 +8,7 @@ We have **two** Cloudflare Pages projects configured:
 
 1. **Primary Project: `pitchey`**
    - **Production URL**: https://pitchey-5o8.pages.dev
-   - **Custom Domain**: https://pitchey.pages.dev (if configured)
+   - **Custom Domain**: https://pitchey-5o8.pages.dev (if configured)
    - **Deployment Method**: GitHub Actions (automated)
    - **Last Updated**: 8 minutes ago
    - **Status**: ✅ ACTIVE - This is what GitHub Actions deploys to

@@ -549,7 +549,7 @@ What you need to do: [STEPS]
 - PagerDuty: pitchey-security
 
 **Incident Response**:
-- Primary: cavelltheleaddev@gmail.com
+- Primary: ndlovucavelle@gmail.com
 - Escalation: management@pitchey.com
 
 ## Compliance Certifications Target

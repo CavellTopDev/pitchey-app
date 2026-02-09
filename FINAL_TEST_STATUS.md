@@ -15,7 +15,7 @@
 
 ```bash
 # Open production frontend (no CORS restrictions)
-firefox https://pitchey.pages.dev
+firefox https://pitchey-5o8.pages.dev
 ```
 
 ✅ **Advantages:**
@@ -48,7 +48,7 @@ cd frontend && npm run dev
 ## 🎯 What You Can Test Right Now
 
 ### ✅ Production Testing (Recommended)
-1. **Open**: https://pitchey.pages.dev
+1. **Open**: https://pitchey-5o8.pages.dev
 2. **Features to Test**:
    - Browse section (Trending/New/Featured tabs)
    - Pitch creation and viewing
@@ -126,7 +126,7 @@ chmod +x deploy-crawl4ai.sh
 ## 🎬 User Testing Scenarios
 
 ### 🎭 Creator Journey
-1. **Visit**: https://pitchey.pages.dev or http://127.0.0.1:5173
+1. **Visit**: https://pitchey-5o8.pages.dev or http://127.0.0.1:5173
 2. **Create Pitch**: Use validation features
 3. **Browse Industry News**: See real-time market insights
 4. **Get Success Prediction**: AI-powered viability scoring
@@ -180,6 +180,6 @@ The platform now offers enterprise-grade market intelligence that positions Pitc
 
 **Your platform is ready for testing and production deployment! 🎬✨**
 
-**Quick Start**: Open https://pitchey.pages.dev to test all features immediately  
+**Quick Start**: Open https://pitchey-5o8.pages.dev to test all features immediately  
 **Local Development**: http://127.0.0.1:5173 (resolve CORS as needed)  
 **Full Deployment**: Run `./deploy-crawl4ai.sh` when ready

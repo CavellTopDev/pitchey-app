@@ -15,7 +15,7 @@ const http = require('http');
 const { URL } = require('url');
 
 // Configuration
-const API_BASE_URL = 'https://pitchey-optimized.cavelltheleaddev.workers.dev';
+const API_BASE_URL = 'https://pitchey-optimized.ndlovucavelle.workers.dev';
 const TEST_PITCH_ID = process.argv.find(arg => arg.startsWith('--test-pitch='))?.split('=')[1] || '162';
 const VERBOSE = process.argv.includes('--verbose') || process.argv.includes('-v');
 const TIMEOUT = 10000; // 10 seconds
@@ -217,7 +217,7 @@ const tests = [
       
       // Check CORS headers
       const corsHeader = response.headers['access-control-allow-origin'];
-      return corsHeader === '*' || corsHeader === 'http://localhost:5173' || corsHeader === 'https://pitchey.pages.dev';
+      return corsHeader === '*' || corsHeader === 'http://localhost:5173' || corsHeader === 'https://pitchey-5o8.pages.dev';
     }
   }
 ];
@@ -391,7 +391,7 @@ function generateReport(results) {
       if (result.error) {
         console.log(`   Network/Connection Issue: ${result.error.message}`);
         console.log(`   → Check if the Cloudflare Worker is deployed and accessible`);
-        console.log(`   → Verify DNS resolution for pitchey-optimized.cavelltheleaddev.workers.dev`);
+        console.log(`   → Verify DNS resolution for pitchey-optimized.ndlovucavelle.workers.dev`);
       } else {
         result.analysis.issues.forEach(issue => {
           console.log(`   Issue: ${issue}`);

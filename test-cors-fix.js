@@ -78,14 +78,14 @@ async function testAPIEndpoints() {
   console.log('=====================');
   console.log('The production API needs to be updated to allow local development origins:');
   console.log('');
-  console.log('Current CORS policy: https://pitchey.pages.dev');
+  console.log('Current CORS policy: https://pitchey-5o8.pages.dev');
   console.log('Needed for local dev: http://127.0.0.1:5174, http://localhost:5174');
   console.log('');
   console.log('Recommended CORS configuration:');
   console.log('```typescript');
   console.log('cors({');
   console.log('  origin: [');
-  console.log('    "https://pitchey.pages.dev",');
+  console.log('    "https://pitchey-5o8.pages.dev",');
   console.log('    "http://127.0.0.1:5174",');
   console.log('    "http://localhost:5174",');
   console.log('    /^https:\\/\\/pitchey-.*\\.pages\\.dev$/');
@@ -105,7 +105,7 @@ async function testAPIEndpoints() {
   console.log('\n💡 Testing Alternative:');
   console.log('======================');
   console.log('You can test the integration by:');
-  console.log('1. Opening: https://pitchey.pages.dev (production frontend)');
+  console.log('1. Opening: https://pitchey-5o8.pages.dev (production frontend)');
   console.log('2. Which connects to: https://pitchey-api-prod.ndlovucavelle.workers.dev');
   console.log('3. All CORS restrictions will be resolved there');
 

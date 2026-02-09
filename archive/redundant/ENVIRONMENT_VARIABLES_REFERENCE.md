@@ -360,4 +360,4 @@ git push origin main
 
 **Last Updated**: December 2024
 **Platform Version**: 1.0.0
-**Account**: cavelltheleaddev@gmail.com
+**Account**: ndlovucavelle@gmail.com

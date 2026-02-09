@@ -381,7 +381,7 @@ curl https://containers.pitchey.com/media-transcoder/health
 curl https://containers.pitchey.com/code-executor/health
 
 # Check orchestrator health
-curl https://pitchey-production.cavelltheleaddev.workers.dev/health/containers
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/health/containers
 ```
 
 ### Metrics Dashboard

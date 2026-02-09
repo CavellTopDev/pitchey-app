@@ -8,7 +8,7 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "https://pitchey-production.cavelltheleaddev.workers.dev",
+      "value": "https://pitchey-api-prod.ndlovucavelle.workers.dev",
       "type": "string"
     }
   ],
@@ -1234,7 +1234,7 @@
         "exec": [
           "// Auto-set base URL if not already set",
           "if (!pm.environment.get('baseUrl')) {",
-          "    pm.environment.set('baseUrl', 'https://pitchey-production.cavelltheleaddev.workers.dev');",
+          "    pm.environment.set('baseUrl', 'https://pitchey-api-prod.ndlovucavelle.workers.dev');",
           "}",
           "",
           "// Log request details in debug mode",

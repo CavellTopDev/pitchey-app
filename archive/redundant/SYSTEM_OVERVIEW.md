@@ -33,7 +33,7 @@ Pitchey is a comprehensive movie pitch platform that connects:
                  ▼
 ┌─────────────────────────────────────────────┐
 │         Cloudflare Workers                  │
-│  (pitchey-production.cavelltheleaddev...)  │
+│  (pitchey-api-prod.ndlovucavelle...)  │
 │         Edge API Gateway                    │
 └────────┬──────────────┬─────────────────────┘
          │              │

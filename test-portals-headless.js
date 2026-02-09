@@ -121,7 +121,7 @@ async function testPortals() {
     
     for (const test of apiTests) {
       const response = await page.evaluate(async ({ portal, email }) => {
-        const res = await fetch('https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/' + portal + '/login', {
+        const res = await fetch('https://pitchey-optimized.ndlovucavelle.workers.dev/api/auth/' + portal + '/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password: 'Demo123' })

@@ -876,7 +876,7 @@ curl https://pitchey-api-prod.ndlovucavelle.workers.dev/health
 - [GitHub Actions Docs](https://docs.github.com/en/actions)
 
 #### Team Contacts:
-- **Lead Developer:** cavelltheleaddev@gmail.com
+- **Lead Developer:** ndlovucavelle@gmail.com
 - **DevOps:** (configured via GitHub teams)
 - **Security:** (security alerts via configured channels)
 - **On-call:** (PagerDuty escalation for production)

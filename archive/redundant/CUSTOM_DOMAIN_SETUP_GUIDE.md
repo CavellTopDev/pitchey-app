@@ -6,7 +6,7 @@ This guide walks you through setting up a custom domain (e.g., pitchey.com) for 
 ## Prerequisites
 - Domain registered with any registrar
 - Access to domain's DNS settings
-- Cloudflare account (cavelltheleaddev@gmail.com)
+- Cloudflare account (ndlovucavelle@gmail.com)
 
 ## Step 1: Add Domain to Cloudflare
 

@@ -89,7 +89,7 @@
             <div class="test-step">
                 <h4>API Connectivity Tests</h4>
                 <ul>
-                    <li>✅ Backend API accessible at pitchey-optimized.cavelltheleaddev.workers.dev</li>
+                    <li>✅ Backend API accessible at pitchey-optimized.ndlovucavelle.workers.dev</li>
                     <li>✅ Individual pitch endpoint working (/api/pitches/public/162)</li>
                     <li>❌ Public pitches list format mismatch (/api/pitches/public)</li>
                     <li>❌ CORS preflight headers missing Content-Type</li>
@@ -237,7 +237,7 @@ return response.data.items || response.data.data?.pitches || [];</div>
             showResult('<h4>Testing Direct API Access...</h4><p>Fetching from backend...</p>');
             
             try {
-                const response = await fetch('https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/public');
+                const response = await fetch('https://pitchey-optimized.ndlovucavelle.workers.dev/api/pitches/public');
                 const data = await response.json();
                 
                 showResult(`
@@ -260,7 +260,7 @@ return response.data.items || response.data.data?.pitches || [];</div>
             showResult('<h4>Testing Frontend Parsing Logic...</h4>');
             
             try {
-                const response = await fetch('https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/public');
+                const response = await fetch('https://pitchey-optimized.ndlovucavelle.workers.dev/api/pitches/public');
                 const data = await response.json();
                 
                 // Test current frontend logic
@@ -289,7 +289,7 @@ return response.data.items || response.data.data?.pitches || [];</div>
             showResult('<h4>Testing Individual Pitch Access...</h4>');
             
             try {
-                const response = await fetch('https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/public/162');
+                const response = await fetch('https://pitchey-optimized.ndlovucavelle.workers.dev/api/pitches/public/162');
                 const data = await response.json();
                 
                 const pitch = data.pitch || data.data?.pitch || data;
@@ -318,7 +318,7 @@ return response.data.items || response.data.data?.pitches || [];</div>
             showResult('<h4>Simulating Fixed Response Format...</h4>');
             
             try {
-                const response = await fetch('https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/public');
+                const response = await fetch('https://pitchey-optimized.ndlovucavelle.workers.dev/api/pitches/public');
                 const data = await response.json();
                 
                 // Create the format the frontend expects

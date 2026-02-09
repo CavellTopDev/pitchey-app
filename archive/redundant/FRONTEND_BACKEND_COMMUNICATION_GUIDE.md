@@ -1,7 +1,7 @@
 # 🔗 FRONTEND-BACKEND COMMUNICATION GUIDE
 **Based on Context7 Cloudflare Workers Documentation**  
 **Your Stack**: React (Pages) ↔ TypeScript Worker API  
-**Account**: cavelltheleaddev@gmail.com
+**Account**: ndlovucavelle@gmail.com
 
 ## 📊 YOUR ACTUAL COMMUNICATION ARCHITECTURE
 
@@ -474,5 +474,5 @@ All communication flows through your deployed Worker at `pitchey-optimized.ndlov
 ---
 
 **Based on**: Cloudflare Workers Documentation via Context7  
-**Your Stack**: cavelltheleaddev@gmail.com account  
+**Your Stack**: ndlovucavelle@gmail.com account  
 **Status**: ✅ All communication patterns working and secured

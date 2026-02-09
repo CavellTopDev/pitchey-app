@@ -1,7 +1,7 @@
 # 🚀 PITCHEY PLATFORM - YOUR ACTUAL PRODUCTION STACK
 
 ## 📅 Last Updated: December 2, 2024
-## 🔑 Account: cavelltheleaddev@gmail.com (Account ID: e16d3bf549153de23459a6c6a06a431b)
+## 🔑 Account: ndlovucavelle@gmail.com (Account ID: e16d3bf549153de23459a6c6a06a431b)
 
 ## ✅ CURRENT DEPLOYMENT ARCHITECTURE
 
@@ -164,7 +164,7 @@ All critical tests passing:
 
 #### Deploy Frontend to Your Pages Project
 ```bash
-# You are logged in as: cavelltheleaddev@gmail.com
+# You are logged in as: ndlovucavelle@gmail.com
 cd frontend
 npm run build
 wrangler pages deploy dist --project-name=pitchey
@@ -183,7 +183,7 @@ wrangler deploy
 - 🔧 **Your API**: https://pitchey-optimized.ndlovucavelle.workers.dev
 - ❤️ **Health Check**: https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 - 📊 **Monitor**: `wrangler tail` (real-time logs)
-- 🔑 **Account**: cavelltheleaddev@gmail.com
+- 🔑 **Account**: ndlovucavelle@gmail.com
 
 ### Support Commands
 ```bash

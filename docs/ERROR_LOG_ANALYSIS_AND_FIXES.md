@@ -222,7 +222,7 @@ const wsUrl = request.url.startsWith('http')
 #### Error Log:
 ```
 Access to fetch at 'https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/login' 
-from origin 'https://pitchey.pages.dev' has been blocked by CORS policy
+from origin 'https://pitchey-5o8.pages.dev' has been blocked by CORS policy
 ```
 
 #### Fix Applied:
@@ -230,7 +230,7 @@ from origin 'https://pitchey.pages.dev' has been blocked by CORS policy
 // Comprehensive CORS headers
 export function getCorsHeaders(origin?: string | null): HeadersInit {
   const allowedOrigins = [
-    'https://pitchey.pages.dev',
+    'https://pitchey-5o8.pages.dev',
     'http://localhost:5173',
     'http://localhost:8001'
   ];

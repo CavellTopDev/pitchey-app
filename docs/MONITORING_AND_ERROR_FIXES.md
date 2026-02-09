@@ -666,10 +666,10 @@ wrangler tail --format pretty --status error
 
 ```bash
 # Test health endpoint
-curl https://pitchey-production.cavelltheleaddev.workers.dev/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/health
 
 # Test password change
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/change-password \
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/change-password \
   -H "Content-Type: application/json" \
   -H "Cookie: session=..." \
   -d '{

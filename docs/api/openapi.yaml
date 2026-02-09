@@ -26,7 +26,7 @@ info:
     
     ## API Versions
     - Current version: v1 (production ready)
-    - Base URL: https://pitchey-production.cavelltheleaddev.workers.dev
+    - Base URL: https://pitchey-api-prod.ndlovucavelle.workers.dev
     - Local development: http://localhost:8001
   version: "1.0.0"
   contact:
@@ -39,7 +39,7 @@ info:
   termsOfService: https://pitchey.com/terms
 
 servers:
-  - url: https://pitchey-production.cavelltheleaddev.workers.dev
+  - url: https://pitchey-api-prod.ndlovucavelle.workers.dev
     description: Production server (Cloudflare Workers)
   - url: http://localhost:8001
     description: Local development server

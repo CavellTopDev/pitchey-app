@@ -3,7 +3,7 @@
 ## 🎯 Current Deployment Status
 
 ### Production Environment
-- **Frontend**: https://pitchey.pages.dev (Cloudflare Pages)
+- **Frontend**: https://pitchey-5o8.pages.dev (Cloudflare Pages)
 - **API**: https://pitchey-api-prod.ndlovucavelle.workers.dev (Cloudflare Workers)
 - **Database**: Neon PostgreSQL (Production)
 - **Cache**: KV Namespaces (Configured)
@@ -94,7 +94,7 @@ curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/admin/metrics
 ### Portal Access
 ```bash
 # Frontend should load without errors
-https://pitchey.pages.dev
+https://pitchey-5o8.pages.dev
 
 # Check for React warnings in console
 # Expected: No warnings or errors

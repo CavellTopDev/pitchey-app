@@ -1,7 +1,7 @@
 LOAD TEST RESULTS - Sun 14 Dec 21:33:09 GMT 2025
 ================================
 Configuration:
-- URL: https://pitchey-production.cavelltheleaddev.workers.dev
+- URL: https://pitchey-api-prod.ndlovucavelle.workers.dev
 - Concurrent Users: 10
 - Requests per User: 5
 - Total Requests: 50

@@ -8,7 +8,7 @@
 const https = require('https');
 const { URL } = require('url');
 
-const API_BASE_URL = 'https://pitchey-optimized.cavelltheleaddev.workers.dev';
+const API_BASE_URL = 'https://pitchey-optimized.ndlovucavelle.workers.dev';
 
 function makeRequest(url) {
   return new Promise((resolve, reject) => {

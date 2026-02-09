@@ -1,6 +1,6 @@
 # 🚀 Pitchey Production Go-Live Checklist
 
-**Account**: cavelltheleaddev@gmail.com  
+**Account**: ndlovucavelle@gmail.com  
 **Platform**: Cloudflare Workers + Pages  
 **Deployment Date**: _____________  
 **Go-Live Engineer**: _____________
@@ -12,7 +12,7 @@
 ### 📋 Infrastructure Verification
 
 - [ ] **Cloudflare Account Access**
-  - [ ] Logged into cavelltheleaddev@gmail.com
+  - [ ] Logged into ndlovucavelle@gmail.com
   - [ ] Account ID confirmed: `e16d3bf549153de23459a6c6a06a431b`
   - [ ] Worker and Pages quotas sufficient
   - [ ] Billing configured and active

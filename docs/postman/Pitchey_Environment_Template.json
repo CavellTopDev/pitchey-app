@@ -4,7 +4,7 @@
   "values": [
     {
       "key": "baseUrl",
-      "value": "https://pitchey-production.cavelltheleaddev.workers.dev",
+      "value": "https://pitchey-api-prod.ndlovucavelle.workers.dev",
       "type": "default",
       "enabled": true,
       "description": "Base URL for the Pitchey API"

@@ -1,7 +1,7 @@
 # 🚨 Emergency Response Playbook
 
 **Platform**: Pitchey Movie Pitch Platform  
-**Account**: cavelltheleaddev@gmail.com  
+**Account**: ndlovucavelle@gmail.com  
 **Infrastructure**: Cloudflare Workers + Pages + Neon PostgreSQL
 
 ---

@@ -63,7 +63,7 @@ class PitcheySDK:
     
     def __init__(
         self,
-        api_url: str = "https://pitchey-production.cavelltheleaddev.workers.dev",
+        api_url: str = "https://pitchey-api-prod.ndlovucavelle.workers.dev",
         api_key: Optional[str] = None,
         timeout: float = 30.0,
         retries: int = 3,
@@ -170,7 +170,7 @@ class PitcheySDK:
             Configured PitcheySDK instance
         """
         return cls(
-            api_url="https://pitchey-production.cavelltheleaddev.workers.dev",
+            api_url="https://pitchey-api-prod.ndlovucavelle.workers.dev",
             api_key=api_key,
             debug=False,
         )
@@ -226,6 +226,6 @@ class PitcheySDK:
             PitcheySDK instance without authentication
         """
         return cls(
-            api_url="https://pitchey-production.cavelltheleaddev.workers.dev",
+            api_url="https://pitchey-api-prod.ndlovucavelle.workers.dev",
             debug=False,
         )

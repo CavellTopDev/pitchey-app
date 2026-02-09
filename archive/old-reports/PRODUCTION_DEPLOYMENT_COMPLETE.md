@@ -1,6 +1,6 @@
 # 🚀 Pitchey Production Deployment - Complete System
 
-**Account**: cavelltheleaddev@gmail.com  
+**Account**: ndlovucavelle@gmail.com  
 **Platform**: Cloudflare Workers + Pages  
 **Completion Date**: December 3, 2024  
 **Deployment Engineer**: Claude

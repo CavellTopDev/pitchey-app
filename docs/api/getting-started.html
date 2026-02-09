@@ -480,7 +480,7 @@
                     <div class="code-block">
                         <button class="copy-btn" onclick="copyCode(this)">Copy</button>
                         <pre><code class="language-javascript">// Example: Login as a creator
-const loginResponse = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login', {
+const loginResponse = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json'
@@ -507,7 +507,7 @@ localStorage.setItem('pitchey_token', token);</code></pre>
                     <div class="code-block">
                         <button class="copy-btn" onclick="copyCode(this)">Copy</button>
                         <pre><code class="language-javascript">// Making authenticated requests
-const response = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/user/profile', {
+const response = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/user/profile', {
   headers: {
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json'
@@ -527,7 +527,7 @@ const userProfile = await response.json();</code></pre>
 
                 <h3>Base URLs</h3>
                 <ul>
-                    <li><strong>Production:</strong> <code>https://pitchey-production.cavelltheleaddev.workers.dev</code></li>
+                    <li><strong>Production:</strong> <code>https://pitchey-api-prod.ndlovucavelle.workers.dev</code></li>
                     <li><strong>Local Development:</strong> <code>http://localhost:8001</code></li>
                 </ul>
 
@@ -874,7 +874,7 @@ const advancedResponse = await fetch('/api/search/advanced?' + new URLSearchPara
                         <button class="copy-btn" onclick="copyCode(this)">Copy</button>
                         <pre><code class="language-javascript">// Login with demo creator account
 async function loginDemoCreator() {
-  const response = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login', {
+  const response = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'

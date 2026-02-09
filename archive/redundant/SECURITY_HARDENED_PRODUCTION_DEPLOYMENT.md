@@ -3,7 +3,7 @@
 ## Deployment Summary
 **Date**: December 2, 2025  
 **Environment**: Production  
-**Account**: cavelltheleaddev@gmail.com  
+**Account**: ndlovucavelle@gmail.com  
 
 ## 🚀 Successfully Deployed
 ✅ **Security-Hardened Worker**: `pitchey-production-secure.ndlovucavelle.workers.dev`  

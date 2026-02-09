@@ -11,8 +11,8 @@ const http = require('http');
 // Configuration
 const CONFIG = {
   // Production URLs
-  PRODUCTION_URL: 'https://pitchey-production-secure.cavelltheleaddev.workers.dev',
-  OPTIMIZED_URL: 'https://pitchey-production-optimized.cavelltheleaddev.workers.dev',
+  PRODUCTION_URL: 'https://pitchey-production-secure.ndlovucavelle.workers.dev',
+  OPTIMIZED_URL: 'https://pitchey-production-optimized.ndlovucavelle.workers.dev',
   
   // Test parameters
   CONCURRENT_REQUESTS: 10,
