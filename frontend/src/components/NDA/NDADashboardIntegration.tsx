@@ -90,7 +90,7 @@ export default function NDADashboardIntegration({
       const activity: RecentNDAActivity[] = ndas.slice(0, compact ? 3 : 5).map(nda => ({
         id: nda.id,
         type: getActivityType(nda.status),
-        pitchTitle: nda.pitchTitle || 'Untitled Pitch',
+        pitchTitle: nda.pitchTitle || (nda as any).pitch_title || 'Untitled Pitch',
         partnerName: getPartnerName(nda, userType),
         timestamp: nda.updatedAt || nda.createdAt,
         status: nda.status
@@ -119,10 +119,11 @@ export default function NDADashboardIntegration({
   const getPartnerName = (nda: NDA, userType: string): string => {
     // For creators, show the requester/signer name
     // For investors/production, show the creator name
+    const raw = nda as any;
     if (userType === 'creator') {
-      return nda.requesterName || nda.signerName || 'Unknown User';
+      return nda.requesterName || nda.signerName || raw.requester_username || 'Unknown User';
     } else {
-      return nda.creatorName || 'Unknown Creator';
+      return nda.creatorName || raw.creator_username || 'Unknown Creator';
     }
   };
 

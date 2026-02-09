@@ -77,8 +77,8 @@ export default function NDANotifications({ className = '', compact = false }: ND
         id: nda.id,
         type: 'request' as const,
         nda,
-        pitchTitle: nda.pitch?.title || 'Unknown Pitch',
-        requesterName: nda.requester?.username || 'Unknown User',
+        pitchTitle: nda.pitch?.title || (nda as any).pitch_title || 'Unknown Pitch',
+        requesterName: nda.requester?.username || (nda as any).requester_username || 'Unknown User',
         timestamp: nda.requestedAt,
         read: false
       }));
@@ -448,10 +448,10 @@ export function NDANotificationPanel({ className = '' }: { className?: string })
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <h4 className="font-medium text-gray-900">
-                      {nda.pitch?.title || 'Unknown Pitch'}
+                      {nda.pitch?.title || (nda as any).pitch_title || 'Unknown Pitch'}
                     </h4>
                     <p className="text-sm text-gray-600 mt-1">
-                      Request from <span className="font-medium">{nda.requester?.username}</span>
+                      Request from <span className="font-medium">{nda.requester?.username || (nda as any).requester_username || 'Unknown User'}</span>
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                       {new Date(nda.requestedAt).toLocaleDateString()}
