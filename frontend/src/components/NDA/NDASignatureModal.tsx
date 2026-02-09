@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   X,
   PenTool,
@@ -11,7 +12,8 @@ import {
   Calendar,
   User,
   Building2,
-  Save
+  Save,
+  MessageSquare
 } from 'lucide-react';
 import { useToast } from '../Toast/ToastProvider';
 import { ndaService } from '../../services/nda.service';
@@ -50,10 +52,16 @@ export default function NDASignatureModal({
   nda,
   onSigned
 }: NDASignatureModalProps) {
+  const navigate = useNavigate();
   const { user } = useBetterAuthStore();
   const { success, error } = useToast();
-  
+
   const [step, setStep] = useState<'terms' | 'signature' | 'confirmation'>('terms');
+  const [conversationInfo, setConversationInfo] = useState<{
+    creatorId: number;
+    creatorName: string;
+    pitchTitle: string;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [signatureData, setSignatureData] = useState<SignatureData>({
     fullName: `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
@@ -170,10 +178,10 @@ export default function NDASignatureModal({
 
     try {
       setLoading(true);
-      
+
       const signature = captureSignature();
-      
-      await ndaService.signNDA({
+
+      const result = await ndaService.signNDA({
         ndaId: nda.id,
         signature,
         fullName: signatureData.fullName,
@@ -181,6 +189,10 @@ export default function NDASignatureModal({
         company: signatureData.company,
         acceptTerms: signatureData.acceptTerms
       });
+
+      if (result.conversation) {
+        setConversationInfo(result.conversation);
+      }
 
       setStep('confirmation');
       success('NDA Signed Successfully', 'You have successfully signed the NDA. You now have access to the protected content.');
@@ -528,6 +540,9 @@ By proceeding with electronic signature, the Receiving Party acknowledges they h
                     <li>You can now access the protected pitch materials</li>
                     <li>The creator has been notified of your signature</li>
                     <li>You can download a copy of the signed agreement</li>
+                    {conversationInfo && (
+                      <li>A conversation has been started with {conversationInfo.creatorName}</li>
+                    )}
                   </ul>
                 </div>
               </div>
@@ -540,6 +555,18 @@ By proceeding with electronic signature, the Receiving Party acknowledges they h
                   <Download className="w-4 h-4" />
                   Download Agreement
                 </button>
+                {conversationInfo && (
+                  <button
+                    onClick={() => {
+                      onClose();
+                      navigate('/messages');
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 border border-blue-300 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    Message Creator
+                  </button>
+                )}
                 <button
                   onClick={onClose}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"

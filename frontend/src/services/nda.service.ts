@@ -142,8 +142,14 @@ export class NDAService {
   }
 
   // Sign NDA
-  static async signNDA(signature: NDASignature): Promise<NDA> {
-    interface SignNDAResponse { nda: NDA }
+  static async signNDA(signature: NDASignature): Promise<{
+    nda: NDA;
+    conversation?: { creatorId: number; creatorName: string; pitchTitle: string };
+  }> {
+    interface SignNDAResponse {
+      nda: NDA;
+      conversation?: { creatorId: number; creatorName: string; pitchTitle: string };
+    }
     const response = await apiClient.post<SignNDAResponse>(
       `/api/ndas/${signature.ndaId}/sign`,
       signature
@@ -154,7 +160,7 @@ export class NDAService {
       throw new Error(errorMessage ?? 'Failed to sign NDA');
     }
 
-    return response.data.nda;
+    return { nda: response.data.nda, conversation: response.data.conversation };
   }
 
   // Approve NDA request (for creators)

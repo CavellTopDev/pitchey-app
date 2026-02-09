@@ -6527,7 +6527,39 @@ pitchey_analytics_datapoints_per_minute 1250
         }
       );
 
-      return builder.success({ nda: signedNda });
+      // Auto-create message thread between signer and pitch creator
+      let conversation: { creatorId: number; creatorName: string; pitchTitle: string } | null = null;
+      try {
+        const [pitch] = await this.db.query(
+          `SELECT p.user_id, p.title, u.name as creator_name
+           FROM pitches p
+           LEFT JOIN users u ON u.id = p.user_id
+           WHERE p.id = $1`,
+          [nda.pitch_id]
+        );
+
+        if (pitch && pitch.user_id && pitch.user_id !== authResult.user.id) {
+          const pitchTitle = pitch.title || 'Untitled Pitch';
+          await this.db.query(
+            `INSERT INTO messages (sender_id, recipient_id, content)
+             VALUES ($1, $2, $3)`,
+            [
+              authResult.user.id,
+              pitch.user_id,
+              `NDA signed for "${pitchTitle}". You can now discuss this pitch.`
+            ]
+          );
+          conversation = {
+            creatorId: pitch.user_id,
+            creatorName: pitch.creator_name || 'Creator',
+            pitchTitle
+          };
+        }
+      } catch (msgError) {
+        console.warn('Failed to create NDA signing message thread:', msgError);
+      }
+
+      return builder.success({ nda: signedNda, conversation });
     } catch (error) {
       return errorHandler(error, request);
     }
