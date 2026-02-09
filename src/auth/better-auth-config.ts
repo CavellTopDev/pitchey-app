@@ -106,8 +106,8 @@ export function createAuth(env: any) {
       sameSite: "none", // Allow cross-domain cookie sending
       httpOnly: true,
       // Support subdomains
-      domain: env.ENVIRONMENT === 'production' 
-        ? ".cavelltheleaddev.workers.dev" 
+      domain: env.ENVIRONMENT === 'production'
+        ? ".pages.dev"
         : undefined,
       path: "/",
       maxAge: 60 * 60 * 24 * 30 // 30 days
@@ -199,7 +199,7 @@ export function createAuth(env: any) {
       // Cross-subdomain cookie support
       crossSubDomainCookies: {
         enabled: env.ENVIRONMENT === 'production',
-        domain: ".cavelltheleaddev.workers.dev"
+        domain: ".pages.dev"
       }
     },
 

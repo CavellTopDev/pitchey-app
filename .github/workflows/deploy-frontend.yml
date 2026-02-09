@@ -59,7 +59,7 @@ jobs:
         run: |
           echo "✅ Frontend deployed successfully!"
           echo "🌐 Production URL: https://pitchey-5o8.pages.dev"
-          echo "🌐 Alternative URL: https://pitchey.pages.dev"
+          echo "🌐 Pages Project: pitchey-5o8"
           echo "🔄 Deployment ID: ${{ github.sha }}"
           echo ""
           echo "The deployment may take 1-2 minutes to propagate globally."

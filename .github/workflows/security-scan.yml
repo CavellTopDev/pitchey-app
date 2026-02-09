@@ -196,7 +196,7 @@ jobs:
       - name: OWASP ZAP API Scan
         uses: zaproxy/action-api-scan@v0.7.0
         with:
-          target: 'https://pitchey-production.cavelltheleaddev.workers.dev'
+          target: 'https://pitchey-api-prod.ndlovucavelle.workers.dev'
           rules_file_name: '.zap/rules.tsv'
           cmd_options: '-a'
 

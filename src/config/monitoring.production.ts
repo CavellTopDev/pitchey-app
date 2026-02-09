@@ -523,7 +523,7 @@ export const productionMonitoringConfig: MonitoringConfig = {
       allowedDomains: [
         'pitchey-5o8.pages.dev',
         'pitchey.com',
-        'cavelltheleaddev.workers.dev'
+        'ndlovucavelle.workers.dev'
       ],
       ignorePaths: [
         '/health',

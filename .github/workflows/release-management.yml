@@ -445,9 +445,9 @@ jobs:
           ## 🚀 Deployment Information
 
           ### Production URLs
-          - **Frontend**: https://pitchey.pages.dev
-          - **API**: https://pitchey-production.cavelltheleaddev.workers.dev
-          - **Health Check**: https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+          - **Frontend**: https://pitchey-5o8.pages.dev
+          - **API**: https://pitchey-api-prod.ndlovucavelle.workers.dev
+          - **Health Check**: https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 
           ### Release Metadata
           - **Release Type**: $RELEASE_TYPE
@@ -641,7 +641,7 @@ jobs:
           # curl -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
           #   -H 'Content-type: application/json' \
           #   --data '{
-          #     "text": "🚀 New Pitchey release v'$NEW_VERSION' ('$RELEASE_TYPE') is now live!\n\nRelease Notes: '$RELEASE_URL'\nProduction: https://pitchey.pages.dev"
+          #     "text": "🚀 New Pitchey release v'$NEW_VERSION' ('$RELEASE_TYPE') is now live!\n\nRelease Notes: '$RELEASE_URL'\nProduction: https://pitchey-5o8.pages.dev"
           #   }'
           
           # Email notification (if configured)

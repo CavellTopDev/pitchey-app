@@ -10,8 +10,7 @@ interface CORSConfig {
 
 const PRODUCTION_FRONTEND = 'https://pitchey-5o8.pages.dev';
 const ALTERNATIVE_FRONTENDS = [
-  'https://pitchey.pages.dev',
-  'https://pitchey.cavelltheleaddev.workers.dev'
+  'https://pitchey-api-prod.ndlovucavelle.workers.dev'
 ];
 
 export function getCORSHeaders(origin: string | null, credentials: boolean = true): Record<string, string> {

@@ -365,7 +365,7 @@ jobs:
           if [ -n "${{ secrets.CLOUDFLARE_ZONE_ID }}" ]; then
             # Check main domain
             MAIN_RECORD=$(curl -s -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-              "$CLOUDFLARE_API_BASE/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records?name=pitchey.pages.dev")
+              "$CLOUDFLARE_API_BASE/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records?name=pitchey-5o8.pages.dev")
             
             echo "Current DNS configuration validated"
           fi
@@ -404,7 +404,7 @@ jobs:
         run: |
           echo "🔍 Health checking rolled back worker..."
           
-          HEALTH_URL="https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
+          HEALTH_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"
           MAX_ATTEMPTS=20
           RETRY_INTERVAL=15
           
@@ -447,7 +447,7 @@ jobs:
         run: |
           echo "🔍 Health checking rolled back frontend..."
           
-          FRONTEND_URL="https://pitchey.pages.dev"
+          FRONTEND_URL="https://pitchey-5o8.pages.dev"
           MAX_ATTEMPTS=10
           RETRY_INTERVAL=30
           
@@ -476,7 +476,7 @@ jobs:
           echo "🧪 Running post-rollback functional tests..."
           
           # Test critical API endpoints
-          API_BASE="https://pitchey-production.cavelltheleaddev.workers.dev/api"
+          API_BASE="https://pitchey-api-prod.ndlovucavelle.workers.dev/api"
           
           # Test health endpoint
           curl -sf "$API_BASE/health" || {
@@ -567,9 +567,9 @@ jobs:
               "healthCheck": "${{ needs.post-rollback-health.result }}"
             },
             "urls": {
-              "frontend": "https://pitchey.pages.dev",
-              "api": "https://pitchey-production.cavelltheleaddev.workers.dev",
-              "health": "https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
+              "frontend": "https://pitchey-5o8.pages.dev",
+              "api": "https://pitchey-api-prod.ndlovucavelle.workers.dev",
+              "health": "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"
             }
           }
           EOF
