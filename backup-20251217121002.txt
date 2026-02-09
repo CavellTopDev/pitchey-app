@@ -1,2 +1,0 @@
-
- ⛅️ wrangler 4.51.0 (update available 4.55.0)

@@ -1,6 +1,0 @@
-REAL_DATA_VERSION_1.0
-Deployed: 2025-09-24
-Features: 
-- No more mock 15k views
-- Real database tracking
-- Actual user interactions counted
