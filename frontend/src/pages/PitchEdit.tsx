@@ -274,30 +274,15 @@ export default function PitchEdit() {
         characters: serializeCharacters(formData.characters)
       };
 
-      // Skip file uploads for now - media upload endpoint not yet implemented
-      // TODO: Implement media upload endpoint in backend
-      if (formData.image || formData.pdf || formData.video) {
-        // Comment out media upload to prevent errors
-        /*
-        const media: string[] = [];
-        
-        if (formData.image) {
-          const imageUrl = await pitchService.uploadMedia(parseInt(id!), formData.image, 'image');
-          media.push(imageUrl);
+      // Upload image via /api/upload and set as title image
+      if (formData.image) {
+        const result = await uploadService.uploadDocument(formData.image, 'image', {
+          pitchId: parseInt(id!),
+          folder: 'pitch-images'
+        });
+        if (result.url) {
+          updateData.titleImage = result.url;
         }
-        if (formData.pdf) {
-          const pdfUrl = await pitchService.uploadMedia(parseInt(id!), formData.pdf, 'document');
-          media.push(pdfUrl);
-        }
-        if (formData.video) {
-          const videoUrl = await pitchService.uploadMedia(parseInt(id!), formData.video, 'video');
-          media.push(videoUrl);
-        }
-        
-        if (media.length > 0) {
-          updateData.additionalMedia = media;
-        }
-        */
       }
 
       await pitchService.update(parseInt(id!), updateData);

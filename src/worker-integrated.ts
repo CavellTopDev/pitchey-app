@@ -4783,7 +4783,10 @@ pitchey_analytics_datapoints_per_minute 1250
       videoUrl?: string;
       videoPassword?: string;
       videoPlatform?: string;
-      
+
+      // Media
+      titleImage?: string;
+
       // Other fields
       themes?: string;
       worldDescription?: string;
@@ -4834,6 +4837,7 @@ pitchey_analytics_datapoints_per_minute 1250
           themes = COALESCE($22, themes),
           world_description = COALESCE($23, world_description),
           characters = COALESCE($24, characters),
+          title_image = COALESCE($25, title_image),
           updated_at = NOW()
         WHERE id = $1
         RETURNING *
@@ -4861,7 +4865,8 @@ pitchey_analytics_datapoints_per_minute 1250
         data.videoPlatform,
         data.themes,
         data.worldDescription,
-        data.characters ? JSON.stringify(data.characters) : null
+        data.characters ? JSON.stringify(data.characters) : null,
+        data.titleImage
       ]);
 
       // Handle creative attachments if provided

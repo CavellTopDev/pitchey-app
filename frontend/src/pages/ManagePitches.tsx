@@ -357,7 +357,19 @@ export default function ManagePitches() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {filteredPitches.map((pitch) => (
-              <div key={pitch.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition">
+              <div key={pitch.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition overflow-hidden">
+                {/* Thumbnail */}
+                <div className="h-40 relative">
+                  {pitch.titleImage ? (
+                    <img
+                      src={pitch.titleImage}
+                      alt={pitch.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-purple-400 to-indigo-600" />
+                  )}
+                </div>
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">

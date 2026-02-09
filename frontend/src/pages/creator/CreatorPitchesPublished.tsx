@@ -297,7 +297,16 @@ export default function CreatorPitchesPublished() {
                 onClick={() => navigate(`/pitch/${pitch.id}`)}
               >
                 {/* Thumbnail */}
-                <div className="h-48 bg-gradient-to-br from-purple-400 to-indigo-600 rounded-t-lg relative">
+                <div className="h-48 rounded-t-lg relative overflow-hidden">
+                  {pitch.thumbnail ? (
+                    <img
+                      src={pitch.thumbnail}
+                      alt={pitch.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-purple-400 to-indigo-600" />
+                  )}
                   <div className="absolute top-4 right-4">
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(pitch.status)}`}>
                       {pitch.status}
