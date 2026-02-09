@@ -1,4 +1,5 @@
 #!/bin/bash
+# DEPRECATED: This script was written for Deno Deploy. The project now uses Cloudflare Workers (wrangler deploy).
 
 # Fix Production Deployment - Deploy with correct environment variables
 # This script redeploys the backend with all required environment variables

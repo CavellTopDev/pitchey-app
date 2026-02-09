@@ -1,4 +1,5 @@
 #!/bin/bash
+# DEPRECATED: This script was written for Deno Deploy. The project now uses Cloudflare Workers (wrangler deploy).
 
 # =============================================================================
 # Pitchey Production Deployment Script - Enhanced Version

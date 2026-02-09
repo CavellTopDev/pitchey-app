@@ -1,4 +1,5 @@
 #!/bin/bash
+# DEPRECATED: This script was written for Deno Deploy. The project now uses Cloudflare Workers (wrangler deploy).
 
 # Secure Deployment Script
 # Uses local token file that is NEVER committed to git

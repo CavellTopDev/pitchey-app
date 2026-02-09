@@ -1,7 +1,9 @@
 #!/usr/bin/env -S deno run --allow-all
 /**
- * Automated Rollback Script
- * Handles rollback procedures for failed deployments
+ * @deprecated This script was written for Deno Deploy (pre-migration).
+ * The project now deploys via Cloudflare Workers (`wrangler deploy`).
+ * For rollbacks, use `wrangler rollback` or the Cloudflare dashboard.
+ * Kept for reference only.
  */
 
 interface RollbackOptions {

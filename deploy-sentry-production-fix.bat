@@ -1,4 +1,5 @@
 @echo off
+# DEPRECATED: This script was written for Deno Deploy. The project now uses Cloudflare Workers (wrangler deploy).
 
 # Production Sentry Fix Deployment Script
 # Fixes telemetry initialization issues

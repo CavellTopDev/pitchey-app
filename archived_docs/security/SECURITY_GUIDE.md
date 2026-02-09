@@ -1,3 +1,5 @@
+> **Note**: This document predates the migration from Deno Deploy to Cloudflare Workers (completed Dec 2024). Deno Deploy references are historical.
+
 # Security Guide - Token Management
 
 ## 🔒 Secure Token Storage System

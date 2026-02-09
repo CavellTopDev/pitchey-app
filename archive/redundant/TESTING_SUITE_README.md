@@ -1,3 +1,5 @@
+> **Note**: This document predates the migration from Deno Deploy to Cloudflare Workers (completed Dec 2024). Deno Deploy references are historical.
+
 # Pitchey Testing Suite & Monitoring Tools
 
 This comprehensive testing suite provides thorough testing and monitoring capabilities for the Pitchey platform, covering investor dashboard functionality, end-to-end workflows, performance monitoring, and automated CI/CD testing.

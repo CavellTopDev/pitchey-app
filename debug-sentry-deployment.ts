@@ -1,3 +1,4 @@
+// DEPRECATED: This script was written for Deno Deploy. The project now uses Cloudflare Workers (wrangler deploy).
 // Emergency Sentry Deployment Diagnosis
 // Check why Sentry is still not initializing after production deployment
 
@@ -76,7 +77,7 @@ echo "============================"
 
 echo "🔄 Force redeploying with explicit Sentry configuration..."
 
-DENO_DEPLOY_TOKEN=ddp_0xCz7itR2p7NIjymyodtIOI3wfjS2n0LB8oH \\
+DENO_DEPLOY_TOKEN=YOUR_DENO_DEPLOY_TOKEN_HERE \\
 deployctl deploy \\
   --project=pitchey-backend-fresh \\
   --entrypoint=working-server.ts \\

@@ -1,3 +1,5 @@
+> **Note**: This document predates the migration from Deno Deploy to Cloudflare Workers (completed Dec 2024). Deno Deploy references are historical.
+
 # GitHub Secrets Configuration Guide
 
 This guide explains how to configure the required GitHub secrets for the Pitchey CI/CD pipelines.

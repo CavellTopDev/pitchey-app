@@ -1,8 +1,7 @@
 /**
- * Environment Variable Validation for Deno Deploy Compatibility
- * 
- * Validates required environment variables at startup and provides
- * fallback behavior for development vs production environments.
+ * @deprecated This file is unused — it was written for Deno Deploy (pre-migration).
+ * The project now runs on Cloudflare Workers, which use `Env` bindings instead of
+ * `Deno.env`. Kept for reference only; do not import in new code.
  */
 
 export interface EnvConfig {

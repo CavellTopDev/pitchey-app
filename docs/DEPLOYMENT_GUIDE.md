@@ -4,64 +4,38 @@
 This guide covers deployment procedures for the Pitchey platform across development, staging, and production environments.
 
 ## Architecture Overview
-- **Frontend**: React/Vite application deployed on cloudflare-pages
-- **Backend**: Deno server deployed on Deno Deploy  
-- **Database**: PostgreSQL hosted on Neon
-- **Cache**: Redis on Upstash (production) / Docker (development)
+- **Frontend**: React/Vite application deployed on Cloudflare Pages
+- **Backend**: Cloudflare Worker (`worker-integrated.ts`) deployed via `wrangler deploy`
+- **Database**: PostgreSQL hosted on Neon (raw SQL, no ORM)
+- **Cache**: Upstash Redis (global distributed)
+- **Auth**: Better Auth (session-based cookies, no JWT)
 
 ## Local Development Setup
 
 ### Prerequisites
 - **Node.js 18+** for frontend
-- **Deno 1.40+** for backend
-- **Docker & Docker Compose** for database
+- **Wrangler CLI** for backend Worker development and deployment
 - **Git** for version control
 
 ### Quick Start
 ```bash
 # Clone repository
 git clone <repository-url>
-cd pitchey_v0.2
-
-# Start database
-docker-compose up -d db
+cd pitchey
 
 # Start backend (Terminal 1)
-PORT=8001 deno run --allow-all working-server.ts
+wrangler dev
 
-# Start frontend (Terminal 2)  
+# Start frontend (Terminal 2)
 cd frontend && npm install && npm run dev
 ```
 
 ### Detailed Setup
 
-#### 1. Database Setup
+#### 1. Backend Configuration
 ```bash
-# Start PostgreSQL with Docker
-docker-compose up -d db
-
-# Wait for database to be ready
-sleep 5
-
-# Run migrations (if available)
-deno run --allow-all src/db/migrate.ts
-
-# Seed with demo data
-deno run --allow-all scripts/seed-db.ts
-```
-
-#### 2. Backend Configuration
-```bash
-# Create .env file
-cat > .env << EOF
-DATABASE_URL=postgresql://postgres:password@localhost:5432/pitchey
-JWT_SECRET=test-secret-key-for-development
-PORT=8001
-FRONTEND_URL=http://localhost:5173
-EOF
-
-# Start backend server
-PORT=8001 deno run --allow-all working-server.ts
+# Start Worker locally with bindings
+wrangler dev
 ```
 
 #### 3. Frontend Configuration
@@ -84,26 +58,11 @@ npm run dev
 
 ### Development Scripts
 
-#### Using Convenience Scripts
 ```bash
-# Start all services
-./start-local.sh
+# Backend
+wrangler dev
 
-# Start with development mode
-./start-dev.sh
-
-# Using deno tasks
-deno task dev    # Backend only
-deno task start  # Production mode
-```
-
-#### Manual Service Management
-```bash
-# Backend variations
-PORT=8001 deno run --allow-all working-server.ts
-deno task dev  # With watch mode
-
-# Frontend variations  
+# Frontend
 cd frontend && npm run dev
 cd frontend && npm run build && npm run preview
 ```
@@ -112,86 +71,53 @@ cd frontend && npm run build && npm run preview
 
 ### Environment Variables
 
-#### Backend (Deno Deploy)
-```bash
-# Required variables
-DATABASE_URL=postgresql://user:pass@host:port/db?sslmode=require
-JWT_SECRET=<secure-random-string>
-FRONTEND_URL=https://pitchey-5o8.pages.dev
+#### Backend (Cloudflare Worker)
+Environment variables are configured via `wrangler.toml` `[vars]` section or Cloudflare dashboard secrets.
 
-# Optional variables
-REDIS_URL=<upstash-redis-url>
+```bash
+# Key variables (set via wrangler secret)
+FRONTEND_URL=https://pitchey-5o8.pages.dev
+UPSTASH_REDIS_REST_URL=<upstash-redis-url>
+UPSTASH_REDIS_REST_TOKEN=<upstash-token>
 SENTRY_DSN=<sentry-dsn>
-CACHE_ENABLED=true
 ```
 
-#### Frontend (cloudflare-pages)
+#### Frontend (Cloudflare Pages)
 ```bash
 # Build-time variables
-VITE_API_URL=https://pitchey-backend-fresh.deno.dev
-VITE_WS_URL=wss://pitchey-backend-fresh.deno.dev
+VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
+VITE_WS_URL=wss://pitchey-api-prod.ndlovucavelle.workers.dev
 VITE_NODE_ENV=production
 
 # Optional
 VITE_SENTRY_DSN=<frontend-sentry-dsn>
 ```
 
-### Backend Deployment (Deno Deploy)
+### Backend Deployment (Cloudflare Workers)
 
 #### Automatic Deployment (GitHub Actions)
-```yaml
-# .github/workflows/deploy.yml
-name: Deploy to Deno Deploy
-on:
-  push:
-    branches: [main]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: denoland/setup-deno@v1
-      - name: Deploy to Deno Deploy
-        run: |
-          deployctl deploy \
-            --project="pitchey-backend-fresh" \
-            --entrypoint="working-server.ts" \
-            --env-file=".env.deploy"
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
-```
+The CI/CD pipeline in `.github/workflows/ci-cd.yml` deploys automatically on push to `main`.
 
 #### Manual Deployment
 ```bash
-# Prepare environment file
-cat > .env.deploy << EOF
-DATABASE_URL=$NEON_DATABASE_URL
-JWT_SECRET=$JWT_SECRET
-FRONTEND_URL=https://pitchey-5o8.pages.dev
-EOF
-
-# Deploy using deployctl
-DENO_DEPLOY_TOKEN=$DENO_DEPLOY_TOKEN deployctl deploy \
-  --project="pitchey-backend-fresh" \
-  --entrypoint="working-server.ts" \
-  --env-file=".env.deploy"
+# Deploy Worker to production
+wrangler deploy
 ```
 
-### Frontend Deployment (cloudflare-pages)
+### Frontend Deployment (Cloudflare Pages)
 
 #### Automatic Deployment
-cloudflare-pages automatically deploys from the `main` branch when connected to GitHub.
+Cloudflare Pages automatically deploys from the `main` branch when connected to GitHub.
 
 #### Manual Deployment
 ```bash
 cd frontend
 
 # Build for production
-VITE_API_URL=https://pitchey-backend-fresh.deno.dev npm run build
+npm run build
 
-# Deploy to cloudflare-pages
-cloudflare-pages deploy --prod --dir=dist
+# Deploy to Cloudflare Pages
+wrangler pages deploy dist --project-name=pitchey
 ```
 
 ### Database Setup (Neon)
@@ -210,11 +136,8 @@ cloudflare-pages deploy --prod --dir=dist
 
 3. **Run Migrations**
    ```bash
-   # Local to production migration
-   DATABASE_URL=$NEON_DATABASE_URL deno run --allow-all src/db/migrate.ts
-   
-   # Seed production data
-   DATABASE_URL=$NEON_DATABASE_URL deno run --allow-all scripts/seed-db.ts
+   # Run migrations via the Worker's migrate endpoint or directly
+   npx tsx src/db/migrate.ts
    ```
 
 ## Database Management
@@ -500,10 +423,10 @@ const corsOptions = {
 #### Backend Health Endpoint
 ```bash
 # Local
-curl http://localhost:8001/api/health
+curl http://localhost:8787/api/health
 
-# Production  
-curl https://pitchey-backend-fresh.deno.dev/api/health
+# Production
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 ```
 
 #### Expected Response
@@ -550,16 +473,7 @@ const logger = {
 ### Error Tracking (Sentry)
 
 #### Backend Configuration
-```typescript
-// Sentry setup
-import * as Sentry from "https://deno.land/x/sentry/index.ts";
-
-Sentry.init({
-  dsn: Deno.env.get("SENTRY_DSN"),
-  environment: Deno.env.get("SENTRY_ENVIRONMENT") || "development",
-  release: Deno.env.get("SENTRY_RELEASE") || "unknown",
-});
-```
+Sentry is integrated into the Cloudflare Worker via the `@sentry/cloudflare` package. Configuration is handled in the Worker entry point.
 
 #### Frontend Configuration
 ```typescript
@@ -675,11 +589,11 @@ npm run build
 
 #### Backend Debugging
 ```bash
-# Enable debug logging
-DEBUG=true PORT=8001 deno run --allow-all working-server.ts
+# Start Worker in local dev mode
+wrangler dev
 
 # Check specific endpoint
-curl -v http://localhost:8001/api/health
+curl -v http://localhost:8787/api/health
 ```
 
 #### Database Debugging
@@ -698,17 +612,14 @@ psql "$DATABASE_URL" -c "SELECT COUNT(*) FROM users;"
 
 ### Backend Rollback
 ```bash
-# Rollback to previous deployment
-deployctl deployments list --project="pitchey-backend-fresh"
-deployctl deployments promote <deployment-id> --project="pitchey-backend-fresh"
+# Rollback Worker to previous deployment
+wrangler rollback
 ```
 
 ### Frontend Rollback
 ```bash
-# cloudflare-pages rollback
-cloudflare-pages sites:list
-cloudflare-pages api listSiteDeploys --siteId=<site-id>
-cloudflare-pages api restoreSiteDeploy --siteId=<site-id> --deployId=<deploy-id>
+# Rollback via Cloudflare Pages dashboard or redeploy a previous commit
+wrangler pages deployment list --project-name=pitchey
 ```
 
 ### Database Rollback

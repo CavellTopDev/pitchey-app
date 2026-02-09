@@ -1,3 +1,4 @@
+// DEPRECATED: This script was written for Deno Deploy. The project now uses Cloudflare Workers (wrangler deploy).
 // Comprehensive Production Fix
 // 1. Fix Sentry initialization in production 
 // 2. Remove security vulnerability (exposed database test endpoint)
@@ -84,7 +85,7 @@ echo "   📊 Enhanced health reporting"
 echo ""
 
 # Deploy with all environment variables explicitly set
-DENO_DEPLOY_TOKEN=ddp_0xCz7itR2p7NIjymyodtIOI3wfjS2n0LB8oH \\
+DENO_DEPLOY_TOKEN=YOUR_DENO_DEPLOY_TOKEN_HERE \\
 deployctl deploy \\
   --project=pitchey-backend-fresh \\
   --entrypoint=working-server.ts \\

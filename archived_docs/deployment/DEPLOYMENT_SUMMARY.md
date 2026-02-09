@@ -1,3 +1,5 @@
+> **Note**: This document predates the migration from Deno Deploy to Cloudflare Workers (completed Dec 2024). Deno Deploy references are historical.
+
 # Deployment Summary - 2025-10-05
 
 ## 🎯 Mission Accomplished
