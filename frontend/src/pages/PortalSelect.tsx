@@ -102,9 +102,9 @@ export default function PortalSelect() {
                     <div className={`inline-flex p-4 rounded-full ${bgColors[portal]} mb-6`}>
                       <Icon className={`h-12 w-12 ${iconColors[portal]}`} />
                     </div>
-                    <h3 className="text-2xl font-semibold text-gray-900 mb-3">
+                    <h2 className="text-2xl font-semibold text-gray-900 mb-3">
                       {getPortalTitle(portal)}
-                    </h3>
+                    </h2>
                     <p className="text-gray-600">
                       {getPortalDescription(portal)}
                     </p>

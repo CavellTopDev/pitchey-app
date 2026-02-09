@@ -41,7 +41,7 @@ export default function Homepage() {
       // If no new releases, show featured pitches
       setNewReleases(newReleases.length > 0 ? newReleases : featured);
     } catch (error) {
-      console.error('Failed to fetch from new public endpoints, using fallback:', error);
+      console.warn('Failed to fetch from new public endpoints, using fallback:', error);
       // Fallback to original public endpoint if new endpoints fail
       try {
         const { pitches } = await pitchService.getPublicPitches();
@@ -56,7 +56,7 @@ export default function Homepage() {
         ).slice(0, 4);
         setNewReleases(newOnes);
       } catch (fallbackError) {
-        console.error('Fallback also failed:', fallbackError);
+        console.warn('Fallback also failed:', fallbackError);
         setTrendingPitches([]);
         setNewReleases([]);
       }
@@ -221,9 +221,10 @@ export default function Homepage() {
                   }}
                   className="flex-1 px-6 py-4 text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-inset"
                 />
-                <button 
+                <button
                   type="submit"
                   disabled={!searchQuery.trim()}
+                  aria-label="Search"
                   className="px-6 py-4 bg-purple-600 hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
                   <Search className="w-5 h-5 text-white" />
@@ -479,7 +480,7 @@ export default function Homepage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <img src="/pitcheylogo.png" alt="Pitchey" className="h-6 w-auto" />
+                <img src="/pitcheylogo.png" alt="Pitchey" className="h-6 w-auto" width={768} height={237} />
                 <span className="text-xl font-bold text-gray-900">Pitchey</span>
               </div>
               <p className="text-metadata">

@@ -155,7 +155,7 @@ export default function Marketplace() {
         const configData = await configService.getConfiguration();
         setConfig(configData);
       } catch (error) {
-        console.error('Failed to load configuration:', error);
+        console.warn('Failed to load configuration:', error);
       }
     };
     loadConfig();
@@ -349,7 +349,7 @@ export default function Marketplace() {
         }
       }));
     } catch (err) {
-      console.error('Failed to load pitches:', err);
+      console.warn('Failed to load pitches:', err);
       // Use empty array as fallback
       setTabData(prev => ({
         ...prev,
@@ -380,7 +380,7 @@ export default function Marketplace() {
         }
       }));
     } catch (err) {
-      console.error('Failed to load trending pitches:', err);
+      console.warn('Failed to load trending pitches:', err);
       // Fallback: sort all pitches by view count for trending behavior
       try {
         const { pitches: pitchesData } = await pitchService.getPublicPitches();
@@ -405,7 +405,7 @@ export default function Marketplace() {
           }));
         }
       } catch (fallbackErr) {
-        console.error('Trending fallback also failed:', fallbackErr);
+        console.warn('Trending fallback also failed:', fallbackErr);
         setTabData(prev => ({
           ...prev,
           trending: { pitches: [], filtered: [], loading: false }
@@ -433,7 +433,7 @@ export default function Marketplace() {
         }
       }));
     } catch (err) {
-      console.error('Failed to load new pitches:', err);
+      console.warn('Failed to load new pitches:', err);
       // Fallback: sort all pitches by creation date for new behavior
       try {
         const { pitches: pitchesData } = await pitchService.getPublicPitches();
@@ -454,7 +454,7 @@ export default function Marketplace() {
           }));
         }
       } catch (fallbackErr) {
-        console.error('New pitches fallback also failed:', fallbackErr);
+        console.warn('New pitches fallback also failed:', fallbackErr);
         setTabData(prev => ({
           ...prev,
           new: { pitches: [], filtered: [], loading: false }
@@ -500,7 +500,7 @@ export default function Marketplace() {
         }
       }));
     } catch (err) {
-      console.error('Failed to load browse pitches:', err);
+      console.warn('Failed to load browse pitches:', err);
       setTabData(prev => ({
         ...prev,
         browse: { 
@@ -576,7 +576,7 @@ export default function Marketplace() {
         newReleases: newReleaseRecommendations
       });
     } catch (err) {
-      console.error('Failed to load recommendations:', err);
+      console.warn('Failed to load recommendations:', err);
     }
   };
 
@@ -705,7 +705,7 @@ export default function Marketplace() {
                         <span className="text-sm font-medium text-gray-700">Creator</span>
                       </>
                     )}
-                    <span className="text-xs text-gray-500">•</span>
+                    <span className="text-xs text-gray-600">•</span>
                     <span className="text-sm text-gray-700">{user.companyName || user.username}</span>
                   </div>
                   
@@ -893,7 +893,7 @@ export default function Marketplace() {
             {/* Left Sidebar - Filters */}
             <div className="lg:col-span-1">
               <div className="bg-white rounded-lg shadow-sm border p-6 sticky top-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Filters & Sorting</h3>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters & Sorting</h2>
                 
                 {/* Sort By */}
                 <div className="mb-6">
@@ -1299,7 +1299,7 @@ export default function Marketplace() {
                             });
                                   toast?.success("NDA request sent successfully!");
                                 } catch (error) {
-                                  console.error("Error requesting NDA:", error);
+                                  console.warn("Error requesting NDA:", error);
                                   toast?.error("Failed to send NDA request. Please try again.");
                                 }
                               }}
@@ -1556,7 +1556,7 @@ export default function Marketplace() {
                             });
                             toast?.success("NDA request sent successfully!");
                           } catch (error) {
-                            console.error("Error requesting NDA:", error);
+                            console.warn("Error requesting NDA:", error);
                             toast?.error("Failed to send NDA request. Please try again.");
                           }
                         }}

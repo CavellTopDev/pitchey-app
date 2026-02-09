@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Shield, Crown, Users, Star, Globe, Edit, Trash2,
   Plus, Check, X, AlertCircle, Save,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, Eye, Copy
 } from 'lucide-react';
 import { TeamService, type TeamRole } from '../../services/team.service';
 

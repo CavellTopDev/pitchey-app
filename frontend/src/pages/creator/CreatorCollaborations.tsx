@@ -4,7 +4,7 @@ import {
   AlertCircle, Search, Calendar,
   DollarSign, MessageSquare, Eye, FileText,
   Building, Users, Award, TrendingUp,
-  Globe, Lock, Plus
+  Globe, Lock, Plus, Download, Share2
 } from 'lucide-react';
 import { CollaborationService, type Collaboration as ApiCollaboration } from '../../services/collaboration.service';
 
