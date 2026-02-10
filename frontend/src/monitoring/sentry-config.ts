@@ -174,12 +174,12 @@ export function initSentry() {
 
 // Performance monitoring utilities
 export const SentryPerformance = {
-  // Start a transaction
+  // Start a span (Sentry v8 API)
   startTransaction(name: string, op: string = 'navigation') {
-    return Sentry.startTransaction({
+    return Sentry.startInactiveSpan({
       name,
       op,
-      tags: {
+      attributes: {
         portal: window.location.pathname.split('/')[1] || 'public'
       }
     })
@@ -187,14 +187,10 @@ export const SentryPerformance = {
 
   // Measure component render time
   measureComponent(componentName: string) {
-    const transaction = Sentry.getCurrentHub().getScope()?.getTransaction()
-    if (transaction) {
-      return transaction.startChild({
-        op: 'react.component',
-        description: componentName
-      })
-    }
-    return null
+    return Sentry.startInactiveSpan({
+      op: 'react.component',
+      name: componentName
+    })
   },
 
   // Track API calls

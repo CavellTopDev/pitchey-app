@@ -47,11 +47,11 @@ export function useSentryPortal(config: SentryPortalConfig) {
       level: 'info',
     });
 
-    // Start performance transaction if enabled
-    let transaction: any | undefined;
+    // Start performance span if enabled (Sentry v8 API)
+    let span: ReturnType<typeof Sentry.startInactiveSpan> | undefined;
 
     if (trackPerformance) {
-      transaction = Sentry.startTransaction({
+      span = Sentry.startInactiveSpan({
         name: `${portalType}.${componentName}`,
         op: 'component',
       });
@@ -63,9 +63,9 @@ export function useSentryPortal(config: SentryPortalConfig) {
 
     // Cleanup function
     return () => {
-      // Finish performance transaction
-      if (transaction) {
-        transaction.finish();
+      // End performance span
+      if (span) {
+        span.end();
       }
 
       // Add breadcrumb for leaving component
