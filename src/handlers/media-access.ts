@@ -222,8 +222,9 @@ export class MediaAccessHandler {
 
   // Helper: Generate access URL for download (serves via worker endpoint)
   public async generateSignedUrl(storagePath: string, fileName: string): Promise<string> {
+    const baseUrl = this.env?.BACKEND_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
     const token = btoa(`${storagePath}:${Date.now()}`);
-    return `/api/media/file/${encodeURIComponent(storagePath)}?token=${token}&filename=${encodeURIComponent(fileName)}`;
+    return `${baseUrl}/api/media/file/${encodeURIComponent(storagePath)}?token=${token}&filename=${encodeURIComponent(fileName)}`;
   }
 
   // Helper: Generate upload URL (serves via worker endpoint)

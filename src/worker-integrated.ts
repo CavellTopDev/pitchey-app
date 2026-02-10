@@ -2051,6 +2051,7 @@ class RouteRegistry {
     this.register('POST', '/api/conversations/:id/messages', this.sendMessageToConversation.bind(this));
 
     // === PHASE 3: MEDIA ACCESS ROUTES ===
+    this.register('GET', '/api/media/file/:path', this.serveMediaFile.bind(this));
     this.register('GET', '/api/media/:id', this.getMediaById.bind(this));
     this.register('GET', '/api/media/:id/download', this.getMediaDownloadUrl.bind(this));
     this.register('POST', '/api/media/upload', this.uploadMedia.bind(this));
@@ -3069,6 +3070,7 @@ class RouteRegistry {
       '/api/metrics/current', // Platform metrics
       '/api/metrics/historical', // Historical metrics
       '/api/views/track', // View tracking (anonymous views allowed)
+      '/api/media/file',  // R2 media file serving (public — used in <img> tags)
       '/ws'             // WebSocket endpoint handles its own auth
     ];
 
@@ -14587,6 +14589,43 @@ Signatures: [To be completed upon signing]
   }
 
   // ======= PHASE 3: MEDIA ACCESS ENDPOINTS IMPLEMENTATION =======
+
+  private async serveMediaFile(request: Request): Promise<Response> {
+    const corsHeaders = getCorsHeaders(request.headers.get('Origin'));
+
+    try {
+      const params = (request as any).params;
+      const encodedPath = params?.path;
+      if (!encodedPath) {
+        return new Response('Not found', { status: 404, headers: corsHeaders });
+      }
+
+      const storagePath = decodeURIComponent(encodedPath);
+
+      if (!this.env.MEDIA_STORAGE) {
+        return new Response('Storage not available', { status: 503, headers: corsHeaders });
+      }
+
+      const object = await this.env.MEDIA_STORAGE.get(storagePath);
+      if (!object) {
+        return new Response('File not found', { status: 404, headers: corsHeaders });
+      }
+
+      const contentType = object.customMetadata?.['content-type'] || 'application/octet-stream';
+
+      return new Response(object.body, {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=31536000, immutable',
+          ...corsHeaders
+        }
+      });
+    } catch (error) {
+      console.error('Serve media file error:', error);
+      return new Response('Internal error', { status: 500, headers: corsHeaders });
+    }
+  }
 
   private async getMediaById(request: Request): Promise<Response> {
     try {
