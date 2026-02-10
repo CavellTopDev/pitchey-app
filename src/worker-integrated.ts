@@ -4933,41 +4933,43 @@ pitchey_analytics_datapoints_per_minute 1250
     const authResult = await this.requireAuth(request);
     if (!authResult.authorized) return authResult.response!;
 
-    const builder = new ApiResponseBuilder(request);
+    const corsHeaders = getCorsHeaders(request.headers.get('Origin'));
+    const headers = { 'Content-Type': 'application/json', ...corsHeaders };
 
     try {
       const formData = await request.formData();
-      const pitchIdStr = formData.get('pitchId') as string | null;
-      const pitchId = pitchIdStr ? parseInt(pitchIdStr) : undefined;
-      const type = (formData.get('type') as string) || 'attachment';
+      const file = formData.get('file') as File;
+      const folder = (formData.get('folder') as string) || 'uploads';
 
-      // Use the file handler for free plan
-      const result = await this.fileHandler.handleUpload(
-        formData,
-        authResult.user.id,
-        type as any,
-        pitchId
-      );
-
-      if (!result.success) {
-        return builder.error(ErrorCode.VALIDATION_ERROR, result.error || 'Upload failed');
+      if (!file) {
+        return new Response(JSON.stringify({ message: 'No file provided' }), { status: 400, headers });
       }
 
-      return builder.success({
-        key: result.file!.id,
-        url: result.file!.url,
-        metadata: {
-          userId: result.file!.ownerId,
-          fileName: result.file!.filename,
-          fileSize: result.file!.size,
-          mimeType: result.file!.mimeType,
-          uploadedAt: result.file!.uploadedAt,
-          category: result.file!.type,
-          pitchId: result.file!.pitchId
-        }
-      });
+      // Validate file size (50MB limit)
+      if (file.size > 50 * 1024 * 1024) {
+        return new Response(JSON.stringify({ message: 'File too large. Maximum size is 50MB.' }), { status: 400, headers });
+      }
+
+      const handler = new (await import('./handlers/media-access')).MediaAccessHandler(this.db, this.env);
+
+      const timestamp = Date.now();
+      const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const storagePath = `${folder}/${authResult.user.id}/${timestamp}-${sanitizedName}`;
+      const uploadResult = await handler.uploadFileToR2(file, storagePath);
+
+      if (!uploadResult.success) {
+        return new Response(JSON.stringify({ message: uploadResult.error || 'Upload failed' }), { status: 500, headers });
+      }
+
+      return new Response(JSON.stringify({
+        url: uploadResult.url,
+        filename: file.name,
+        size: file.size,
+        type: file.type
+      }), { status: 200, headers });
     } catch (error) {
-      return errorHandler(error, request);
+      console.error('Upload error:', error);
+      return new Response(JSON.stringify({ message: 'Upload failed' }), { status: 500, headers });
     }
   }
 
@@ -4975,40 +4977,47 @@ pitchey_analytics_datapoints_per_minute 1250
     const authResult = await this.requireAuth(request);
     if (!authResult.authorized) return authResult.response!;
 
-    const builder = new ApiResponseBuilder(request);
+    const corsHeaders = getCorsHeaders(request.headers.get('Origin'));
+    const headers = { 'Content-Type': 'application/json', ...corsHeaders };
 
     try {
       const formData = await request.formData();
-      const pitchIdStr = formData.get('pitchId') as string | null;
-      const pitchId = pitchIdStr ? parseInt(pitchIdStr) : undefined;
+      const file = formData.get('file') as File;
+      const folder = (formData.get('folder') as string) || 'documents';
 
-      // Use the file handler with 'document' type
-      const result = await this.fileHandler.handleUpload(
-        formData,
-        authResult.user.id,
-        'document',
-        pitchId
-      );
-
-      if (!result.success) {
-        return builder.error(ErrorCode.VALIDATION_ERROR, result.error || 'Document upload failed');
+      if (!file) {
+        return new Response(JSON.stringify({ message: 'No file provided' }), { status: 400, headers });
       }
 
-      return builder.success({
-        key: result.file!.id,
-        url: result.file!.url,
-        metadata: {
-          userId: result.file!.ownerId,
-          fileName: result.file!.filename,
-          fileSize: result.file!.size,
-          mimeType: result.file!.mimeType,
-          uploadedAt: result.file!.uploadedAt,
-          category: 'document',
-          pitchId: result.file!.pitchId
-        }
-      });
+      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        return new Response(JSON.stringify({ message: 'Invalid file type for document upload' }), { status: 400, headers });
+      }
+
+      if (file.size > 50 * 1024 * 1024) {
+        return new Response(JSON.stringify({ message: 'File too large. Maximum size is 50MB.' }), { status: 400, headers });
+      }
+
+      const handler = new (await import('./handlers/media-access')).MediaAccessHandler(this.db, this.env);
+
+      const timestamp = Date.now();
+      const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const storagePath = `${folder}/${authResult.user.id}/${timestamp}-${sanitizedName}`;
+      const uploadResult = await handler.uploadFileToR2(file, storagePath);
+
+      if (!uploadResult.success) {
+        return new Response(JSON.stringify({ message: uploadResult.error || 'Upload failed' }), { status: 500, headers });
+      }
+
+      return new Response(JSON.stringify({
+        url: uploadResult.url,
+        filename: file.name,
+        size: file.size,
+        type: file.type
+      }), { status: 200, headers });
     } catch (error) {
-      return errorHandler(error, request);
+      console.error('Document upload error:', error);
+      return new Response(JSON.stringify({ message: 'Document upload failed' }), { status: 500, headers });
     }
   }
 
@@ -5386,12 +5395,27 @@ pitchey_analytics_datapoints_per_minute 1250
       const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
       const key = `${folder}/${authResult.user.id}/${timestamp}-${random}-${sanitizedFileName}`;
 
-      // Mock R2 upload (would actually upload to R2 bucket in production)
-      console.log(`[Upload] NDA document: ${key} (${file.size} bytes)`);
+      // Upload to R2 NDA_STORAGE bucket
+      if (!this.env.NDA_STORAGE) {
+        return builder.error(ErrorCode.UPLOAD_ERROR, 'NDA storage not configured');
+      }
 
-      // Mock response with enhanced metadata
+      try {
+        await this.env.NDA_STORAGE.put(key, file, {
+          customMetadata: {
+            'original-name': file.name,
+            'content-type': file.type,
+            'uploaded-at': new Date().toISOString(),
+            'user-id': authResult.user.id.toString()
+          }
+        });
+      } catch (uploadError) {
+        console.error('NDA R2 upload error:', uploadError);
+        return builder.error(ErrorCode.UPLOAD_ERROR, 'Failed to upload NDA document');
+      }
+
       const uploadResult = {
-        url: `https://r2.pitchey.com/${key}`,
+        url: `/api/files/nda/${key}`,
         key: key,
         filename: file.name,
         size: file.size,

@@ -50,6 +50,7 @@ export interface MediaFile {
 interface FileUploadProps {
   files: MediaFile[];
   onChange: (files: MediaFile[]) => void;
+  pitchId?: number;
   acceptedTypes?: string[];
   maxFiles?: number;
   maxFileSize?: number; // in MB
@@ -107,6 +108,7 @@ const DEFAULT_ACCEPTED_TYPES = Object.values(FILE_TYPE_CONFIG).flatMap(config =>
 export default function FileUpload({
   files,
   onChange,
+  pitchId,
   acceptedTypes = DEFAULT_ACCEPTED_TYPES,
   maxFiles = 20,
   maxFileSize = 50, // 50MB default for media files
@@ -440,7 +442,7 @@ export default function FileUpload({
     
     try {
       const result = await uploadService.uploadPitchMedia(
-        1, // TODO: Get actual pitch ID
+        pitchId || 0,
         file.file,
         file.type === 'image' ? 'image' : file.type === 'video' ? 'video' : 'document',
         {
