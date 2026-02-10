@@ -52,6 +52,19 @@ import {
   Info
 } from 'lucide-react';
 
+// Get the best available image URL from a pitch (handles snake_case API + camelCase)
+function getPitchImageUrl(pitch: any): string | undefined {
+  const url = pitch.titleImage || pitch.title_image ||
+    pitch.thumbnailUrl || pitch.thumbnail_url ||
+    pitch.posterUrl || pitch.poster_url;
+  if (!url) return undefined;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === 'https:' || parsed.protocol === 'http:') return parsed.href;
+  } catch { /* invalid URL */ }
+  return undefined;
+}
+
 // Enhanced filtering and sorting options
 const SORT_OPTIONS = [
   { value: 'trending', label: 'Trending Now', icon: TrendingUp },
@@ -387,9 +400,9 @@ export default function MarketplaceEnhanced() {
           onClick={() => handlePitchClick(pitch)}
         >
           <div className="flex gap-4">
-            {pitch.titleImage && (
+            {getPitchImageUrl(pitch) && (
               <img
-                src={pitch.titleImage}
+                src={getPitchImageUrl(pitch)}
                 alt={pitch.title}
                 className="w-24 h-36 object-cover rounded"
               />
@@ -449,9 +462,9 @@ export default function MarketplaceEnhanced() {
         onClick={() => handlePitchClick(pitch)}
       >
         <div className="aspect-[3/4] relative overflow-hidden bg-gray-100">
-          {pitch.titleImage ? (
+          {getPitchImageUrl(pitch) ? (
             <img
-              src={pitch.titleImage}
+              src={getPitchImageUrl(pitch)}
               alt={pitch.title}
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
             />
