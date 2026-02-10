@@ -81,6 +81,7 @@ export const useBetterAuthStore = create<BetterAuthState>((set) => ({
 
       sessionCache.set(user); // Cache the user session
       sessionManager.updateCache(user); // Update session manager cache
+      if (user.userType) localStorage.setItem('userType', user.userType);
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({
@@ -107,6 +108,7 @@ export const useBetterAuthStore = create<BetterAuthState>((set) => ({
 
       sessionCache.set(user); // Cache the user session
       sessionManager.updateCache(user); // Update session manager cache
+      if (user.userType) localStorage.setItem('userType', user.userType);
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({
@@ -133,11 +135,12 @@ export const useBetterAuthStore = create<BetterAuthState>((set) => ({
 
       sessionCache.set(user); // Cache the user session
       sessionManager.updateCache(user); // Update session manager cache
+      if (user.userType) localStorage.setItem('userType', user.userType);
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
-      set({ 
+      set({
         error: error.message || 'Login failed',
-        loading: false 
+        loading: false
       });
       throw error;
     }
@@ -167,9 +170,10 @@ export const useBetterAuthStore = create<BetterAuthState>((set) => ({
       
       sessionCache.set(user); // Cache the user session
       sessionManager.updateCache(user); // Update session manager cache
+      if (user.userType) localStorage.setItem('userType', user.userType);
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
-      set({ 
+      set({
         error: error.message || 'Login failed',
         loading: false 
       });

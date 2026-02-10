@@ -57,7 +57,7 @@ export default function Marketplace() {
   const location = useLocation();
   const { isAuthenticated, user } = useBetterAuthStore();
   const toast = useToast();
-  const userType = localStorage.getItem('userType');
+  const userType = user?.userType || localStorage.getItem('userType');
   
   // Tab-specific state management to prevent content mixing
   const [tabData, setTabData] = useState<{

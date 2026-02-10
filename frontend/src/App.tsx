@@ -521,7 +521,11 @@ function App() {
           
           {/* Legacy Protected routes */}
           <Route element={<Layout />}>
-            <Route path="/dashboard" element={isAuthenticated ? <Dashboard /> : <Navigate to="/portals" />} />
+            <Route path="/dashboard" element={
+              isAuthenticated && userType ? <Navigate to={`/${userType}/dashboard`} replace /> :
+              isAuthenticated ? <Dashboard /> :
+              <Navigate to="/portals" />
+            } />
             <Route path="/pitch/new" element={
               isAuthenticated && userType === 'creator' ? <CreatePitch /> : 
               isAuthenticated ? <Navigate to={`/${userType}/dashboard`} /> :
