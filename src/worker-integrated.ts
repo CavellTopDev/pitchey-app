@@ -8369,9 +8369,13 @@ pitchey_analytics_datapoints_per_minute 1250
 
       // Build the query with sequential $1, $2, $3 parameter placeholders
       let baseSql = `
-        SELECT p.*, CONCAT(u.first_name, ' ', u.last_name) as creator_name, u.user_type as creator_type
+        SELECT p.*,
+          u.username as creator_username,
+          u.company_name as creator_company,
+          COALESCE(u.profile_image_url, u.profile_image, u.avatar_url, u.image) as creator_avatar,
+          u.user_type as creator_type
         FROM pitches p
-        LEFT JOIN users u ON p.user_id = u.id
+        LEFT JOIN users u ON p.creator_id = u.id OR p.user_id = u.id
         WHERE p.status = 'published'
       `;
       const params: any[] = [];

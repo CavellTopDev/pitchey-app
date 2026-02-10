@@ -411,7 +411,7 @@ export default function MarketplaceEnhanced() {
               <div className="flex justify-between items-start mb-2">
                 <div>
                   <h3 className="text-lg font-semibold">{pitch.title}</h3>
-                  <p className="text-sm text-gray-600">{pitch.creator?.name || pitch.creator?.username || 'Unknown'}</p>
+                  <p className="text-sm text-gray-600">{pitch.creator?.name || pitch.creator?.username || (pitch as any).creator_username || (pitch as any).creator_name || 'Unknown'}</p>
                 </div>
                 <div className="flex gap-2">
                   {pitch.genre && (
@@ -512,7 +512,7 @@ export default function MarketplaceEnhanced() {
           <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1">
             {pitch.title}
           </h3>
-          <p className="text-sm text-gray-600 mb-2">{pitch.creator?.name || pitch.creator?.username || 'Unknown'}</p>
+          <p className="text-sm text-gray-600 mb-2">{pitch.creator?.name || pitch.creator?.username || (pitch as any).creator_username || (pitch as any).creator_name || 'Unknown'}</p>
 
           <div className="flex items-center justify-between">
             <div className="flex gap-2">
@@ -633,7 +633,11 @@ export default function MarketplaceEnhanced() {
               </div>
               <div className="bg-white/10 backdrop-blur rounded-lg p-3">
                 <div className="text-2xl font-bold">
-                  ${(stats.avgBudget / 1000).toFixed(0)}K
+                  {stats.avgBudget >= 1000000
+                    ? `$${(stats.avgBudget / 1000000).toFixed(1)}M`
+                    : stats.avgBudget >= 1000
+                      ? `$${(stats.avgBudget / 1000).toFixed(0)}K`
+                      : `$${stats.avgBudget.toFixed(0)}`}
                 </div>
                 <div className="text-xs text-blue-100">Avg Budget</div>
               </div>
