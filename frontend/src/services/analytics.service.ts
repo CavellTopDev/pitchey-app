@@ -1,4 +1,4 @@
-// Analytics Service - Complete analytics and reporting with Drizzle integration
+// Analytics Service - Complete analytics and reporting
 import { apiClient } from '../lib/api-client';
 import {
   safeAccess,

@@ -1,4 +1,4 @@
-// NDA Service - Complete NDA management with Drizzle integration
+// NDA Service - Complete NDA management
 import { apiClient } from '../lib/api-client';
 import type {
   NDA,

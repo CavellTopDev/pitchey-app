@@ -1,4 +1,4 @@
-// Creator Service - Dashboard and creator-specific operations with Drizzle integration
+// Creator Service - Dashboard and creator-specific operations
 import { apiClient } from '../lib/api-client';
 import type { Pitch } from '../types/api';
 import type { User } from '../types/api';

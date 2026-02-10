@@ -1,6 +1,6 @@
 /**
  * Pitch-related database queries using raw SQL
- * Replaces Drizzle ORM with parameterized Neon queries
+ * Parameterized Neon queries for all pitch operations
  */
 
 import type { SqlQuery } from './base';
@@ -145,7 +145,7 @@ export async function getPitchById(
     SELECT 
       p.*,
       u.username as creator_username,
-      u.profile_image as creator_avatar,
+      COALESCE(u.profile_image_url, u.profile_image, u.avatar_url, u.image) as creator_avatar,
       u.company_name as creator_company
     FROM pitches p
     LEFT JOIN users u ON p.creator_id = u.id
@@ -287,7 +287,7 @@ export async function getTrendingPitches(
     SELECT 
       p.*,
       u.username as creator_username,
-      u.profile_image as creator_avatar,
+      COALESCE(u.profile_image_url, u.profile_image, u.avatar_url, u.image) as creator_avatar,
       u.company_name as creator_company,
       (p.view_count + (p.like_count * 2) + (p.investment_count * 5)) as engagement_score
     FROM pitches p
@@ -312,7 +312,7 @@ export async function getNewPitches(
     SELECT 
       p.*,
       u.username as creator_username,
-      u.profile_image as creator_avatar,
+      COALESCE(u.profile_image_url, u.profile_image, u.avatar_url, u.image) as creator_avatar,
       u.company_name as creator_company
     FROM pitches p
     LEFT JOIN users u ON p.creator_id = u.id
@@ -366,7 +366,7 @@ export async function searchPitches(
     SELECT 
       p.*,
       u.username as creator_username,
-      u.profile_image as creator_avatar,
+      COALESCE(u.profile_image_url, u.profile_image, u.avatar_url, u.image) as creator_avatar,
       u.company_name as creator_company
     FROM pitches p
     LEFT JOIN users u ON p.creator_id = u.id
@@ -398,7 +398,7 @@ export async function getSimilarPitches(
     SELECT 
       p.*,
       u.username as creator_username,
-      u.profile_image as creator_avatar,
+      COALESCE(u.profile_image_url, u.profile_image, u.avatar_url, u.image) as creator_avatar,
       (
         CASE WHEN p.genre = ${refPitch.genre} THEN 3 ELSE 0 END +
         CASE WHEN p.format = ${refPitch.format} THEN 2 ELSE 0 END +
@@ -496,7 +496,7 @@ export async function getSavedPitches(
     SELECT 
       p.*,
       u.username as creator_username,
-      u.profile_image as creator_avatar,
+      COALESCE(u.profile_image_url, u.profile_image, u.avatar_url, u.image) as creator_avatar,
       sp.saved_at
     FROM saved_pitches sp
     JOIN pitches p ON sp.pitch_id = p.id
@@ -606,21 +606,19 @@ export async function getPublicPitches(
   const { where, params } = wb.build();
   
   const query = `
-    SELECT 
-      p.id, p.title, p.tagline, p.genre, p.subgenre, p.format,
-      p.setting, p.time_period, p.logline, p.synopsis,
-      p.target_audience, p.comparable_works, p.view_count, p.like_count,
-      p.created_at, p.updated_at, p.published_at,
+    SELECT
+      p.*,
       u.username as creator_username,
-      u.profile_image as creator_avatar,
-      u.company_name as creator_company
+      COALESCE(u.profile_image_url, u.profile_image, u.avatar_url, u.image) as creator_avatar,
+      u.company_name as creator_company,
+      u.user_type as creator_type
     FROM pitches p
-    LEFT JOIN users u ON p.creator_id = u.id
+    LEFT JOIN users u ON p.creator_id = u.id OR p.user_id = u.id
     ${where}
     ORDER BY p.published_at DESC, p.view_count DESC
     LIMIT ${limit} OFFSET ${offset}
   `;
-  
+
   const result = await sql(query, params);
   return extractMany<Pitch>(result);
 }
@@ -631,17 +629,16 @@ export async function getPublicTrendingPitches(
   offset: number = 0
 ): Promise<Pitch[]> {
   const result = await sql`
-    SELECT 
-      p.id, p.title, p.genre, p.format, p.logline, p.synopsis,
-      p.target_audience, p.view_count, p.like_count,
-      p.created_at, p.updated_at, p.status, p.visibility,
+    SELECT
+      p.*,
       u.username as creator_username,
-      u.profile_image as creator_avatar,
+      COALESCE(u.profile_image_url, u.profile_image, u.avatar_url, u.image) as creator_avatar,
       u.company_name as creator_company,
+      u.user_type as creator_type,
       (COALESCE(p.view_count, 0) + (COALESCE(p.like_count, 0) * 2)) as engagement_score
     FROM pitches p
-    LEFT JOIN users u ON p.creator_id = u.id
-    WHERE p.status = 'published' 
+    LEFT JOIN users u ON p.creator_id = u.id OR p.user_id = u.id
+    WHERE p.status = 'published'
       AND p.visibility = 'public'
     ORDER BY engagement_score DESC, p.view_count DESC, p.created_at DESC
     LIMIT ${limit} OFFSET ${offset}
@@ -655,16 +652,15 @@ export async function getPublicNewPitches(
   offset: number = 0
 ): Promise<Pitch[]> {
   const result = await sql`
-    SELECT 
-      p.id, p.title, p.genre, p.format, p.logline, p.synopsis,
-      p.target_audience, p.view_count, p.like_count,
-      p.created_at, p.updated_at, p.status, p.visibility,
+    SELECT
+      p.*,
       u.username as creator_username,
-      u.profile_image as creator_avatar,
-      u.company_name as creator_company
+      COALESCE(u.profile_image_url, u.profile_image, u.avatar_url, u.image) as creator_avatar,
+      u.company_name as creator_company,
+      u.user_type as creator_type
     FROM pitches p
-    LEFT JOIN users u ON p.creator_id = u.id
-    WHERE p.status = 'published' 
+    LEFT JOIN users u ON p.creator_id = u.id OR p.user_id = u.id
+    WHERE p.status = 'published'
       AND p.visibility = 'public'
     ORDER BY p.created_at DESC
     LIMIT ${limit} OFFSET ${offset}
@@ -677,17 +673,16 @@ export async function getPublicFeaturedPitches(
   limit: number = 6
 ): Promise<Pitch[]> {
   const result = await sql`
-    SELECT 
-      p.id, p.title, p.genre, p.format, p.logline, p.synopsis,
-      p.target_audience, p.view_count, p.like_count,
-      p.created_at, p.updated_at, p.status, p.visibility,
+    SELECT
+      p.*,
       u.username as creator_username,
-      u.profile_image as creator_avatar,
+      COALESCE(u.profile_image_url, u.profile_image, u.avatar_url, u.image) as creator_avatar,
       u.company_name as creator_company,
+      u.user_type as creator_type,
       (COALESCE(p.view_count, 0) + (COALESCE(p.like_count, 0) * 3)) as feature_score
     FROM pitches p
-    LEFT JOIN users u ON p.creator_id = u.id
-    WHERE p.status = 'published' 
+    LEFT JOIN users u ON p.creator_id = u.id OR p.user_id = u.id
+    WHERE p.status = 'published'
       AND p.visibility = 'public'
     ORDER BY feature_score DESC, p.created_at DESC
     LIMIT ${limit}
@@ -700,18 +695,16 @@ export async function getPublicPitchById(
   pitchId: string
 ): Promise<Pitch | null> {
   const result = await sql`
-    SELECT 
-      p.id, p.title, p.tagline, p.genre, p.subgenre, p.format,
-      p.setting, p.time_period, p.logline, p.synopsis,
-      p.target_audience, p.comparable_works, p.view_count, p.like_count,
-      p.created_at, p.updated_at, p.published_at,
+    SELECT
+      p.*,
       u.username as creator_username,
-      u.profile_image as creator_avatar,
-      u.company_name as creator_company
+      COALESCE(u.profile_image_url, u.profile_image, u.avatar_url, u.image) as creator_avatar,
+      u.company_name as creator_company,
+      u.user_type as creator_type
     FROM pitches p
-    LEFT JOIN users u ON p.creator_id = u.id
-    WHERE p.id = ${pitchId} 
-      AND p.status = 'published' 
+    LEFT JOIN users u ON p.creator_id = u.id OR p.user_id = u.id
+    WHERE p.id = ${pitchId}
+      AND p.status = 'published'
       AND p.visibility = 'public'
   `;
   return extractFirst<Pitch>(result);
@@ -757,19 +750,17 @@ export async function searchPublicPitches(
   const { where, params } = wb.build();
   
   const query = `
-    SELECT 
-      p.id, p.title, p.tagline, p.genre, p.subgenre, p.format,
-      p.setting, p.time_period, p.logline, p.synopsis,
-      p.target_audience, p.comparable_works, p.view_count, p.like_count,
-      p.created_at, p.updated_at, p.published_at,
+    SELECT
+      p.*,
       u.username as creator_username,
-      u.profile_image as creator_avatar,
-      u.company_name as creator_company
+      COALESCE(u.profile_image_url, u.profile_image, u.avatar_url, u.image) as creator_avatar,
+      u.company_name as creator_company,
+      u.user_type as creator_type
     FROM pitches p
-    LEFT JOIN users u ON p.creator_id = u.id
+    LEFT JOIN users u ON p.creator_id = u.id OR p.user_id = u.id
     ${where}
-    ORDER BY 
-      CASE 
+    ORDER BY
+      CASE
         WHEN LOWER(p.title) = LOWER($1) THEN 1
         WHEN LOWER(p.title) LIKE LOWER($1 || '%') THEN 2
         ELSE 3
@@ -778,7 +769,7 @@ export async function searchPublicPitches(
       p.published_at DESC
     LIMIT ${limit} OFFSET ${offset}
   `;
-  
+
   const result = await sql(query, [searchTerm || '', ...params]);
   return extractMany<Pitch>(result);
 }

@@ -52,6 +52,14 @@ function sanitizeImageUrl(url: string | undefined | null): string | undefined {
   return undefined;
 }
 
+function getPitchImageUrl(pitch: any): string | undefined {
+  return sanitizeImageUrl(
+    pitch.thumbnailUrl || pitch.titleImage ||
+    pitch.thumbnail_url || pitch.title_image ||
+    pitch.poster_url || pitch.posterUrl
+  );
+}
+
 export default function Marketplace() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -835,25 +843,29 @@ export default function Marketplace() {
                                '0 0 15px rgba(59, 130, 246, 0.15)'
                   }}
                 >
-                  <div 
+                  <div
                     onClick={() => navigate(`/pitch/${pitch.id}`)}
                     className={`aspect-video bg-gradient-to-br ${
                       pitch.creator?.userType === 'production' ? 'from-purple-400 to-purple-600' :
                       pitch.creator?.userType === 'investor' ? 'from-green-400 to-green-600' :
                       'from-gray-400 to-gray-600'
-                    } flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity`}>
-                    <div className="text-center">
-                      <Film className="w-12 h-12 text-white/80 mx-auto mb-2" />
-                      <div className="text-white font-bold text-lg">
-                        <FormatDisplay 
-                          formatCategory={pitch.formatCategory}
-                          formatSubtype={pitch.formatSubtype}
-                          format={pitch.format}
-                          variant="subtype-only"
-                          className="text-white"
-                        />
+                    } flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity relative`}>
+                    {getPitchImageUrl(pitch) ? (
+                      <img src={getPitchImageUrl(pitch)} alt={pitch.title} className="absolute inset-0 w-full h-full object-cover" />
+                    ) : (
+                      <div className="text-center">
+                        <Film className="w-12 h-12 text-white/80 mx-auto mb-2" />
+                        <div className="text-white font-bold text-lg">
+                          <FormatDisplay
+                            formatCategory={pitch.formatCategory}
+                            formatSubtype={pitch.formatSubtype}
+                            format={pitch.format}
+                            variant="subtype-only"
+                            className="text-white"
+                          />
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                   <div className="p-4">
                     <h3 className="font-semibold text-gray-900 mb-1 truncate">
@@ -1153,21 +1165,27 @@ export default function Marketplace() {
                         </div>
                       )}
                       
-                      <div 
+                      <div
                         onClick={() => navigate(`/pitch/${pitch.id}`)}
                         className={`aspect-video bg-gradient-to-br ${bgGradient} flex items-center justify-center text-white font-bold text-sm relative cursor-pointer hover:opacity-90 transition-opacity`}
                       >
-                        <Film className="w-8 h-8 text-white/50 absolute" />
-                        <div className="z-10 text-center">
-                          <FormatDisplay 
-                            formatCategory={pitch.formatCategory}
-                            formatSubtype={pitch.formatSubtype}
-                            format={pitch.format}
-                            variant="subtype-only"
-                            className="text-white"
-                          />
-                        </div>
-                        
+                        {getPitchImageUrl(pitch) ? (
+                          <img src={getPitchImageUrl(pitch)} alt={pitch.title} className="absolute inset-0 w-full h-full object-cover" />
+                        ) : (
+                          <>
+                            <Film className="w-8 h-8 text-white/50 absolute" />
+                            <div className="z-10 text-center">
+                              <FormatDisplay
+                                formatCategory={pitch.formatCategory}
+                                formatSubtype={pitch.formatSubtype}
+                                format={pitch.format}
+                                variant="subtype-only"
+                                className="text-white"
+                              />
+                            </div>
+                          </>
+                        )}
+
                         {/* Enhanced media indicators for production pitches */}
                         {isProduction && (
                           <div className="absolute bottom-2 right-2 flex gap-2">
@@ -1177,7 +1195,7 @@ export default function Marketplace() {
                           </div>
                         )}
                       </div>
-                      
+
                       <div className="p-6">
                         <div className="flex items-start justify-between mb-2">
                           <h3 className="font-bold text-lg text-gray-900 line-clamp-2">
@@ -1410,21 +1428,27 @@ export default function Marketplace() {
                   </div>
                 )}
                 
-                <div 
+                <div
                   onClick={() => navigate(`/pitch/${pitch.id}`)}
                   className={`aspect-video bg-gradient-to-br ${bgGradient} flex items-center justify-center text-white font-bold text-sm relative cursor-pointer hover:opacity-90 transition-opacity`}
                 >
-                  <Film className="w-8 h-8 text-white/50 absolute" />
-                  <div className="z-10 text-center">
-                    <FormatDisplay 
-                      formatCategory={pitch.formatCategory}
-                      formatSubtype={pitch.formatSubtype}
-                      format={pitch.format}
-                      variant="subtype-only"
-                      className="text-white"
-                    />
-                  </div>
-                  
+                  {getPitchImageUrl(pitch) ? (
+                    <img src={getPitchImageUrl(pitch)} alt={pitch.title} className="absolute inset-0 w-full h-full object-cover" />
+                  ) : (
+                    <>
+                      <Film className="w-8 h-8 text-white/50 absolute" />
+                      <div className="z-10 text-center">
+                        <FormatDisplay
+                          formatCategory={pitch.formatCategory}
+                          formatSubtype={pitch.formatSubtype}
+                          format={pitch.format}
+                          variant="subtype-only"
+                          className="text-white"
+                        />
+                      </div>
+                    </>
+                  )}
+
                   {/* Enhanced media indicators for production pitches */}
                   {isProduction && (
                     <div className="absolute bottom-2 right-2 flex gap-2">
@@ -1595,9 +1619,9 @@ export default function Marketplace() {
                             className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-all cursor-pointer group"
                           >
                             <div className="aspect-video bg-gradient-to-br from-purple-100 to-blue-100 relative overflow-hidden">
-                              {sanitizeImageUrl(pitch.thumbnailUrl) ? (
+                              {getPitchImageUrl(pitch) ? (
                                 <img
-                                  src={sanitizeImageUrl(pitch.thumbnailUrl)}
+                                  src={getPitchImageUrl(pitch)}
                                   alt={pitch.title}
                                   className="w-full h-full object-cover"
                                 />
@@ -1647,9 +1671,9 @@ export default function Marketplace() {
                             className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-all cursor-pointer"
                           >
                             <div className="aspect-video bg-gradient-to-br from-blue-100 to-purple-100">
-                              {sanitizeImageUrl(pitch.thumbnailUrl) ? (
+                              {getPitchImageUrl(pitch) ? (
                                 <img
-                                  src={sanitizeImageUrl(pitch.thumbnailUrl)}
+                                  src={getPitchImageUrl(pitch)}
                                   alt={pitch.title}
                                   className="w-full h-full object-cover"
                                 />
@@ -1684,9 +1708,9 @@ export default function Marketplace() {
                             className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-all cursor-pointer"
                           >
                             <div className="aspect-video bg-gradient-to-br from-red-100 to-orange-100">
-                              {sanitizeImageUrl(pitch.thumbnailUrl) ? (
+                              {getPitchImageUrl(pitch) ? (
                                 <img
-                                  src={sanitizeImageUrl(pitch.thumbnailUrl)}
+                                  src={getPitchImageUrl(pitch)}
                                   alt={pitch.title}
                                   className="w-full h-full object-cover"
                                 />
@@ -1727,9 +1751,9 @@ export default function Marketplace() {
                             className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-all cursor-pointer"
                           >
                             <div className="aspect-video bg-gradient-to-br from-green-100 to-teal-100">
-                              {sanitizeImageUrl(pitch.thumbnailUrl) ? (
+                              {getPitchImageUrl(pitch) ? (
                                 <img
-                                  src={sanitizeImageUrl(pitch.thumbnailUrl)}
+                                  src={getPitchImageUrl(pitch)}
                                   alt={pitch.title}
                                   className="w-full h-full object-cover"
                                 />

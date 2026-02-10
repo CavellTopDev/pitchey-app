@@ -79,7 +79,7 @@ export default function NDANotifications({ className = '', compact = false }: ND
         nda,
         pitchTitle: nda.pitch?.title || (nda as any).pitch_title || 'Unknown Pitch',
         requesterName: nda.requester?.username || (nda as any).requester_username || 'Unknown User',
-        timestamp: nda.requestedAt,
+        timestamp: nda.createdAt || (nda as any).created_at,
         read: false
       }));
       
@@ -454,7 +454,7 @@ export function NDANotificationPanel({ className = '' }: { className?: string })
                       Request from <span className="font-medium">{nda.requester?.username || (nda as any).requester_username || 'Unknown User'}</span>
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      {new Date(nda.requestedAt).toLocaleDateString()}
+                      {new Date(nda.createdAt || (nda as any).created_at).toLocaleDateString()}
                     </p>
                   </div>
                   <div className="flex space-x-2 ml-4">

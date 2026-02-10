@@ -1,4 +1,4 @@
-// Search Service - Advanced search functionality with Drizzle integration
+// Search Service - Advanced search functionality
 import { apiClient } from '../lib/api-client';
 import type { Pitch, User } from '../types/api';
 

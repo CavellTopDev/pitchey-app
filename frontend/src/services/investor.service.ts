@@ -1,4 +1,4 @@
-// Investor Service - Dashboard and investor-specific operations with Drizzle integration
+// Investor Service - Dashboard and investor-specific operations
 import { apiClient } from '../lib/api-client';
 import type { 
 

@@ -12,14 +12,44 @@ export interface PublicPitch {
   genre: string;
   subgenre?: string;
   format: string;
+  format_category?: string;
+  format_subtype?: string;
   setting?: string;
   time_period?: string;
   logline: string;
-  synopsis?: string; // Public synopsis only
+  synopsis?: string;
+  short_synopsis?: string;
+  long_synopsis?: string;
   target_audience?: string;
   comparable_works?: string[];
   view_count: number;
   like_count: number;
+  nda_count?: number;
+  comment_count?: number;
+  share_count?: number;
+  rating?: number;
+  require_nda?: boolean;
+  seeking_investment?: boolean;
+  // Image URLs
+  title_image?: string;
+  thumbnail_url?: string;
+  poster_url?: string;
+  video_url?: string;
+  // Budget info
+  estimated_budget?: string;
+  budget_bracket?: string;
+  budget_range?: string;
+  // Content metadata
+  themes?: string;
+  world_description?: string;
+  tags?: string[];
+  characters?: string;
+  tone_and_style?: string;
+  comps?: string;
+  // Production info
+  production_stage?: string;
+  development_stage?: string;
+  production_location?: string;
   created_at: Date;
   updated_at: Date;
   published_at?: Date;
@@ -27,6 +57,7 @@ export interface PublicPitch {
   creator_username?: string;
   creator_avatar?: string;
   creator_company?: string;
+  creator_type?: string;
   // Derived fields for public display
   engagement_score?: number;
   similarity_score?: number;
@@ -124,24 +155,60 @@ export function filterPitchForPublic(pitch: any): PublicPitch | null {
     genre: pitch.genre || 'Unspecified',
     subgenre: pitch.subgenre,
     format: pitch.format || 'Unspecified',
+    format_category: pitch.format_category,
+    format_subtype: pitch.format_subtype,
     setting: pitch.setting,
     time_period: pitch.time_period,
     logline: pitch.logline || '',
-    synopsis: truncateSynopsis(pitch.synopsis), // Limit synopsis length
+    synopsis: truncateSynopsis(pitch.synopsis),
+    short_synopsis: pitch.short_synopsis,
+    long_synopsis: truncateSynopsis(pitch.long_synopsis),
     target_audience: pitch.target_audience,
-    comparable_works: Array.isArray(pitch.comparable_works) ? 
-                     pitch.comparable_works.slice(0, 3) : [], // Limit to 3
+    comparable_works: Array.isArray(pitch.comparable_works) ?
+                     pitch.comparable_works.slice(0, 3) : [],
     view_count: Math.max(0, pitch.view_count || 0),
     like_count: Math.max(0, pitch.like_count || 0),
+    nda_count: pitch.nda_count || 0,
+    comment_count: pitch.comment_count || 0,
+    share_count: pitch.share_count || 0,
+    rating: pitch.rating != null ? Number(pitch.rating) : undefined,
+    require_nda: pitch.require_nda,
+    seeking_investment: pitch.seeking_investment,
+
+    // Image URLs
+    title_image: pitch.title_image,
+    thumbnail_url: pitch.thumbnail_url,
+    poster_url: pitch.poster_url,
+    video_url: pitch.video_url,
+
+    // Budget info
+    estimated_budget: pitch.estimated_budget,
+    budget_bracket: pitch.budget_bracket,
+    budget_range: pitch.budget_range,
+
+    // Content metadata
+    themes: pitch.themes,
+    world_description: pitch.world_description,
+    tags: Array.isArray(pitch.tags) ? pitch.tags : undefined,
+    characters: pitch.characters,
+    tone_and_style: pitch.tone_and_style,
+    comps: pitch.comps,
+
+    // Production info
+    production_stage: pitch.production_stage,
+    development_stage: pitch.development_stage,
+    production_location: pitch.production_location,
+
     created_at: new Date(pitch.created_at),
     updated_at: new Date(pitch.updated_at),
     published_at: pitch.published_at ? new Date(pitch.published_at) : undefined,
-    
+
     // Safe creator information (if available)
     creator_username: pitch.creator_username,
     creator_avatar: pitch.creator_avatar,
     creator_company: pitch.creator_company,
-    
+    creator_type: pitch.creator_type,
+
     // Derived fields that might be added by queries
     engagement_score: pitch.engagement_score,
     similarity_score: pitch.similarity_score,

@@ -1,11 +1,11 @@
-// User Service - Complete user management with Drizzle integration
+// User Service - Complete user management
 import { apiClient } from '../lib/api-client';
 import type { User, ApiResponse } from '../types/api';
 
 const isDev = import.meta.env.MODE === 'development';
 const API_BASE_URL = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : '');
 
-// Types matching Drizzle schema
+// Types
 export interface User {
   id: number;
   email: string;

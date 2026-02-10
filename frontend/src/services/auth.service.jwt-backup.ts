@@ -1,4 +1,4 @@
-// Auth Service - Consolidated authentication for all user types with Drizzle integration
+// Auth Service - Consolidated authentication for all user types
 import { apiClient } from '../lib/api-client';
 import { config } from '../config';
 import type { 

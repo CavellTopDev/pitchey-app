@@ -1,11 +1,10 @@
-// Messaging Service - Complete messaging system with Drizzle integration
+// Messaging Service - Complete messaging system
 import { apiClient } from '../lib/api-client';
 import type { User } from './user.service';
 
 const isDev = import.meta.env.MODE === 'development';
 const API_BASE_URL = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : '');
 
-// Types matching Drizzle schema
 export interface Message {
   id: number;
   conversationId: number;

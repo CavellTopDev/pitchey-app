@@ -1,5 +1,4 @@
 // API Types - Centralized type definitions matching backend responses
-// Based on Drizzle schema and actual API responses
 
 // Base API Response Structure
 export interface ApiResponse<T = any> {

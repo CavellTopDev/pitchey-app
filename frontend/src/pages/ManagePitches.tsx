@@ -5,8 +5,6 @@ import { pitchService } from '../services/pitch.service';
 import type { Pitch } from '../types/api';
 import FormatDisplay from '../components/FormatDisplay';
 
-// Using Pitch type from pitch.service.ts which matches Drizzle schema
-
 export default function ManagePitches() {
   const navigate = useNavigate();
   const [pitches, setPitches] = useState<Pitch[]>([]);

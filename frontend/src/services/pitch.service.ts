@@ -1,10 +1,7 @@
-// Pitch Service - Frontend integration with Drizzle-based backend
-// Matches the Drizzle schema exactly for all pitch operations
+// Pitch Service - Frontend integration with backend API
 
 import { apiClient } from '../lib/api-client';
 import { API_URL } from '../config';
-
-// Types matching Drizzle schema
 export interface Pitch {
   id: number;
   userId: number;
