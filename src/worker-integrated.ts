@@ -2163,6 +2163,7 @@ class RouteRegistry {
     this.register('GET', '/api/creator/pitches', (req) => creatorPitchesHandler(req, this.env));
     this.register('PUT', '/api/creator/pitches/:id', this.updatePitch.bind(this));
     this.register('DELETE', '/api/creator/pitches/:id', this.deletePitch.bind(this));
+    this.register('POST', '/api/creator/pitches/:id/media', this.handleCreatorPitchMediaUpload.bind(this));
     this.register('GET', '/api/creator/activities', (req) => creatorActivitiesHandler(req, this.env));
 
     // Pitch Like/Save endpoints (real DB handlers)
@@ -5176,6 +5177,82 @@ pitchey_analytics_datapoints_per_minute 1250
       }
     } catch (error) {
       return errorHandler(error, request);
+    }
+  }
+
+  private async handleCreatorPitchMediaUpload(request: Request): Promise<Response> {
+    const authResult = await this.requireAuth(request);
+    if (!authResult.authorized) return authResult.response!;
+
+    const corsHeaders = getCorsHeaders(request.headers.get('Origin'));
+    const headers = { 'Content-Type': 'application/json', ...corsHeaders };
+
+    try {
+      const params = (request as any).params;
+      const pitchId = parseInt(params?.id);
+      if (isNaN(pitchId)) {
+        return new Response(JSON.stringify({ message: 'Invalid pitch ID' }), { status: 400, headers });
+      }
+
+      const formData = await request.formData();
+      const file = formData.get('file') as File;
+      const mediaType = (formData.get('type') as string) || 'image';
+
+      if (!file) {
+        return new Response(JSON.stringify({ message: 'No file provided' }), { status: 400, headers });
+      }
+
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/quicktime'];
+      if (!allowedTypes.includes(file.type)) {
+        return new Response(JSON.stringify({ message: 'Invalid file type. Allowed: JPEG, PNG, GIF, WebP, MP4, MOV' }), { status: 400, headers });
+      }
+
+      const handler = new (await import('./handlers/media-access')).MediaAccessHandler(this.db, this.env);
+
+      const timestamp = Date.now();
+      const storagePath = `pitches/${pitchId}/media/${timestamp}_${file.name}`;
+      const uploadResult = await handler.uploadFileToR2(file, storagePath);
+
+      if (!uploadResult.success) {
+        return new Response(JSON.stringify({ message: uploadResult.error || 'Upload failed' }), { status: 500, headers });
+      }
+
+      // Insert record into pitch_documents
+      await this.db.query(`
+        INSERT INTO pitch_documents (
+          pitch_id, file_name, original_file_name, file_url, file_key,
+          file_type, mime_type, file_size, document_type, is_public,
+          uploaded_by, uploaded_at, last_modified, download_count, metadata
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+        )
+      `, [
+        pitchId,
+        file.name,
+        file.name,
+        uploadResult.url,
+        storagePath,
+        mediaType,
+        file.type,
+        file.size,
+        mediaType,
+        true,
+        authResult.user.id,
+        new Date(),
+        new Date(),
+        0,
+        JSON.stringify({ uploadedAt: new Date().toISOString(), originalName: file.name })
+      ]);
+
+      return new Response(JSON.stringify({
+        url: uploadResult.url,
+        filename: file.name,
+        size: file.size,
+        type: file.type
+      }), { status: 200, headers });
+    } catch (error) {
+      console.error('Creator pitch media upload error:', error);
+      return new Response(JSON.stringify({ message: 'Failed to upload media file' }), { status: 500, headers });
     }
   }
 
