@@ -14,6 +14,11 @@ Pitchey is a comprehensive movie pitch platform that connects creators, investor
 - **Storage**: Cloudflare R2 (S3-compatible object storage)
 - **WebSockets**: Via Cloudflare Workers (Durable Objects planned for future)
 
+## Project Structure
+The root directory contains only essential files and directories:
+- **12 root files**: package.json, package-lock.json, tsconfig.json, wrangler.toml, eslint.config.js, esbuild.config.js, .gitignore, .mcp.json, CLAUDE.md, README.md, .env.example, .env.production.example
+- **10 directories**: src/, frontend/, .github/, docs/, scripts/, node_modules/, dist/, .wrangler/, .claude/, .git/
+
 ## Development Setup
 
 ### Local Development Configuration
