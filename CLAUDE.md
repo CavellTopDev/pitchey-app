@@ -65,7 +65,7 @@ wrangler deploy
 - Frontend: `npm run dev`
 
 ### Production Deployment
-- Deploy Frontend: `wrangler pages deploy frontend/dist --project-name=pitchey`
+- Deploy Frontend: `cd frontend && wrangler pages deploy dist/ --project-name=pitchey` (must run from frontend/ so Pages Functions are included)
 - Deploy Worker: `wrangler deploy`
 
 ### Build Commands
@@ -159,7 +159,7 @@ These endpoints still work but internally use Better Auth:
 4. **WebSocket types defined in `frontend/src/types/websocket.ts`**
 
 ### Production Deployment
-1. **Frontend**: `wrangler pages deploy frontend/dist --project-name=pitchey`
+1. **Frontend**: `cd frontend && wrangler pages deploy dist/ --project-name=pitchey`
 2. **Worker API**: `wrangler deploy` (deploys worker-integrated.ts)
 3. **Documentation**: Organized in `docs/` folder
 4. **No direct backend access** - all requests go through Worker API

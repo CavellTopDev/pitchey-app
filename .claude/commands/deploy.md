@@ -15,9 +15,9 @@ Uncommitted changes: !`git status --porcelain | head -5`
 - If errors, stop and report them
 
 ### 2. Build Frontend
-- Build with production API URL:
+- Build frontend:
   ```bash
-  VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev npm run build
+  cd frontend && npm run build
   ```
 
 ### 3. Deploy Based on Target
@@ -26,12 +26,12 @@ Ask user for deployment target (staging/production):
 
 #### For Production:
 1. Deploy Worker: `wrangler deploy`
-2. Deploy Pages: `wrangler pages deploy frontend/dist --project-name=pitchey`
+2. Deploy Pages (from frontend/ dir): `cd frontend && wrangler pages deploy dist/ --project-name=pitchey`
 3. Report deployment URLs
 
 #### For Staging:
 1. Deploy Worker: `wrangler deploy --env staging`
-2. Deploy Pages: `wrangler pages deploy frontend/dist --project-name=pitchey --branch staging`
+2. Deploy Pages (from frontend/ dir): `cd frontend && wrangler pages deploy dist/ --project-name=pitchey --branch staging`
 
 ### 4. Post-Deployment Verification
 - Check Worker status in logs

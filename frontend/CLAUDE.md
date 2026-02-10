@@ -35,4 +35,4 @@ user_type from session determines portal access:
 - Build: `npm run build`
 - Type check: `npx tsc --noEmit`
 - Tests: `npx vitest run`
-- Deploy: `wrangler pages deploy dist/ --project-name=pitchey`
+- Deploy: `wrangler pages deploy dist/ --project-name=pitchey` (run from frontend/ dir so Pages Functions proxy is included)
