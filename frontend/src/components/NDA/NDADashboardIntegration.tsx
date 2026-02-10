@@ -98,8 +98,16 @@ export default function NDADashboardIntegration({
 
       setRecentActivity(activity);
     } catch (err) {
-      console.error('Failed to fetch NDA dashboard data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load NDA data');
+      // Silently handle auth errors — the parent dashboard already guards auth,
+      // so a 401 here just means cross-origin cookies weren't sent.
+      // Show empty state instead of an error to match the rest of the dashboard.
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.includes('Authentication required') || msg.includes('Unauthorized')) {
+        console.warn('[NDA Widget] Auth not available, showing empty state');
+      } else {
+        console.error('Failed to fetch NDA dashboard data:', err);
+        setError(msg || 'Failed to load NDA data');
+      }
     } finally {
       setLoading(false);
     }
