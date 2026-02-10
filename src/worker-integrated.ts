@@ -4526,6 +4526,7 @@ pitchey_analytics_datapoints_per_minute 1250
           likeCount: pitch.like_count || 0,
           createdAt: pitch.created_at,
           updatedAt: pitch.updated_at,
+          title_image: pitch.title_image,
           creator: creatorInfo,
           hasSignedNDA: hasNDAAccess,
           requiresNDA: pitch.require_nda || false

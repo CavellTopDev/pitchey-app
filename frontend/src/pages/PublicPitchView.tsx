@@ -285,6 +285,19 @@ export default function PublicPitchView() {
         </div>
       </header>
 
+      {/* Hero Image */}
+      {(pitch.titleImage || (pitch as any).title_image) && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+          <div className="relative aspect-[21/9] overflow-hidden rounded-xl bg-gray-100">
+            <img
+              src={pitch.titleImage || (pitch as any).title_image}
+              alt={pitch.title}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

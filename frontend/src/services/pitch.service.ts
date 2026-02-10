@@ -349,6 +349,7 @@ function transformPitchData(pitch: RawPitchData | null | undefined): Partial<Pit
     videoUrl: pitch.video_url ?? pitch.videoUrl,
     videoPassword: pitch.video_password ?? pitch.videoPassword,
     videoPlatform: pitch.video_platform ?? pitch.videoPlatform,
+    titleImage: (pitch as any).title_image ?? (pitch as any).titleImage,
   };
 }
 

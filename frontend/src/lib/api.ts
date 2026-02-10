@@ -65,6 +65,7 @@ function transformPitchData(pitch: any): any {
     budgetBreakdown: pitch.budget_breakdown ?? pitch.budgetBreakdown,
     attachedTalent: pitch.attached_talent ?? pitch.attachedTalent,
     financialProjections: pitch.financial_projections ?? pitch.financialProjections,
+    titleImage: pitch.title_image ?? pitch.titleImage,
   };
 }
 
