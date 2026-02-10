@@ -220,64 +220,16 @@ export class MediaAccessHandler {
     }
   }
 
-  // Helper: Generate signed URL for download (R2 implementation)
+  // Helper: Generate access URL for download (serves via worker endpoint)
   public async generateSignedUrl(storagePath: string, fileName: string): Promise<string> {
-    if (!this.env?.MEDIA_STORAGE) {
-      // Fallback for non-Worker environments
-      const baseUrl = 'https://storage.pitchey.com';
-      const token = Buffer.from(`${storagePath}:${Date.now()}`).toString('base64');
-      return `${baseUrl}/${storagePath}?token=${token}&filename=${encodeURIComponent(fileName)}`;
-    }
-
-    try {
-      // Generate R2 signed URL with 1 hour expiry
-      const signedUrl = await this.env.MEDIA_STORAGE.createPresignedUrl(
-        storagePath,
-        {
-          expiresIn: 3600, // 1 hour
-          method: 'GET',
-        }
-      );
-      return signedUrl;
-    } catch (error) {
-      console.error('Failed to generate R2 signed URL:', error);
-      // Fallback URL
-      const baseUrl = 'https://storage.pitchey.com';
-      const token = Buffer.from(`${storagePath}:${Date.now()}`).toString('base64');
-      return `${baseUrl}/${storagePath}?token=${token}&filename=${encodeURIComponent(fileName)}`;
-    }
+    const token = btoa(`${storagePath}:${Date.now()}`);
+    return `/api/media/file/${encodeURIComponent(storagePath)}?token=${token}&filename=${encodeURIComponent(fileName)}`;
   }
 
-  // Helper: Generate upload URL (R2 implementation)
-  public async generateUploadUrl(storagePath: string, mimeType: string): Promise<string> {
-    if (!this.env?.MEDIA_STORAGE) {
-      // Fallback for non-Worker environments
-      const baseUrl = 'https://upload.pitchey.com';
-      const token = Buffer.from(`upload:${storagePath}:${Date.now()}`).toString('base64');
-      return `${baseUrl}/put/${storagePath}?token=${token}`;
-    }
-
-    try {
-      // Generate R2 presigned URL for PUT operation
-      const uploadUrl = await this.env.MEDIA_STORAGE.createPresignedUrl(
-        storagePath,
-        {
-          method: 'PUT',
-          expiresIn: 3600, // 1 hour
-          customMetadata: {
-            'content-type': mimeType,
-            'uploaded-at': new Date().toISOString()
-          }
-        }
-      );
-      return uploadUrl;
-    } catch (error) {
-      console.error('Failed to generate R2 upload URL:', error);
-      // Fallback URL
-      const baseUrl = 'https://upload.pitchey.com';
-      const token = Buffer.from(`upload:${storagePath}:${Date.now()}`).toString('base64');
-      return `${baseUrl}/put/${storagePath}?token=${token}`;
-    }
+  // Helper: Generate upload URL (serves via worker endpoint)
+  public async generateUploadUrl(storagePath: string, _mimeType: string): Promise<string> {
+    const token = btoa(`upload:${storagePath}:${Date.now()}`);
+    return `/api/media/upload/${encodeURIComponent(storagePath)}?token=${token}`;
   }
 
   // New method: Direct file upload to R2
