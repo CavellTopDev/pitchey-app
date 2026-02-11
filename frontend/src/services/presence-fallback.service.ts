@@ -88,6 +88,12 @@ class PresenceFallbackService {
         credentials: 'include' // Send cookies for Better Auth session
       });
 
+      if (response.status === 401 || response.status === 403) {
+        // Session expired — stop polling silently instead of spamming errors
+        this.stop();
+        return false;
+      }
+
       if (!response.ok) {
         throw new Error(`Presence update failed: ${response.status}`);
       }
@@ -118,6 +124,11 @@ class PresenceFallbackService {
         method: 'GET',
         credentials: 'include' // Send cookies for Better Auth session
       });
+
+      if (response.status === 401 || response.status === 403) {
+        this.stop();
+        return [];
+      }
 
       if (!response.ok) {
         throw new Error(`Presence fetch failed: ${response.status}`);
