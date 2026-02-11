@@ -1494,10 +1494,10 @@ class RouteRegistry {
       // Insert new user (password stored as-is, matching existing login pattern)
       const portal = userType || 'creator';
       const [newUser] = await this.db.query(
-        `INSERT INTO users (email, username, password, user_type, name, company_name, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+        `INSERT INTO users (email, username, password, user_type, company_name, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
          RETURNING id, email, username, user_type, name, first_name, last_name, company_name`,
-        [email, finalUsername, password, portal, name || finalUsername, companyName]
+        [email, finalUsername, password, portal, companyName]
       ) as any[];
 
       if (!newUser) {
@@ -3519,9 +3519,7 @@ class RouteRegistry {
   }
 
   private async handleRegister(request: Request): Promise<Response> {
-    const body = await request.json() as RegisterBody;
-    const portal = body.userType || 'creator';
-    // Simplified register
+    // Delegate directly — don't consume the body stream here
     return this.handleRegisterSimple(request);
   }
 
