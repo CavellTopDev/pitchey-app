@@ -118,6 +118,14 @@ class SessionManager {
     this.lastCheck = null;
     this.checkInProgress = null;
   }
+
+  /**
+   * Reset for new page load — ensures the first checkSession() hits the backend
+   * instead of returning a stale in-memory cache from a previous page
+   */
+  resetForNewPageLoad() {
+    this.lastCheck = null;
+  }
   
   /**
    * Update cached session without making a request

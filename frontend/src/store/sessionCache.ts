@@ -13,6 +13,12 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 export const sessionCache = {
   get(): CachedSession | null {
     try {
+      // Guard: if session cookie is gone, cache is invalid
+      if (!document.cookie.includes('pitchey-session')) {
+        this.clear();
+        return null;
+      }
+
       const cached = localStorage.getItem(SESSION_CACHE_KEY);
       if (!cached) return null;
       

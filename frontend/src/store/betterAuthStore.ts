@@ -48,7 +48,7 @@ const getCachedAuthState = () => {
     return {
       user: cached.user,
       isAuthenticated: true,
-      loading: false,
+      loading: true, // Must validate with backend before trusting cache
       error: null
     };
   }
@@ -215,21 +215,21 @@ export const useBetterAuthStore = create<BetterAuthState>((set) => ({
   },
 
   logout: async () => {
-    set({ loading: true });
+    // Clear all caches FIRST (synchronous, immediate) to prevent stale reads
+    sessionCache.clear();
+    sessionManager.clearCache();
+    localStorage.removeItem('userType');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('token');
+    localStorage.removeItem('accessToken');
+    set({ user: null, isAuthenticated: false, loading: true, error: null });
+
     try {
       await portalAuth.signOut();
     } catch (error) {
-      // Continue with cleanup even if server logout fails
       console.warn('[BetterAuthStore] Server logout failed:', error);
     } finally {
-      // Always clear all auth state to prevent mixing
-      sessionCache.clear();
-      sessionManager.clearCache();
-      // Remove any legacy JWT tokens that might still exist
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('token');
-      localStorage.removeItem('accessToken');
-      set({ user: null, isAuthenticated: false, loading: false, error: null });
+      set({ loading: false });
     }
   },
 
@@ -247,40 +247,33 @@ export const useBetterAuthStore = create<BetterAuthState>((set) => ({
 
   checkSession: async () => {
     try {
-      // Use session manager to prevent rate limiting
+      // Use session manager to prevent rate limiting, but always hit the API
+      // (don't trust localStorage cache as ground truth)
       const result = await sessionManager.checkSession(async () => {
-        // First check cache
-        const cached = sessionCache.get();
-        if (cached?.user) {
-          return cached.user;
-        }
-        
-        // Then check with API (this will be rate limited by sessionManager)
         try {
           const session = await portalAuth.getSession();
           const user = session?.user || null;
-          
-          // Cache the result
           if (user) {
             sessionCache.set(user);
+          } else {
+            sessionCache.clear();
           }
-          
           return user;
-        } catch (error) {
-          // Session check failed - treat as not authenticated
+        } catch {
+          sessionCache.clear();
           return null;
         }
       });
-      
+
       // Update state based on result
-      set({ 
-        user: result.user || null, 
+      set({
+        user: result.user || null,
         isAuthenticated: !!result.user,
         loading: false,
         error: null
       });
     } catch {
-      // Session check failed — treat as not authenticated (expected when not logged in)
+      sessionCache.clear();
       set({
         user: null,
         isAuthenticated: false,
