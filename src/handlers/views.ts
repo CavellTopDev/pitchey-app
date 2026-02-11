@@ -28,25 +28,47 @@ export async function trackViewHandler(request: Request, env: Env): Promise<Resp
 
     const viewerId = await getUserId(request, env);
     const sessionId = request.headers.get('X-Session-ID') || crypto.randomUUID();
+    const ipAddress = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() || null;
 
-    // Deduplicate: same session + pitch within 30 minutes
-    const recent = await sql`
-      SELECT id FROM views
-      WHERE pitch_id = ${pitchId}
-        AND session_id = ${sessionId}
-        AND viewed_at > NOW() - INTERVAL '30 minutes'
-      LIMIT 1
-    `;
+    // For logged-in users: one view per user per pitch (enforced by unique index)
+    if (viewerId) {
+      const existing = await sql`
+        SELECT id FROM views
+        WHERE user_id = ${viewerId} AND pitch_id = ${pitchId}
+        LIMIT 1
+      `;
 
-    if (recent.length > 0) {
-      return new Response(JSON.stringify({ success: true, message: 'View already tracked', duplicate: true }), { headers });
+      if (existing.length > 0) {
+        // Update timestamp but don't create a new row
+        await sql`
+          UPDATE views SET viewed_at = NOW()
+          WHERE user_id = ${viewerId} AND pitch_id = ${pitchId}
+        `;
+        return new Response(JSON.stringify({ success: true, message: 'View updated', duplicate: true }), { headers });
+      }
+    } else {
+      // For anonymous users: deduplicate by session (24h) and IP+pitch (24h)
+      const recent = await sql`
+        SELECT id FROM views
+        WHERE pitch_id = ${pitchId}
+          AND user_id IS NULL
+          AND (
+            session_id = ${sessionId}
+            ${ipAddress ? sql`OR ip_address = ${ipAddress}` : sql``}
+          )
+          AND viewed_at > NOW() - INTERVAL '24 hours'
+        LIMIT 1
+      `;
+
+      if (recent.length > 0) {
+        return new Response(JSON.stringify({ success: true, message: 'View already tracked', duplicate: true }), { headers });
+      }
     }
 
-    // Insert view (columns that exist in the actual table)
+    // Insert new view
     const [view] = await sql`
-      INSERT INTO views (pitch_id, viewer_id, user_id, session_id, view_type)
-      VALUES (${pitchId}, ${viewerId || null}, ${viewerId || null}, ${sessionId}, 'page_view')
-      ON CONFLICT (user_id, pitch_id) DO UPDATE SET viewed_at = NOW()
+      INSERT INTO views (pitch_id, viewer_id, user_id, session_id, view_type, ip_address)
+      VALUES (${pitchId}, ${viewerId || null}, ${viewerId || null}, ${sessionId}, 'page_view', ${ipAddress})
       RETURNING id, viewed_at
     `;
 

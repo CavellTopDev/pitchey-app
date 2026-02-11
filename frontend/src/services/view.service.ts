@@ -3,13 +3,16 @@ import axios from 'axios';
 
 const API_URL = config.API_URL;
 
-// Generate or retrieve session ID
+// Generate or retrieve session ID from a persistent cookie (survives tab close)
 const getSessionId = (): string => {
-  let sessionId = sessionStorage.getItem('view-session-id');
-  if (!sessionId) {
-    sessionId = crypto.randomUUID();
-    sessionStorage.setItem('view-session-id', sessionId);
-  }
+  const cookieName = 'pitchey-view-sid';
+  const match = document.cookie.match(new RegExp(`(?:^|; )${cookieName}=([^;]*)`));
+  if (match) return match[1];
+
+  const sessionId = crypto.randomUUID();
+  // Set cookie with 24h expiry, SameSite=Lax for same-origin requests
+  const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toUTCString();
+  document.cookie = `${cookieName}=${sessionId}; expires=${expires}; path=/; SameSite=Lax`;
   return sessionId;
 };
 
