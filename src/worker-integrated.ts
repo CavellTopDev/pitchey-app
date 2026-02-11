@@ -170,6 +170,7 @@ import {
 } from './services/security-fix';
 import { WorkerDatabase } from './services/worker-database';
 import { WorkerEmailService } from './services/worker-email';
+import { EmailService } from './services/email-service';
 
 // Import distributed tracing service
 import { TraceService, handleAPIRequestWithTracing, TraceSpan } from './services/trace-service';
@@ -648,11 +649,13 @@ class RouteRegistry {
       });
 
       // Initialize email service if configured
+      // NOTE: Using onboarding@resend.dev (Resend's built-in test sender) until
+      // a custom domain is verified with Resend for production branding.
       if (env.RESEND_API_KEY) {
         this.emailService = new WorkerEmailService({
           apiKey: env.RESEND_API_KEY,
-          fromEmail: env.SENDGRID_FROM_EMAIL || 'notifications@pitchey.com',
-          fromName: env.SENDGRID_FROM_NAME || 'Pitchey'
+          fromEmail: 'onboarding@resend.dev',
+          fromName: 'Pitchey'
         });
       }
 
@@ -1533,6 +1536,35 @@ class RouteRegistry {
 
       console.log(`[Auth] User registered: userId=${newUser.id}, email=${newUser.email}, userType=${newUser.user_type}`);
 
+      // Send verification email (non-blocking — don't fail sign-up if email fails)
+      try {
+        const verificationToken = crypto.randomUUID();
+        const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+        await this.db.query(
+          `INSERT INTO verification_tokens (identifier, token, expires)
+           VALUES ($1, $2, $3)`,
+          [email, verificationToken, tokenExpires]
+        );
+
+        const verificationUrl = `${this.env.BACKEND_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev'}/api/auth/verify-email?token=${verificationToken}`;
+
+        if (this.emailService) {
+          const welcomeEmail = EmailService.getWelcomeEmail(finalUsername, verificationUrl);
+          await this.emailService.send({
+            to: email,
+            subject: welcomeEmail.subject,
+            html: welcomeEmail.html,
+          });
+          console.log(`[Auth] Verification email sent to ${email}`);
+        } else {
+          console.warn(`[Auth] Email service not configured — verification email NOT sent to ${email}`);
+        }
+      } catch (emailError) {
+        console.warn('[Auth] Failed to send verification email:', emailError);
+        // Don't block sign-up — user can request resend later
+      }
+
       return new Response(JSON.stringify({
         success: true,
         data: {
@@ -1716,6 +1748,122 @@ class RouteRegistry {
     this.register('POST', '/api/auth/sign-out', async (request: Request) => {
       // Route Better Auth sign-out to our logout handler
       return this.handleLogout(request);
+    });
+
+    // Email verification — click link from email
+    this.register('GET', '/api/auth/verify-email', async (request: Request) => {
+      const url = new URL(request.url);
+      const token = url.searchParams.get('token');
+      const frontendUrl = this.env.FRONTEND_URL || 'https://pitchey-5o8.pages.dev';
+
+      if (!token) {
+        return Response.redirect(`${frontendUrl}/login?verified=false`, 302);
+      }
+
+      try {
+        // Look up valid, non-expired token
+        const [row] = await this.db.query(
+          `SELECT identifier FROM verification_tokens WHERE token = $1 AND expires > NOW()`,
+          [token]
+        ) as any[];
+
+        if (!row) {
+          return Response.redirect(`${frontendUrl}/login?verified=false`, 302);
+        }
+
+        const email = row.identifier;
+
+        // Mark user as verified
+        await this.db.query(
+          `UPDATE users SET email_verified = true, email_verified_at = NOW() WHERE email = $1`,
+          [email]
+        );
+
+        // Delete used token
+        await this.db.query(
+          `DELETE FROM verification_tokens WHERE token = $1`,
+          [token]
+        );
+
+        console.log(`[Auth] Email verified for ${email}`);
+        return Response.redirect(`${frontendUrl}/login?verified=true`, 302);
+      } catch (error) {
+        console.error('[Auth] Email verification error:', error);
+        return Response.redirect(`${frontendUrl}/login?verified=false`, 302);
+      }
+    });
+
+    // Resend verification email
+    this.register('POST', '/api/auth/resend-verification', async (request: Request) => {
+      const origin = request.headers.get('Origin');
+      const corsHeaders = getCorsHeaders(origin);
+      const jsonHeaders = { 'Content-Type': 'application/json', ...corsHeaders };
+
+      try {
+        const body = await request.json() as { email?: string };
+        const email = body.email;
+
+        // Always return success to avoid leaking whether email exists
+        if (!email) {
+          return new Response(JSON.stringify({ success: true }), { headers: jsonHeaders });
+        }
+
+        // Check user exists and is not verified
+        const [user] = await this.db.query(
+          `SELECT id, username FROM users WHERE email = $1 AND email_verified = false LIMIT 1`,
+          [email]
+        ) as any[];
+
+        if (!user) {
+          return new Response(JSON.stringify({ success: true }), { headers: jsonHeaders });
+        }
+
+        // Rate limit: check if last token was created < 60s ago
+        const [recentToken] = await this.db.query(
+          `SELECT created_at FROM verification_tokens WHERE identifier = $1 ORDER BY created_at DESC LIMIT 1`,
+          [email]
+        ) as any[];
+
+        if (recentToken) {
+          const elapsed = Date.now() - new Date(recentToken.created_at).getTime();
+          if (elapsed < 60_000) {
+            return new Response(JSON.stringify({ success: true }), { headers: jsonHeaders });
+          }
+        }
+
+        // Delete old tokens for this email
+        await this.db.query(
+          `DELETE FROM verification_tokens WHERE identifier = $1`,
+          [email]
+        );
+
+        // Generate new token and send email
+        const verificationToken = crypto.randomUUID();
+        const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+        await this.db.query(
+          `INSERT INTO verification_tokens (identifier, token, expires)
+           VALUES ($1, $2, $3)`,
+          [email, verificationToken, tokenExpires]
+        );
+
+        const verificationUrl = `${this.env.BACKEND_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev'}/api/auth/verify-email?token=${verificationToken}`;
+
+        if (this.emailService) {
+          const welcomeEmail = EmailService.getWelcomeEmail(user.username || email.split('@')[0], verificationUrl);
+          await this.emailService.send({
+            to: email,
+            subject: welcomeEmail.subject,
+            html: welcomeEmail.html,
+          });
+          console.log(`[Auth] Verification email resent to ${email}`);
+        }
+
+        return new Response(JSON.stringify({ success: true }), { headers: jsonHeaders });
+      } catch (error) {
+        console.error('[Auth] Resend verification error:', error);
+        return new Response(JSON.stringify({ success: true }), { headers: jsonHeaders });
+      }
     });
 
     this.register('POST', '/api/auth/session/refresh', async (request: Request) => {
@@ -3039,6 +3187,8 @@ class RouteRegistry {
       '/api/auth/sign-in',
       '/api/auth/sign-up',
       '/api/auth/sign-out',
+      '/api/auth/verify-email',
+      '/api/auth/resend-verification',
       '/api/auth/session/refresh',
       '/api/auth/creator/login',
       '/api/auth/investor/login',

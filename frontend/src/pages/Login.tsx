@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useBetterAuthStore } from '../store/betterAuthStore';
-import { Film, Briefcase, DollarSign, LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
+import { Film, Briefcase, DollarSign, LogIn, Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react';
 
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const verified = searchParams.get('verified');
   const { loginCreator, loginInvestor, loginProduction, loading, error } = useBetterAuthStore();
   const [selectedPortal, setSelectedPortal] = useState<'creator' | 'investor' | 'production' | null>(null);
   const [formData, setFormData] = useState({
@@ -99,6 +101,18 @@ export default function Login() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-gray-800 py-8 px-4 shadow-xl sm:rounded-lg sm:px-10 border border-gray-700">
+          {verified === 'true' && (
+            <div className="mb-6 bg-green-900/50 border border-green-500 text-green-200 px-4 py-3 rounded-lg flex items-center">
+              <CheckCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+              Email verified successfully! You can now sign in.
+            </div>
+          )}
+          {verified === 'false' && (
+            <div className="mb-6 bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg flex items-center">
+              <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+              Verification link is invalid or expired. Please request a new one.
+            </div>
+          )}
           {/* Portal Selection */}
           {!selectedPortal ? (
             <div className="space-y-4">

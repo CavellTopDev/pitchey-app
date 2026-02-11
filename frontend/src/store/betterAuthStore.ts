@@ -192,23 +192,17 @@ export const useBetterAuthStore = create<BetterAuthState>((set) => ({
       });
 
       if (!response.ok) {
-        throw new Error('Registration failed');
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error?.message || 'Registration failed');
       }
 
-      const result = await response.json();
-      const user = result.user;
-      
-      if (!user) {
-        throw new Error('User data not received from server');
-      }
-      
-      sessionCache.set(user); // Cache the user session
-      sessionManager.updateCache(user); // Update session manager cache
-      set({ user, isAuthenticated: true, loading: false });
+      // Don't auto-login — user must verify email first
+      // Register.tsx will show the "check your inbox" UI
+      set({ loading: false });
     } catch (error: any) {
-      set({ 
+      set({
         error: error.message || 'Registration failed',
-        loading: false 
+        loading: false
       });
       throw error;
     }
