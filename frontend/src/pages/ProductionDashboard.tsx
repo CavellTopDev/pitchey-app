@@ -875,6 +875,17 @@ function ProductionDashboard() {
       <div className="space-y-6">
         {activeTab === 'overview' && (
           <div className="space-y-8">
+            {/* Primary CTA - Create New Pitch */}
+            <div>
+              <button
+                onClick={() => navigate('/create-pitch')}
+                className="w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-purple-600 text-white text-lg font-bold rounded-xl hover:bg-purple-700 shadow-lg hover:shadow-xl transition-all"
+              >
+                <Plus className="w-6 h-6" />
+                Create New Pitch
+              </button>
+            </div>
+
             {/* Enhanced Production Analytics */}
             <EnhancedProductionAnalytics 
               productionPerformance={{

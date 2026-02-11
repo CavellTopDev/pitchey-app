@@ -41,6 +41,7 @@ export default function PitchEdit() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [genres] = useState<string[]>(getGenresSync());
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
   const [formData, setFormData] = useState<PitchFormData>({
     title: '',
     genre: '',
@@ -126,6 +127,7 @@ export default function PitchEdit() {
         throw new Error('Pitch not found');
       }
       
+      setExistingImageUrl(pitch.titleImage || (pitch as any).title_image || null);
       setFormData({
         title: pitch.title || '',
         genre: pitch.genre || '',
@@ -589,41 +591,52 @@ export default function PitchEdit() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Cover Image
               </label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-purple-500 transition">
-                {formData.image ? (
-                  <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-                    <div className="flex items-center gap-3">
-                      <ImageIcon className="w-5 h-5 text-purple-600" />
-                      <span className="text-sm font-medium">{formData.image.name}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeFile('image')}
-                      className="text-red-500 hover:text-red-700"
-                    >
+
+              {/* Current/Existing Image */}
+              {existingImageUrl && !formData.image && (
+                <div className="mb-4">
+                  <p className="text-sm text-gray-500 mb-2">Current cover image:</p>
+                  <div className="relative aspect-[21/9] overflow-hidden rounded-lg bg-gray-100">
+                    <img src={existingImageUrl} alt="Current cover" className="w-full h-full object-cover" />
+                  </div>
+                </div>
+              )}
+
+              {/* New file selected — show preview */}
+              {formData.image && (
+                <div className="mb-4">
+                  <p className="text-sm text-gray-500 mb-2">New image selected:</p>
+                  <div className="relative aspect-[21/9] overflow-hidden rounded-lg bg-gray-100">
+                    <img src={URL.createObjectURL(formData.image)} alt="Preview" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex items-center justify-between mt-2 bg-gray-50 rounded-lg p-3">
+                    <span className="text-sm font-medium">{formData.image.name}</span>
+                    <button type="button" onClick={() => removeFile('image')} className="text-red-500 hover:text-red-700">
                       <X className="w-4 h-4" />
                     </button>
                   </div>
-                ) : (
-                  <div>
-                    <ImageIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600 mb-2">Upload a new cover image (optional)</p>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleFileChange(e, 'image')}
-                      className="hidden"
-                      id="image-upload"
-                    />
-                    <label
-                      htmlFor="image-upload"
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition cursor-pointer"
-                    >
-                      <Upload className="w-4 h-4" />
-                      Choose Image
-                    </label>
-                  </div>
-                )}
+                </div>
+              )}
+
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-purple-500 transition">
+                <ImageIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-600 mb-2">
+                  {existingImageUrl || formData.image ? 'Replace cover image' : 'Upload a cover image (optional)'}
+                </p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleFileChange(e, 'image')}
+                  className="hidden"
+                  id="image-upload"
+                />
+                <label
+                  htmlFor="image-upload"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition cursor-pointer"
+                >
+                  <Upload className="w-4 h-4" />
+                  {existingImageUrl || formData.image ? 'Choose New Image' : 'Choose Image'}
+                </label>
               </div>
             </div>
 

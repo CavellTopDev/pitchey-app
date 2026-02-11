@@ -105,26 +105,27 @@ export default function Register() {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Account Type
+              <label className="block text-sm font-bold text-gray-900 mb-3">
+                What brings you to Pitchey?
               </label>
-              <div className="mt-2 grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
-                  { value: 'creator', label: 'Creator' },
-                  { value: 'production', label: 'Production' },
-                  { value: 'investor', label: 'Investor' },
+                  { value: 'creator', label: 'Creator', desc: 'Pitch your film or TV project' },
+                  { value: 'production', label: 'Production', desc: 'Find projects to produce' },
+                  { value: 'investor', label: 'Investor', desc: 'Discover investment opportunities' },
                 ].map((type) => (
                   <button
                     key={type.value}
                     type="button"
                     onClick={() => setFormData({ ...formData, userType: type.value })}
-                    className={`px-4 py-2 text-sm font-medium rounded-md ${
+                    className={`p-4 text-left rounded-lg border-2 transition ${
                       formData.userType === type.value
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                        ? 'border-primary-600 bg-primary-50'
+                        : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
-                    {type.label}
+                    <div className="font-semibold">{type.label}</div>
+                    <div className="text-xs text-gray-500 mt-1">{type.desc}</div>
                   </button>
                 ))}
               </div>

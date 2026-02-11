@@ -292,6 +292,17 @@ function CreatorDashboard() {
         </div>
       )}
 
+      {/* Create New Pitch CTA - Primary Action */}
+      <div className="mb-6">
+        <button
+          onClick={() => navigate('/creator/pitch/new')}
+          className="w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-purple-600 text-white text-lg font-bold rounded-xl hover:bg-purple-700 shadow-lg hover:shadow-xl transition-all"
+        >
+          <Plus className="w-6 h-6" />
+          Create New Pitch
+        </button>
+      </div>
+
       {/* Stats Grid */}
       <div className="space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-6 mb-8">
@@ -381,14 +392,14 @@ function CreatorDashboard() {
           />
         </div>
 
-        {/* Create New Pitch CTA */}
+        {/* Create New Pitch CTA - secondary reminder */}
         <div className="mb-8">
           <button
             onClick={() => navigate('/creator/pitch/new')}
-            className="w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-purple-600 text-white text-lg font-semibold rounded-xl hover:bg-purple-700 shadow-lg hover:shadow-xl transition-all"
+            className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-3 bg-purple-100 text-purple-700 font-semibold rounded-xl hover:bg-purple-200 transition-all"
           >
-            <Plus className="w-6 h-6" />
-            Create New Pitch
+            <Plus className="w-5 h-5" />
+            Create Another Pitch
           </button>
         </div>
 
