@@ -54,7 +54,7 @@ export class NotificationsService {
             message: 'Explore trending pitches and discover investment opportunities',
             isRead: false,
             createdAt: new Date().toISOString(),
-            userId: 1,
+            userId: 0,
             data: {}
           },
           {
@@ -64,7 +64,7 @@ export class NotificationsService {
             message: 'Your profile is set up and ready to go',
             isRead: true,
             createdAt: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-            userId: 1,
+            userId: 0,
             data: {}
           },
           {
@@ -74,7 +74,7 @@ export class NotificationsService {
             message: 'Check out our latest platform updates',
             isRead: true,
             createdAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-            userId: 1,
+            userId: 0,
             data: {}
           }
         ];

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Share2, Eye, Calendar, User, Clock, Tag, Film, Heart, LogIn, FileText, Lock, Shield, Briefcase, DollarSign } from 'lucide-react';
 import { pitchService } from '../services/pitch.service';
@@ -20,24 +20,7 @@ export default function PitchDetail() {
   const [isLiking, setIsLiking] = useState(false);
   const [showEnhancedNDARequest, setShowEnhancedNDARequest] = useState(false);
   const [hasSignedNDA, setHasSignedNDA] = useState(false);
-  
-  // Debug: Track renders
-  const renderCount = useRef(0);
-  renderCount.current += 1;
-  
-  // Debug: Log all state changes
-  useEffect(() => {
-    console.log('🔄 [PitchDetail] Render #', renderCount.current);
-    console.log('🔄 [PitchDetail] Current state:', {
-      pitch: pitch?.id ? `${pitch.id}: ${pitch.title}` : null,
-      hasSignedNDA,
-      isAuthenticated,
-      isOwner,
-      hasProtectedContent: !!pitch?.protectedContent,
-      protectedContentKeys: pitch?.protectedContent ? Object.keys(pitch.protectedContent) : []
-    });
-  });
-  
+
   // Check if current user owns this pitch
   // First check the isOwner flag from backend, then fallback to comparing IDs
   // Handle both direct user object and nested user.data structure
@@ -88,12 +71,6 @@ export default function PitchDetail() {
     return false;
   })();
   
-  // Debug logging to see what's being compared
-  useEffect(() => {
-    if (pitch && user) {
-    }
-  }, [pitch, user, currentUserId, isOwner]);
-
   useEffect(() => {
     if (id) {
       fetchPitch(parseInt(id));
@@ -101,40 +78,17 @@ export default function PitchDetail() {
   }, [id, isAuthenticated]);
 
   const hasValidSession = (): boolean => {
-    // Check if the user is authenticated via Better Auth
     const validAuth = isAuthenticated && user && (user.id || user.data?.id || user.user?.id);
-    
-    console.log('🔐 [PitchDetail] Authentication check details:', {
-      isAuthenticated,
-      hasUser: !!user,
-      userId: user?.id || user?.data?.id || user?.user?.id,
-      validAuth
-    });
-    
     return !!validAuth;
   };
 
   const fetchPitch = async (pitchId: number) => {
     try {
       const validAuth = hasValidSession();
-      console.log('📡 [PitchDetail] Calling endpoint with isAuthenticated:', isAuthenticated);
-      console.log('📡 [PitchDetail] hasValidSession:', validAuth);
-      console.log('📡 [PitchDetail] User object:', user);
-      
-      // Use authenticated endpoint if user has valid session, otherwise use public
-      const endpoint = validAuth ? `/api/pitches/${pitchId}` : `/api/pitches/public/${pitchId}`;
-      console.log('📡 [PitchDetail] Selected endpoint:', endpoint);
-      
+
       const pitch = validAuth 
         ? await pitchService.getByIdAuthenticated(pitchId)
         : await pitchService.getById(pitchId);
-      
-      console.log('🔍 [PitchDetail] Raw API Response:', pitch);
-      console.log('🔍 [PitchDetail] isAuthenticated:', isAuthenticated);
-      console.log('🔍 [PitchDetail] hasSignedNDA from API:', pitch.hasSignedNDA);
-      console.log('🔍 [PitchDetail] hasNDA from API:', pitch.hasNDA);
-      console.log('🔍 [PitchDetail] protectedContent from API:', pitch.protectedContent);
-      console.log('🔍 [PitchDetail] isOwner from API:', pitch.isOwner);
       
       // Check if protected content fields are present (indicates NDA access)
       const hasProtectedFields = !!(
@@ -147,17 +101,6 @@ export default function PitchDetail() {
         pitch.contact_details ||
         pitch.revenue_model
       );
-      
-      console.log('🔍 [PitchDetail] Checking for protected content fields:');
-      console.log('🔍 [PitchDetail] budget_breakdown:', !!pitch.budget_breakdown);
-      console.log('🔍 [PitchDetail] attached_talent:', !!pitch.attached_talent);
-      console.log('🔍 [PitchDetail] financial_projections:', !!pitch.financial_projections);
-      console.log('🔍 [PitchDetail] distribution_plan:', !!pitch.distribution_plan);
-      console.log('🔍 [PitchDetail] marketing_strategy:', !!pitch.marketing_strategy);
-      console.log('🔍 [PitchDetail] private_attachments:', !!pitch.private_attachments);
-      console.log('🔍 [PitchDetail] contact_details:', !!pitch.contact_details);
-      console.log('🔍 [PitchDetail] revenue_model:', !!pitch.revenue_model);
-      console.log('🔍 [PitchDetail] hasProtectedFields:', hasProtectedFields);
       
       // If protected fields are present, wrap them in protectedContent structure that frontend expects
       if (hasProtectedFields) {
@@ -172,12 +115,10 @@ export default function PitchDetail() {
           revenueModel: pitch.revenue_model,
           productionTimeline: pitch.production_timeline
         };
-        console.log('🎉 [PitchDetail] Created protectedContent wrapper:', pitch.protectedContent);
       }
-      
+
       setPitch(pitch);
       const ndaStatus = pitch.hasSignedNDA || pitch.hasNDA || hasProtectedFields;
-      console.log('🔍 [PitchDetail] Setting hasSignedNDA to:', ndaStatus);
       setHasSignedNDA(ndaStatus);
       setIsLiked(pitch.isLiked || false);
       
@@ -239,18 +180,11 @@ export default function PitchDetail() {
   };
 
   const handleNDASigned = () => {
-    console.log('✅ [PitchDetail] NDA signed callback triggered');
-    
-    // Immediately update state to trigger UI updates
     setHasSignedNDA(true);
-    
-    // Clear any existing error state
     setError(null);
-    
+
     // Refresh pitch data to get enhanced information
     if (id) {
-      console.log('🔄 [PitchDetail] Refreshing pitch data after NDA signing...');
-      
       // Add a small delay to ensure the backend has processed the NDA
       setTimeout(() => {
         fetchPitch(parseInt(id));
@@ -498,12 +432,6 @@ export default function PitchDetail() {
                 </div>
               </div>
             ) : (hasSignedNDA || isOwner) && pitch?.protectedContent ? (
-              (() => {
-                console.log('🎉 [PitchDetail] RENDERING PROTECTED CONTENT!');
-                console.log('🎉 [PitchDetail] hasSignedNDA:', hasSignedNDA);
-                console.log('🎉 [PitchDetail] pitch.protectedContent:', pitch.protectedContent);
-                return null;
-              })(),
               <div key={`protected-${hasSignedNDA}-${pitch?.id}`} className="bg-white rounded-xl shadow-sm p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">Enhanced Information</h3>
@@ -513,21 +441,6 @@ export default function PitchDetail() {
                   </span>
                 </div>
                 <div className="space-y-4">
-                  {(() => {
-                    console.log('🔍 [ProtectedContent] Debugging individual field conditions:');
-                    console.log('🔍 [ProtectedContent] pitch.protectedContent:', pitch.protectedContent);
-                    console.log('🔍 [ProtectedContent] budgetBreakdown exists:', !!pitch.protectedContent?.budgetBreakdown);
-                    console.log('🔍 [ProtectedContent] productionTimeline exists:', !!pitch.protectedContent?.productionTimeline);
-                    console.log('🔍 [ProtectedContent] attachedTalent exists:', !!pitch.protectedContent?.attachedTalent);
-                    console.log('🔍 [ProtectedContent] financialProjections exists:', !!pitch.protectedContent?.financialProjections);
-                    console.log('🔍 [ProtectedContent] distributionPlan exists:', !!pitch.protectedContent?.distributionPlan);
-                    console.log('🔍 [ProtectedContent] marketingStrategy exists:', !!pitch.protectedContent?.marketingStrategy);
-                    console.log('🔍 [ProtectedContent] revenueModel exists:', !!pitch.protectedContent?.revenueModel);
-                    console.log('🔍 [ProtectedContent] privateAttachments exists:', !!pitch.protectedContent?.privateAttachments);
-                    console.log('🔍 [ProtectedContent] contactDetails exists:', !!pitch.protectedContent?.contactDetails);
-                    return null;
-                  })()}
-                  
                   {/* Budget Breakdown with improved null checks */}
                   {pitch.protectedContent?.budgetBreakdown && 
                    typeof pitch.protectedContent.budgetBreakdown === 'object' && 

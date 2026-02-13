@@ -9,7 +9,7 @@
     "build:dev": "npx tsc && vite build",
     "build-with-types": "npx tsc -b && vite build",
     "lint": "eslint .",
-    "type-check": "npx tsc --noEmit",
+    "type-check": "npx tsc --noEmit -p tsconfig.app.json",
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",

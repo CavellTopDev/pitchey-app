@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Film, Users, DollarSign, Rocket, Shield, TrendingUp, CheckCircle, Star, Zap, Target, Award, Loader } from 'lucide-react';
 import { contentService } from '../services/content.service';
+import { BRAND } from '../constants/brand';
 
 interface ContentData {
   hero?: {
@@ -213,6 +214,7 @@ const HowItWorks: React.FC = () => {
             >
               <ArrowLeft className="w-5 h-5 text-gray-700" />
             </button>
+            <img src={BRAND.logo} alt={BRAND.logoAlt} className="h-8 w-auto" />
             <h1 className="text-2xl font-bold text-gray-900">How It Works</h1>
           </div>
           <button

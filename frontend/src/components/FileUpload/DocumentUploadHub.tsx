@@ -15,6 +15,7 @@ import { useToast } from '../Toast/ToastProvider';
 import MultipleFileUpload, { EnhancedMediaFile } from './MultipleFileUpload';
 import NDAUploadSection, { NDADocument } from './NDAUploadSection';
 import { enhancedUploadService, EnhancedUploadOptions, EnhancedUploadResult, BatchUploadProgress } from '../../services/enhanced-upload.service';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 
 interface DocumentUploadHubProps {
   pitchId?: number;
@@ -72,6 +73,7 @@ export default function DocumentUploadHub({
   });
 
   const { success, error } = useToast();
+  const { user } = useBetterAuthStore();
 
   // Handle NDA changes
   const handleNDAChange = useCallback((nda: NDADocument | null) => {
@@ -167,7 +169,7 @@ export default function DocumentUploadHub({
         {
           ...uploadOptions,
           pitchId,
-          userId: 1, // TODO: Get from auth context
+          userId: user?.id || 0,
           maxConcurrency: 3,
           onBatchProgress: (progress) => {
             setUploadStats(progress);

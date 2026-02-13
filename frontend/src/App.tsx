@@ -17,14 +17,13 @@ import { AllCreatorRoutes, AllInvestorRoutes, AllProductionRoutes } from './comp
 // Import new Portal Layout
 import { PortalLayout } from './components/layout/PortalLayout';
 
-// Log environment on app load
-console.info('🚀 Pitchey App Environment:', {
-  PROD: import.meta.env.PROD,
-  DEV: import.meta.env.DEV,
-  MODE: import.meta.env.MODE,
-  API_URL: API_URL,
-  NODE_ENV: config.NODE_ENV
-});
+// Log environment on app load (dev only)
+if (import.meta.env.DEV) {
+  console.info('Pitchey App Environment:', {
+    MODE: import.meta.env.MODE,
+    API_URL: API_URL,
+  });
+}
 
 // Immediately needed components (not lazy loaded)
 import Layout from './components/Layout';
@@ -58,7 +57,6 @@ const CreatorProfile = lazy(() => import('./pages/CreatorProfile'));
 
 // Public Pages
 const Marketplace = lazy(() => import('./pages/MarketplaceEnhanced'));
-const TestMarketplace = lazy(() => import('./pages/TestMarketplace'));
 const PublicPitchView = lazy(() => import('./pages/PublicPitchView'));
 
 // Creator Pages
@@ -344,7 +342,6 @@ function App() {
           
           {/* Browse Route */}
           <Route path="/browse" element={<BrowseTabsFixed />} />
-          <Route path="/test-marketplace" element={<TestMarketplace />} />
           
           {/* Info Pages */}
           <Route path="/how-it-works" element={<HowItWorks />} />
