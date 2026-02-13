@@ -68,7 +68,6 @@ const InvestorPitchView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'financials' | 'diligence' | 'notes'>('overview');
   const [isWatchlisted, setIsWatchlisted] = useState(false);
-  const [showNDAModal, setShowNDAModal] = useState(false);
   const [notes, setNotes] = useState<InvestmentNote[]>([]);
   const [newNote, setNewNote] = useState('');
   const [noteCategory, setNoteCategory] = useState<InvestmentNote['category']>('general');
@@ -120,10 +119,6 @@ const InvestorPitchView: React.FC = () => {
       
       setPitch(response);
       
-      // Check if pitch requires NDA and user hasn't signed
-      if (response.visibility === 'nda_only' && !response.hasSignedNDA) {
-        setShowNDAModal(true);
-      }
     } catch (error) {
       console.error('Failed to fetch pitch:', error);
       setError('Failed to load pitch details');

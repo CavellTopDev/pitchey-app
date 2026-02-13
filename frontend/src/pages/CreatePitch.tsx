@@ -377,10 +377,10 @@ export default function CreatePitch() {
 
             // Find image and video URLs from successful uploads
             const imageUpload = uploadResults.successful.find(r =>
-              r.type?.includes('image') || r.filename?.match(/\.(jpg|jpeg|png|gif|webp)$/i)
+              r.category === 'image' || r.type?.includes('image') || r.filename?.match(/\.(jpg|jpeg|png|gif|webp)$/i)
             );
             const videoUpload = uploadResults.successful.find(r =>
-              r.type?.includes('video') || r.filename?.match(/\.(mp4|mov|avi|webm)$/i)
+              r.category === 'video' || r.type?.includes('video') || r.filename?.match(/\.(mp4|mov|avi|webm)$/i)
             );
 
             if (imageUpload) {
@@ -396,7 +396,7 @@ export default function CreatePitch() {
                 await pitchService.update(pitchId, mediaUpdates);
               } catch (updateErr) {
                 console.warn('Failed to update pitch with media URLs:', updateErr);
-                // Don't fail the whole operation - pitch and files are created
+                error('Media link warning', 'Your pitch was created but the cover image/video link could not be saved. You can add it later by editing the pitch.');
               }
             }
           }
@@ -427,10 +427,15 @@ export default function CreatePitch() {
     
     if (!isFormValid) {
       setIsSubmitting(false);
-      // Focus first field with error
-      const firstErrorField = Object.keys(fieldErrors)[0];
-      if (firstErrorField) {
-        a11y.focus.focusById(firstErrorField);
+      const errorKeys = Object.keys(fieldErrors);
+      if (errorKeys.length > 0) {
+        // Show toast with error summary
+        error(
+          'Please fix validation errors',
+          `${errorKeys.length} field(s) need attention: ${errorKeys.slice(0, 3).join(', ')}${errorKeys.length > 3 ? ` and ${errorKeys.length - 3} more` : ''}`
+        );
+        // Focus first field with error
+        a11y.focus.focusById(errorKeys[0]);
       }
     }
   };
@@ -1158,6 +1163,35 @@ export default function CreatePitch() {
               className="border-t pt-6"
             />
           </div>
+
+          {/* Validation Error Summary */}
+          {Object.keys(fieldErrors).length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4" role="alert">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="font-medium text-red-800 mb-2">
+                    Please fix {Object.keys(fieldErrors).length} error{Object.keys(fieldErrors).length > 1 ? 's' : ''} before submitting
+                  </h3>
+                  <ul className="space-y-1">
+                    {Object.entries(fieldErrors).map(([field, errors]) => (
+                      errors && errors.length > 0 && (
+                        <li key={field}>
+                          <button
+                            type="button"
+                            onClick={() => a11y.focus.focusById(field)}
+                            className="text-sm text-red-700 hover:text-red-900 underline cursor-pointer"
+                          >
+                            {field}: {errors[0]}
+                          </button>
+                        </li>
+                      )
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Submit */}
           <div className="flex justify-end gap-4">

@@ -37,7 +37,7 @@ export const ShortSynopsisSchema = v.pipe(
 
 export const ThemesSchema = v.pipe(
   v.string(),
-  v.maxLength(500, 'Themes must be less than 500 characters')
+  v.maxLength(1000, 'Themes must be less than 1000 characters')
 );
 
 export const WorldDescriptionSchema = v.pipe(
@@ -46,12 +46,9 @@ export const WorldDescriptionSchema = v.pipe(
 );
 
 export const BudgetRangeSchema = v.optional(
-  v.pipe(
-    v.string(),
-    v.regex(
-      /^\$[\d,]+[KMB]?\s*-\s*\$[\d,]+[KMB]?$/i,
-      'Invalid budget format (e.g., $1M - $5M)'
-    )
+  v.picklist(
+    ['0-100k', '100k-500k', '500k-1m', '1m-5m', '5m-20m', '20m-50m', '50m+'],
+    'Please select a valid budget range'
   )
 );
 
@@ -145,12 +142,11 @@ export const NDAConfigSchema = v.object({
 export const FormatCategorySchema = v.picklist([
   'Television - Scripted',
   'Television - Unscripted',
-  'Feature Narrative (live action)',
-  'Feature Documentary',
-  'Feature Animation',
-  'Digital Content / Online',
-  'Stage / Theater',
-  'Podcast / Audio',
+  'Film',
+  'Animation (Series)',
+  'Audio',
+  'Digital / Emerging',
+  'Stage-to-Screen',
   'Other'
 ]);
 
@@ -346,7 +342,7 @@ export const getCharacterCountInfo = (
     title: 100,
     logline: 500,
     shortSynopsis: 1000,
-    themes: 500,
+    themes: 1000,
     worldDescription: 1000,
   };
   

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Film, ArrowLeft, Loader } from 'lucide-react';
 import { contentService } from '../services/content.service';
+import Logo from '../components/Logo';
 
 interface AboutContent {
   title?: string;
@@ -118,9 +119,7 @@ const About: React.FC = () => {
       <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
-              <span className="text-2xl font-bold text-gray-900">Pitchey</span>
-            </div>
+            <Logo size="lg" onClick={() => navigate('/')} />
             <button 
               onClick={() => navigate(-1)}
               className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-purple-600 transition"

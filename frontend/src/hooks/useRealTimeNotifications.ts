@@ -2,6 +2,7 @@ import { useEffect, useCallback, useRef } from 'react';
 import { useNotificationToast } from '../components/Toast/NotificationToastContainer';
 import { notificationService } from '../services/notification.service';
 import { useBetterAuthStore } from '../store/betterAuthStore';
+import { BRAND } from '../constants/brand';
 
 interface NotificationData {
   type: 'nda_request' | 'nda_approved' | 'nda_declined' | 'investment' | 'message' | 
@@ -118,7 +119,7 @@ export function useRealTimeNotifications() {
       notificationService.showNotification({
         title: notificationData.title,
         body: notificationData.message,
-        icon: '/pitcheylogo.png',
+        icon: BRAND.logo,
         tag: `realtime_${Date.now()}`,
         data: notificationData.data,
         requireInteraction: notificationData.requireInteraction

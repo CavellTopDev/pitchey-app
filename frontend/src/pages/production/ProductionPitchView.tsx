@@ -76,7 +76,6 @@ const ProductionPitchView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'production' | 'team' | 'schedule' | 'notes'>('overview');
   const [isShortlisted, setIsShortlisted] = useState(false);
-  const [showNDAModal, setShowNDAModal] = useState(false);
   const [notes, setNotes] = useState<ProductionNote[]>([]);
   const [newNote, setNewNote] = useState('');
   const [noteCategory, setNoteCategory] = useState<ProductionNote['category']>('general');
@@ -141,10 +140,6 @@ const ProductionPitchView: React.FC = () => {
       
       setPitch(response);
       
-      // Check if pitch requires NDA and user hasn't signed
-      if (response.visibility === 'nda_only' && !response.hasSignedNDA) {
-        setShowNDAModal(true);
-      }
     } catch (error) {
       console.error('Failed to fetch pitch:', error);
       setError('Failed to load pitch details');

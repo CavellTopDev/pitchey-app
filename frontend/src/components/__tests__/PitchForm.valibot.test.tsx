@@ -16,7 +16,7 @@ describe('PitchForm Validation with Valibot', () => {
       const validData: PitchFormData = {
         title: 'Amazing Movie Title',
         genre: 'Drama',
-        formatCategory: 'Feature Narrative (live action)',
+        formatCategory: 'Film',
         formatSubtype: 'Feature Film',
         logline: 'A compelling story about a hero who must overcome great challenges to save the world.',
         shortSynopsis: 'This is a detailed synopsis that explains the story in greater depth. It provides context for the characters and their motivations, setting up the dramatic stakes.',
@@ -36,7 +36,7 @@ describe('PitchForm Validation with Valibot', () => {
           customNDA: null
         },
         seekingInvestment: true,
-        budgetRange: '$1M - $5M'
+        budgetRange: '1m-5m'
       }
 
       const result = validatePitchForm(validData)
@@ -73,7 +73,7 @@ describe('PitchForm Validation with Valibot', () => {
       const dataWithLongFields = {
         title: 'A'.repeat(101), // Too long
         genre: 'Drama',
-        formatCategory: 'Feature Narrative (live action)' as const,
+        formatCategory: 'Film' as const,
         logline: 'A'.repeat(501), // Too long
         shortSynopsis: 'A'.repeat(1001), // Too long
         ndaConfig: {
@@ -94,7 +94,7 @@ describe('PitchForm Validation with Valibot', () => {
       const invalidBudget = {
         title: 'Test Movie',
         genre: 'Drama',
-        formatCategory: 'Feature Narrative (live action)' as const,
+        formatCategory: 'Film' as const,
         logline: 'A test logline that is long enough',
         shortSynopsis: 'A test synopsis that meets the minimum character requirement for validation',
         ndaConfig: {
@@ -102,12 +102,12 @@ describe('PitchForm Validation with Valibot', () => {
           ndaType: 'none' as const,
         },
         seekingInvestment: true,
-        budgetRange: 'invalid budget' // Invalid format
+        budgetRange: 'invalid budget' as any // Invalid value
       }
 
       const result = validatePitchForm(invalidBudget)
       expect(result.success).toBe(false)
-      expect(result.errors?.budgetRange).toContain('Invalid budget format (e.g., $1M - $5M)')
+      expect(result.errors?.budgetRange).toContain('Please select a valid budget range')
     })
   })
 
@@ -211,7 +211,7 @@ describe('PitchForm Validation with Valibot', () => {
       const dataWithInvalidCharacter: PitchFormData = {
         title: 'Test',
         genre: 'Drama',
-        formatCategory: 'Feature Narrative (live action)',
+        formatCategory: 'Film',
         logline: 'A test logline that is valid',
         shortSynopsis: 'A test synopsis that meets the minimum character requirement for proper validation',
         characters: [invalidCharacter],
@@ -239,7 +239,7 @@ describe('PitchForm Validation with Valibot', () => {
         const data: PitchFormData = {
           title: 'Test',
           genre: 'Drama',
-          formatCategory: 'Feature Narrative (live action)',
+          formatCategory: 'Film',
           logline: 'A test logline for validation',
           shortSynopsis: 'A test synopsis that meets the minimum character requirement for validation testing',
           ndaConfig: config,
@@ -255,7 +255,7 @@ describe('PitchForm Validation with Valibot', () => {
       const invalidNDAData = {
         title: 'Test',
         genre: 'Drama',
-        formatCategory: 'Feature Narrative (live action)',
+        formatCategory: 'Film',
         logline: 'A test logline for validation',
         shortSynopsis: 'A test synopsis that meets the minimum character requirement for validation testing',
         ndaConfig: {
@@ -275,10 +275,11 @@ describe('PitchForm Validation with Valibot', () => {
       const validCategories = [
         'Television - Scripted',
         'Television - Unscripted',
-        'Feature Narrative (live action)',
-        'Feature Documentary',
-        'Digital Content / Online',
-        'Podcast / Audio'
+        'Film',
+        'Animation (Series)',
+        'Audio',
+        'Digital / Emerging',
+        'Stage-to-Screen'
       ]
 
       validCategories.forEach(category => {
@@ -325,7 +326,7 @@ describe('PitchForm Validation with Valibot', () => {
       const data: v.InferOutput<typeof PitchFormSchema> = {
         title: 'Test',
         genre: 'Drama',
-        formatCategory: 'Feature Narrative (live action)',
+        formatCategory: 'Film',
         logline: 'Test logline for validation',
         shortSynopsis: 'Test synopsis that meets the minimum character requirement for validation testing',
         ndaConfig: {

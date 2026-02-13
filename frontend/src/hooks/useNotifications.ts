@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { notificationService } from '../services/notification.service';
 import { useWebSocket } from './useWebSocket';
 import { useBetterAuthStore } from '../store/betterAuthStore';
+import { BRAND } from '../constants/brand';
 
 interface Notification {
   id: number;
@@ -110,7 +111,7 @@ export const useNotifications = (): UseNotificationsReturn => {
         if (Notification.permission === 'granted') {
           new Notification(data.data.title, {
             body: data.data.message,
-            icon: '/logo.png',
+            icon: BRAND.logo,
             tag: `notification-${data.data.id}`
           });
         }

@@ -496,6 +496,18 @@ export default function DocumentUploadHub({
         className="border-0 shadow-sm"
       />
 
+      {/* Deferred Mode Info Banner */}
+      {deferUploads && files.length > 0 && summary.pending > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <Upload className="w-5 h-5 text-blue-600 flex-shrink-0" />
+            <p className="text-sm text-blue-800">
+              <strong>{summary.pending} file{summary.pending !== 1 ? 's' : ''}</strong> will upload when you create your pitch.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Upload Actions */}
       {files.length > 0 && (
         <div className="bg-white rounded-lg border border-gray-200 p-6">
@@ -509,14 +521,14 @@ export default function DocumentUploadHub({
                       <span>{summary.completed} completed</span>
                     </div>
                   )}
-                  
+
                   {summary.failed > 0 && (
                     <div className="flex items-center gap-1 text-red-600">
                       <AlertCircle className="w-4 h-4" />
                       <span>{summary.failed} failed</span>
                     </div>
                   )}
-                  
+
                   {summary.pending > 0 && (
                     <div className="flex items-center gap-1 text-blue-600">
                       <Upload className="w-4 h-4" />
@@ -526,9 +538,9 @@ export default function DocumentUploadHub({
                 </div>
               </div>
             </div>
-            
+
             <div className="flex gap-3">
-              {summary.pending > 0 && (
+              {summary.pending > 0 && !deferUploads && (
                 <button
                   onClick={handleBulkUpload}
                   disabled={disabled || isUploading}
@@ -541,7 +553,7 @@ export default function DocumentUploadHub({
                   {isUploading ? 'Uploading...' : `Upload ${summary.pending} Files`}
                 </button>
               )}
-              
+
               {summary.completed > 0 && (
                 <button
                   onClick={() => onUploadComplete?.([])}

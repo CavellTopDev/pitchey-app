@@ -1,3 +1,7 @@
+import { BRAND } from '../constants/brand';
+
+const BRAND_LOGO = BRAND.logo;
+
 interface NotificationPermission {
   granted: boolean;
   permission: NotificationPermission;
@@ -89,8 +93,8 @@ export class NotificationService {
     try {
       const notification = new Notification(options.title, {
         body: options.body,
-        icon: options.icon || '/pitcheylogo.png',
-        badge: options.badge || '/pitcheylogo.png',
+        icon: options.icon || BRAND_LOGO,
+        badge: options.badge || BRAND_LOGO,
         image: options.image,
         tag: options.tag,
         requireInteraction: options.requireInteraction || false,

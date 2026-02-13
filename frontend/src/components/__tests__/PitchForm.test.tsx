@@ -469,7 +469,9 @@ describe('PitchForm (CreatePitch)', () => {
       await user.tab()
 
       await waitFor(() => {
-        expect(screen.getByText(/title.*required/i)).toBeInTheDocument()
+        // Use getAllByText since the error summary banner may also show the error
+        const matches = screen.getAllByText(/title.*required/i)
+        expect(matches.length).toBeGreaterThanOrEqual(1)
       })
     })
   })

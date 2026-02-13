@@ -6,6 +6,7 @@ import { pitchService } from '../services/pitch.service';
 import type { Pitch } from '../services/pitch.service';
 import { getGenresSync, getFormatsSync } from '../constants/pitchConstants';
 import FormatDisplay from '../components/FormatDisplay';
+import { BRAND } from '../constants/brand';
 
 
 export default function Homepage() {
@@ -488,7 +489,7 @@ export default function Homepage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <img src="/pitcheylogo.png" alt="Pitchey" className="h-6 w-auto" width={768} height={237} />
+                <img src={BRAND.logo} alt={BRAND.logoAlt} className="h-6 w-auto" width={BRAND.logoWidth} height={BRAND.logoHeight} />
                 <span className="text-xl font-bold text-gray-900">Pitchey</span>
               </div>
               <p className="text-metadata">

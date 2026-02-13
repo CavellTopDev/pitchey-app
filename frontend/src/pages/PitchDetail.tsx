@@ -6,7 +6,6 @@ import { createDownloadClickHandler } from '../utils/fileDownloads';
 import type { Pitch } from '../services/pitch.service';
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import BackButton from '../components/BackButton';
-import NDAWizard from '../components/NDAWizard';
 import EnhancedNDARequest from '../components/NDA/EnhancedNDARequest';
 import FormatDisplay from '../components/FormatDisplay';
 
@@ -19,7 +18,6 @@ export default function PitchDetail() {
   const [error, setError] = useState<string | null>(null);
   const [isLiked, setIsLiked] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
-  const [showNDAWizard, setShowNDAWizard] = useState(false);
   const [showEnhancedNDARequest, setShowEnhancedNDARequest] = useState(false);
   const [hasSignedNDA, setHasSignedNDA] = useState(false);
   
@@ -928,17 +926,6 @@ export default function PitchDetail() {
         />
       )}
 
-      {/* Legacy NDA Wizard (backup) */}
-      {pitch && (
-        <NDAWizard
-          isOpen={showNDAWizard}
-          onClose={() => setShowNDAWizard(false)}
-          pitchId={pitch.id}
-          pitchTitle={pitch.title}
-          creatorName={pitch.creator?.username || pitch.creator?.companyName || 'Creator'}
-          onStatusChange={handleNDASigned}
-        />
-      )}
     </div>
   );
 }

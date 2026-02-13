@@ -5,6 +5,7 @@ import { useBetterAuthStore } from '../store/betterAuthStore';
 import { config } from '../config';
 import { presenceFallbackService } from '../services/presence-fallback.service';
 import { pollingService } from '../services/polling.service';
+import { BRAND } from '../constants/brand';
 
 interface NotificationData {
   id: string;
@@ -360,7 +361,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification(notification.title, {
         body: notification.message,
-        icon: '/pitcheylogo.png',
+        icon: BRAND.logo,
         tag: notification.id,
       });
     }
