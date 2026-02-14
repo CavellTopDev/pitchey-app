@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { 
-  Building2, TrendingUp, Eye, Heart, Users, Film, Plus, 
+import {
+  Building2, TrendingUp, Eye, Heart, Users, Film, Plus,
   BarChart3, FileText, Shield, Star, Bell, Settings,
   Calendar, DollarSign, UserPlus, ArrowUp, ArrowDown,
   BookOpen, Video, Upload, UserCheck, Clock, Activity,
   X, AlertCircle, User, Trash2, CheckCircle, LogOut, CreditCard, Coins,
-  Bookmark, Filter, Search
+  Bookmark, Filter, Search,
+  Wifi, WifiOff, AlertTriangle, RefreshCw
 } from 'lucide-react';
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import { usePitchStore } from '../store/pitchStore';
@@ -27,6 +28,7 @@ import InvestmentOpportunities from '../components/Investment/InvestmentOpportun
 import { EnhancedProductionAnalytics } from '../components/Analytics/EnhancedProductionAnalytics';
 import { withPortalErrorBoundary } from '../components/ErrorBoundary/PortalErrorBoundary';
 import { useSentryPortal } from '../hooks/useSentryPortal';
+import { useWebSocket } from '../contexts/WebSocketContext';
 import {
   validateProductionStats,
   safeArray,
@@ -74,6 +76,7 @@ function ProductionDashboard() {
     componentName: 'ProductionDashboard',
     trackPerformance: true
   });
+  const { isConnected, connectionQuality, isReconnecting } = useWebSocket();
   const [activeTab, setActiveTab] = useState<'overview' | 'my-pitches' | 'following' | 'ndas'>('overview');
   const [myPitches, setMyPitches] = useState<Pitch[]>([]);
   const [followingPitches, setFollowingPitches] = useState<Pitch[]>([]);
@@ -102,14 +105,29 @@ function ProductionDashboard() {
     topPitch: null,
     recentActivity: []
   });
-  const [loading, setLoading] = useState(true);
   const [credits, setCredits] = useState<any>(null);
   const [subscription, setSubscription] = useState<any>(null);
-  
+
   // Investment tracking state
   const [investmentMetrics, setInvestmentMetrics] = useState<any>(null);
   const [investmentOpportunities, setInvestmentOpportunities] = useState<any[]>([]);
-  const [investmentLoading, setInvestmentLoading] = useState(true);
+
+  // Per-section status tracking
+  interface SectionStatus { loaded: boolean; error: string | null; }
+  const [sectionStatus, setSectionStatus] = useState<{
+    analytics: SectionStatus;
+    ndas: SectionStatus;
+    following: SectionStatus;
+    investments: SectionStatus;
+  }>({
+    analytics:   { loaded: false, error: null },
+    ndas:        { loaded: false, error: null },
+    following:   { loaded: false, error: null },
+    investments: { loaded: false, error: null },
+  });
+
+  const initialLoading = !sectionStatus.analytics.loaded && !sectionStatus.analytics.error;
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   // Handle logout
   const handleLogout = () => {
@@ -131,11 +149,11 @@ function ProductionDashboard() {
   const fetchInvestmentData = useCallback(async () => {
     let cancelled = false;
     try {
-      setInvestmentLoading(true);
-      
+      setSectionStatus(prev => ({ ...prev, investments: { loaded: false, error: null } }));
+
       // Track investment data fetch
       trackEvent('investment.data.fetch', { userId: user?.id });
-      
+
       // Fetch production investment metrics with defensive parsing
       const metricsResponse = await InvestmentService.getProductionInvestments();
       if (safeAccess(metricsResponse, 'success', false)) {
@@ -153,7 +171,7 @@ function ProductionDashboard() {
       } else {
         trackApiError('/api/production/investments', { success: false });
       }
-      
+
       // Fetch investment opportunities with safe parsing
       const opportunitiesResponse = await InvestmentService.getInvestmentOpportunities({ limit: 8 });
       if (safeAccess(opportunitiesResponse, 'success', false)) {
@@ -169,15 +187,16 @@ function ProductionDashboard() {
       } else {
         trackApiError('/api/investment-opportunities', { success: false });
       }
-      
-    } catch (error) {
+
       if (!cancelled) {
-        console.error('Error fetching investment data:', error);
-        reportError(error as Error, { context: 'fetchInvestmentData' });
+        setSectionStatus(prev => ({ ...prev, investments: { loaded: true, error: null } }));
       }
-    } finally {
+    } catch (err) {
       if (!cancelled) {
-        setInvestmentLoading(false);
+        const e = err instanceof Error ? err : new Error(String(err));
+        console.error('Error fetching investment data:', e);
+        reportError(e, { context: 'fetchInvestmentData' });
+        setSectionStatus(prev => ({ ...prev, investments: { loaded: true, error: 'Failed to load investment data. Please try again.' } }));
       }
     }
   }, [user?.id, trackEvent, reportError, trackApiError]);
@@ -203,6 +222,18 @@ function ProductionDashboard() {
     }
   }, [sessionChecked, isAuthenticated, navigate]);
 
+  // Track online/offline status
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
+
   // Close user menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -224,19 +255,25 @@ function ProductionDashboard() {
   const fetchData = useCallback(async () => {
     let cancelled = false;
     try {
-      setLoading(true);
-      
+      // Reset section statuses
+      setSectionStatus(prev => ({
+        ...prev,
+        analytics: { loaded: false, error: null },
+        ndas: { loaded: false, error: null },
+        following: { loaded: false, error: null },
+      }));
+
       // Track dashboard data fetch
       trackEvent('dashboard.data.fetch', { portal: 'production' });
-      
-      // Fetch real analytics and billing data from backend
+
+      // === Analytics section ===
       try {
         const [analyticsData, creditsData, subscriptionData] = await Promise.all([
           analyticsAPI.getDashboardAnalytics(),
           paymentsAPI.getCreditBalance(),
           paymentsAPI.getSubscriptionStatus()
         ]);
-        
+
         if (safeAccess(analyticsData, 'success', false)) {
           const analyticsRaw = safeAccess(analyticsData, 'analytics', {});
           const safeAnalytics: Analytics = {
@@ -253,27 +290,33 @@ function ProductionDashboard() {
         } else {
           trackApiError('/api/analytics/dashboard', analyticsData);
         }
-        
+
         setCredits(creditsData);
         setSubscription(subscriptionData);
-      } catch (error) {
-        console.error('Failed to fetch analytics:', error);
-        reportError(error as Error, { context: 'fetchAnalyticsData' });
+        if (!cancelled) {
+          setSectionStatus(prev => ({ ...prev, analytics: { loaded: true, error: null } }));
+        }
+      } catch (err) {
+        const e = err instanceof Error ? err : new Error(String(err));
+        console.error('Failed to fetch analytics:', e);
+        reportError(e, { context: 'fetchAnalyticsData' });
+        if (!cancelled) {
+          setSectionStatus(prev => ({ ...prev, analytics: { loaded: true, error: 'Failed to load analytics data. Please try again.' } }));
+        }
       }
 
-      // Fetch NDA requests using new categorized endpoints - only if authenticated
+      // === NDAs section ===
       if (isAuthenticated && user?.id) {
         try {
-          const [incomingRequests, outgoingRequests, incomingSignedNDAs, outgoingSignedNDAs] = await Promise.all([
+          const [incomingRequests, outgoingRequests, incomingSigned, outgoingSigned] = await Promise.all([
             ndaAPI.getIncomingRequests(),
             ndaAPI.getOutgoingRequests(),
             ndaAPI.getIncomingSignedNDAs(),
             ndaAPI.getOutgoingSignedNDAs()
           ]);
-          
+
           if (safeAccess(incomingRequests, 'success', false)) {
             const incomingData = safeArray(safeAccess(incomingRequests, 'requests', []));
-            // Transform API field names (snake_case) to component expected names (camelCase)
             const transformedIncoming = incomingData.map((r: any) => ({
               id: r.id,
               pitchId: r.pitch_id || r.pitchId,
@@ -289,7 +332,6 @@ function ProductionDashboard() {
           }
           if (safeAccess(outgoingRequests, 'success', false)) {
             const outgoingData = safeArray(safeAccess(outgoingRequests, 'requests', []));
-            // Transform API field names for outgoing requests
             const transformedOutgoing = outgoingData.map((r: any) => ({
               id: r.id,
               pitchId: r.pitch_id || r.pitchId,
@@ -301,54 +343,61 @@ function ProductionDashboard() {
             }));
             setOutgoingNDARequests(transformedOutgoing);
           }
-          if (safeAccess(incomingSignedNDAs, 'success', false)) {
-            const incomingSignedData = safeArray(safeAccess(incomingSignedNDAs, 'ndas', []));
+          if (safeAccess(incomingSigned, 'success', false)) {
+            const incomingSignedData = safeArray(safeAccess(incomingSigned, 'ndas', []));
             setIncomingSignedNDAs(incomingSignedData);
           }
-          if (safeAccess(outgoingSignedNDAs, 'success', false)) {
-            const outgoingSignedData = safeArray(safeAccess(outgoingSignedNDAs, 'ndas', []));
+          if (safeAccess(outgoingSigned, 'success', false)) {
+            const outgoingSignedData = safeArray(safeAccess(outgoingSigned, 'ndas', []));
             setSignedNDAs(outgoingSignedData);
           }
-        } catch (error) {
-          console.error('Failed to fetch NDA data:', error);
-          // Clear NDA data on error
+          if (!cancelled) {
+            setSectionStatus(prev => ({ ...prev, ndas: { loaded: true, error: null } }));
+          }
+        } catch (err) {
+          const e = err instanceof Error ? err : new Error(String(err));
+          console.error('Failed to fetch NDA data:', e);
           setIncomingNDARequests([]);
           setOutgoingNDARequests([]);
           setIncomingSignedNDAs([]);
           setSignedNDAs([]);
+          if (!cancelled) {
+            setSectionStatus(prev => ({ ...prev, ndas: { loaded: true, error: 'Failed to load NDA data. Please try again.' } }));
+          }
         }
       } else {
-        // Clear NDA data if not authenticated
         setIncomingNDARequests([]);
         setOutgoingNDARequests([]);
         setIncomingSignedNDAs([]);
         setSignedNDAs([]);
+        if (!cancelled) {
+          setSectionStatus(prev => ({ ...prev, ndas: { loaded: true, error: null } }));
+        }
       }
-      
+
       // Get pitches from store with safe operations
       const allStorePitches = safeArray(getAllPitches());
-      
+
       // Convert store pitches to dashboard format with defensive mapping
       const dashboardPitches = safeMap(allStorePitches, (p: any) => ({
         ...p,
         id: safeAccess(p, 'id', Math.random()),
         title: safeString(safeAccess(p, 'title', 'Untitled Project')),
         budget: safeNumber(safeAccess(p, 'budget', 0)),
-        creator: { 
-          id: safeAccess(user, 'id', 1), 
-          username: safeString(safeAccess(user, 'username', 'production')), 
-          userType: 'production' as const, 
+        creator: {
+          id: safeAccess(user, 'id', 1),
+          username: safeString(safeAccess(user, 'username', 'production')),
+          userType: 'production' as const,
           companyName: safeString(safeAccess(user, 'companyName', ''))
         }
       }));
-      
+
       setMyPitches(dashboardPitches);
-      
-      // Fetch following pitches from API
+
+      // === Following section ===
       try {
         const followingData = await pitchServicesAPI.getFollowingPitches();
         if (followingData) {
-          // Check if followingData is an array or an object with pitches property
           if (Array.isArray(followingData)) {
             setFollowingPitches(followingData);
           } else if (followingData.pitches) {
@@ -357,32 +406,35 @@ function ProductionDashboard() {
             setFollowingPitches([]);
           }
         } else {
-          // Fallback: try to fetch using the follows API
           try {
             const fallbackResponse = await apiClient.get('/api/follows/following?type=pitches');
-            
             if (fallbackResponse.success) {
               setFollowingPitches((fallbackResponse.data as any)?.following || []);
             } else {
               setFollowingPitches([]);
             }
-          } catch (fallbackError) {
-            console.error('Failed to fetch following data from fallback API:', fallbackError);
+          } catch (fallbackErr) {
+            const fbE = fallbackErr instanceof Error ? fallbackErr : new Error(String(fallbackErr));
+            console.error('Failed to fetch following data from fallback API:', fbE);
             setFollowingPitches([]);
           }
         }
-      } catch (error) {
-        console.error('Failed to fetch following pitches:', error);
-        // Set empty array on error
+        if (!cancelled) {
+          setSectionStatus(prev => ({ ...prev, following: { loaded: true, error: null } }));
+        }
+      } catch (err) {
+        const e = err instanceof Error ? err : new Error(String(err));
+        console.error('Failed to fetch following pitches:', e);
         setFollowingPitches([]);
+        if (!cancelled) {
+          setSectionStatus(prev => ({ ...prev, following: { loaded: true, error: 'Failed to load following data. Please try again.' } }));
+        }
       }
-      
-      // Note: NDA data is now fetched using the new categorized endpoints above
-      
+
       // Fetch recent activity from analytics API
       try {
         const realtimeResponse = await apiClient.get('/api/analytics/realtime');
-        
+
         if (realtimeResponse.success) {
           setAnalytics(prev => ({
             ...prev,
@@ -390,33 +442,36 @@ function ProductionDashboard() {
             recentActivity: (realtimeResponse.data as any)?.recentActivity || []
           }));
         } else {
-          // Fallback to basic analytics data
           setAnalytics(prev => ({
             ...prev,
             topPitch: dashboardPitches[0] || null,
             recentActivity: []
           }));
         }
-      } catch (error) {
-        console.error('Failed to fetch recent activity:', error);
+      } catch (err) {
+        const e = err instanceof Error ? err : new Error(String(err));
+        console.error('Failed to fetch recent activity:', e);
         setAnalytics(prev => ({
           ...prev,
           topPitch: dashboardPitches[0] || null,
           recentActivity: []
         }));
       }
-      
-    } catch (error) {
+
+    } catch (err) {
       if (!cancelled) {
-        console.error('Failed to fetch dashboard data:', error);
-        reportError(error as Error, { 
+        const e = err instanceof Error ? err : new Error(String(err));
+        console.error('Failed to fetch dashboard data:', e);
+        reportError(e, {
           context: 'fetchData',
           severity: 'error'
         });
-      }
-    } finally {
-      if (!cancelled) {
-        setLoading(false);
+        setSectionStatus(prev => ({
+          ...prev,
+          analytics: prev.analytics.loaded ? prev.analytics : { loaded: true, error: 'Failed to load dashboard data.' },
+          ndas: prev.ndas.loaded ? prev.ndas : { loaded: true, error: 'Failed to load dashboard data.' },
+          following: prev.following.loaded ? prev.following : { loaded: true, error: 'Failed to load dashboard data.' },
+        }));
       }
     }
   }, [getAllPitches, isAuthenticated, user?.id, user?.username, user?.companyName, trackEvent, reportError, trackApiError]);
@@ -643,6 +698,15 @@ function ProductionDashboard() {
     logout(); // This will automatically clear all storage and navigate to appropriate login page
   };
 
+  const handleRetrySection = useCallback((section: string) => {
+    trackEvent('dashboard.retry', { section });
+    if (section === 'investments') {
+      fetchInvestmentData();
+    } else {
+      fetchData();
+    }
+  }, [fetchData, fetchInvestmentData, trackEvent]);
+
   // NDA Template Upload Handlers
   const handleNDAFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -797,10 +861,27 @@ function ProductionDashboard() {
     </div>
   );
 
-  if (loading) {
+  if (initialLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className="w-full animate-pulse">
+        {/* Skeleton title */}
+        <div className="mb-6 h-7 w-56 bg-gray-200 rounded" />
+        {/* Skeleton tab bar */}
+        <div className="border-b border-gray-200 mb-6">
+          <div className="flex gap-8">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-4 w-20 bg-gray-200 rounded mb-3" />
+            ))}
+          </div>
+        </div>
+        {/* Skeleton stats cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-xl shadow-sm p-6 h-28" />
+          ))}
+        </div>
+        {/* Skeleton content area */}
+        <div className="bg-white rounded-xl shadow-sm p-6 h-64" />
       </div>
     );
   }
@@ -814,6 +895,32 @@ function ProductionDashboard() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Production Dashboard</h1>
       </div>
+
+      {/* Connectivity Banners */}
+      {!isOnline && (
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+          <WifiOff className="w-4 h-4 text-red-600 shrink-0" />
+          <p className="text-red-700 text-sm">You are offline. Dashboard data may be outdated.</p>
+        </div>
+      )}
+      {isOnline && !isConnected && !isReconnecting && (
+        <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+          <Wifi className="w-4 h-4 text-yellow-600 shrink-0" />
+          <p className="text-yellow-700 text-sm">Real-time updates are unavailable.</p>
+        </div>
+      )}
+      {isReconnecting && (
+        <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+          <RefreshCw className="w-4 h-4 text-yellow-600 shrink-0 animate-spin" />
+          <p className="text-yellow-700 text-sm">Reconnecting to real-time services...</p>
+        </div>
+      )}
+      {isOnline && isConnected && connectionQuality?.strength === 'poor' && (
+        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+          <Wifi className="w-4 h-4 text-amber-600 shrink-0" />
+          <p className="text-amber-700 text-sm">Connection quality is poor. Some updates may be delayed.</p>
+        </div>
+      )}
 
       {/* Tab Navigation */}
       <div className="border-b border-gray-200 mb-6">
@@ -902,6 +1009,20 @@ function ProductionDashboard() {
             {/* Notifications Widget */}
             <NotificationWidget maxNotifications={3} compact={true} />
 
+            {/* Analytics Error */}
+            {sectionStatus.analytics.error && (
+              <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-lg p-4">
+                <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+                <p className="text-red-700 text-sm flex-1">{sectionStatus.analytics.error}</p>
+                <button
+                  onClick={() => handleRetrySection('analytics')}
+                  className="flex items-center gap-1 text-sm font-medium text-red-700 hover:text-red-800 bg-red-100 hover:bg-red-200 px-3 py-1 rounded transition"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" /> Retry
+                </button>
+              </div>
+            )}
+
             {/* Stats Grid with Feature Flag */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
               <StatCard
@@ -933,8 +1054,22 @@ function ProductionDashboard() {
               />
             </div>
 
+            {/* Investment Error */}
+            {sectionStatus.investments.error && (
+              <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-lg p-4">
+                <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+                <p className="text-red-700 text-sm flex-1">{sectionStatus.investments.error}</p>
+                <button
+                  onClick={() => handleRetrySection('investments')}
+                  className="flex items-center gap-1 text-sm font-medium text-red-700 hover:text-red-800 bg-red-100 hover:bg-red-200 px-3 py-1 rounded transition"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" /> Retry
+                </button>
+              </div>
+            )}
+
             {/* Investment Metrics */}
-            {investmentMetrics && !investmentLoading && (
+            {investmentMetrics && sectionStatus.investments.loaded && !sectionStatus.investments.error && (
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold text-gray-900">Investment Overview</h2>
@@ -1020,9 +1155,9 @@ function ProductionDashboard() {
 
             {/* Investment Opportunities */}
             {investmentOpportunities.length > 0 && (
-              <InvestmentOpportunities 
+              <InvestmentOpportunities
                 opportunities={investmentOpportunities}
-                loading={investmentLoading}
+                loading={!sectionStatus.investments.loaded}
                 showMatchScore={false}
                 className="max-h-96 overflow-y-auto"
               />
@@ -1347,6 +1482,20 @@ function ProductionDashboard() {
 
         {activeTab === 'following' && (
           <div className="space-y-6">
+            {/* Following Error */}
+            {sectionStatus.following.error && (
+              <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-lg p-4">
+                <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+                <p className="text-red-700 text-sm flex-1">{sectionStatus.following.error}</p>
+                <button
+                  onClick={() => handleRetrySection('following')}
+                  className="flex items-center gap-1 text-sm font-medium text-red-700 hover:text-red-800 bg-red-100 hover:bg-red-200 px-3 py-1 rounded transition"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" /> Retry
+                </button>
+              </div>
+            )}
+
             {/* Following Tab Header with Filters */}
             <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6">
               <div className="flex items-center justify-between mb-4">
@@ -1722,6 +1871,20 @@ function ProductionDashboard() {
 
         {activeTab === 'ndas' && (
           <div className="space-y-8">
+            {/* NDAs Error */}
+            {sectionStatus.ndas.error && (
+              <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-lg p-4">
+                <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+                <p className="text-red-700 text-sm flex-1">{sectionStatus.ndas.error}</p>
+                <button
+                  onClick={() => handleRetrySection('ndas')}
+                  className="flex items-center gap-1 text-sm font-medium text-red-700 hover:text-red-800 bg-red-100 hover:bg-red-200 px-3 py-1 rounded transition"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" /> Retry
+                </button>
+              </div>
+            )}
+
             {/* Header with Overview Stats */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex items-center justify-between mb-6">
