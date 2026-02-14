@@ -79,10 +79,10 @@ export default function Calendar() {
         const eventsArray = data.data?.events || data.events || [];
         
         // Filter out any null/undefined events
-        const validEvents = eventsArray.filter(event => event && event.date);
-        
+        const validEvents = eventsArray.filter((event: any) => event && event.date);
+
         // Map events to the correct format
-        const formattedEvents = validEvents.map(e => ({
+        const formattedEvents = validEvents.map((e: any) => ({
           title: e.title,
           date: e.date
         }));
@@ -446,13 +446,13 @@ export default function Calendar() {
                     <div
                       key={index}
                       onClick={() => handleDayClick(date)}
-                      onMouseEnter={(e) => {
+                      onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => {
                         if (dayEvents.length > 0) {
                           setHoveredDate(date);
                           const rect = e.currentTarget.getBoundingClientRect();
-                          setMousePosition({ 
-                            x: rect.left + rect.width / 2, 
-                            y: rect.top 
+                          setMousePosition({
+                            x: rect.left + rect.width / 2,
+                            y: rect.top
                           });
                         }
                       }}
@@ -570,7 +570,7 @@ export default function Calendar() {
                           <div>
                             <h4 className="font-medium text-gray-900">{event.title}</h4>
                             <p className="text-sm text-gray-500">
-                              {formatTime(event.startTime)} - {formatTime(event.endTime)}
+                              {formatTime(event.startTime || '')} - {formatTime(event.endTime || '')}
                             </p>
                           </div>
                         </div>

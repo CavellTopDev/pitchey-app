@@ -170,7 +170,7 @@ const FollowButton: React.FC<FollowButtonProps> = ({
   }
   
   // Don't render if creator ID is empty string or 0
-  if (!pitchId && (!creatorId || creatorId === '' || creatorId === 0)) {
+  if (!pitchId && (!creatorId || String(creatorId) === '' || Number(creatorId) === 0)) {
     return null;
   }
 

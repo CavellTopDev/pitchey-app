@@ -398,8 +398,8 @@ export default function NDAWizard({
               <div className="flex-1">
                 <h3 className="font-medium text-red-800">Error</h3>
                 <p className="text-sm text-red-700 mt-1">
-                  {typeof error === 'string' ? error : 
-                   typeof error === 'object' && error?.message ? error.message :
+                  {typeof error === 'string' ? error :
+                   typeof error === 'object' && error !== null && 'message' in error ? (error as any).message :
                    'An unexpected error occurred'}
                 </p>
               </div>

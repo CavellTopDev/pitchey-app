@@ -91,14 +91,14 @@ export class NotificationsService {
    */
   static async getUnreadNotifications(): Promise<Notification[]> {
     try {
-      const response = await apiClient.get<{ success: boolean; data: Notification[] }>('/api/notifications/unread');
-      
+      const response = await apiClient.get<Notification[]>('/api/notifications/unread');
+
       if (response.success && response.data) {
-        return response.data;
+        return Array.isArray(response.data) ? response.data : [];
       }
-      
+
       return [];
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to fetch unread notifications:', error);
       return [];
     }
@@ -158,8 +158,8 @@ export class NotificationsService {
   static async getPreferences(): Promise<NotificationPreferences | null> {
     try {
       const response = await apiClient.get<{ preferences: NotificationPreferences }>('/api/notifications/preferences');
-      return response.preferences || null;
-    } catch (error) {
+      return (response.data as any)?.preferences || null;
+    } catch (error: unknown) {
       console.error('Failed to fetch notification preferences:', error);
       return null;
     }

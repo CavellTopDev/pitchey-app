@@ -122,7 +122,6 @@ export interface Pitch {
   hasNDA?: boolean;
   isLiked?: boolean;
   canEdit?: boolean;
-  commentCount?: number;
   createdAt: string;
   updatedAt: string;
 

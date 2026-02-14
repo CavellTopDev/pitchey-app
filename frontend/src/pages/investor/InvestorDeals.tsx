@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Handshake, Clock, CheckCircle, XCircle, AlertCircle,
   DollarSign, Calendar, FileText, Search, Filter,
@@ -66,7 +67,8 @@ interface DealFilters {
 }
 
 export default function InvestorDeals() {
-    const { user, logout } = useBetterAuthStore();
+  const navigate = useNavigate();
+  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [filteredDeals, setFilteredDeals] = useState<Deal[]>([]);

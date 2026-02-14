@@ -40,6 +40,8 @@ interface CreatorPitch {
   logline: string;
   genre: string;
   format: string;
+  formatCategory?: string;
+  formatSubtype?: string;
   status: string;
   viewCount: number;
   likeCount: number;

@@ -438,10 +438,10 @@ const CompetitiveAnalysisChart: React.FC<{
               return null;
             }}
           />
-          <Scatter 
-            name="Projects" 
+          <Scatter
+            name="Projects"
             dataKey="roi"
-            fill={(entry: any) => entry.isCurrent ? '#3B82F6' : '#9CA3AF'}
+            fill="#9CA3AF"
           />
         </ScatterChart>
       </ResponsiveContainer>
@@ -549,9 +549,9 @@ const SuccessPredictionChart: React.FC<{ prediction: any }> = ({ prediction }) =
                 cy="50%"
                 outerRadius={80}
                 dataKey="probability"
-                label={({ scenario, probability }) => `${scenario}: ${probability}%`}
+                label={({ scenario, probability }: any) => `${scenario}: ${probability}%`}
               >
-                {scenarioData.map((entry, index) => (
+                {scenarioData.map((entry: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={getScenarioColor(entry.scenario)} />
                 ))}
               </Pie>

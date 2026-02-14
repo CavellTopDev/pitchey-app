@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { 
+import { useNavigate } from 'react-router-dom';
+import {
   CheckCircle, Trophy, Film, Calendar, DollarSign,
   Star, TrendingUp, Award, Download, Search,
   Filter, BarChart3, Users, Globe, Clock,
@@ -47,7 +48,8 @@ interface CompletedProject {
 }
 
 const CompletedProjects = () => {
-    const { user, logout } = useBetterAuthStore();
+  const navigate = useNavigate();
+  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState<CompletedProject[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,7 +67,7 @@ const CompletedProjects = () => {
       
       if (response.success && response.data) {
         // Transform API data to match component expectations
-        const transformedProjects = (response.data.projects || []).map((project: any) => {
+        const transformedProjects = ((response.data as any).projects || []).map((project: any) => {
           return {
             id: project.id,
             pitch_id: project.pitch_id,
@@ -179,8 +181,8 @@ const CompletedProjects = () => {
           return (b.revenue?.total || b.final_return || 0) - (a.revenue?.total || a.final_return || 0);
         case 'recent':
         default:
-          const aDate = new Date(a.completionDate || a.completion_date || a.updated_at).getTime();
-          const bDate = new Date(b.completionDate || b.completion_date || b.updated_at).getTime();
+          const aDate = new Date(a.completionDate || a.completion_date || a.updated_at || '').getTime();
+          const bDate = new Date(b.completionDate || b.completion_date || b.updated_at || '').getTime();
           return bDate - aDate;
       }
     });
@@ -324,8 +326,8 @@ const CompletedProjects = () => {
                         <h3 className="text-xl font-bold text-gray-900">{project.title}</h3>
                         <p className="text-sm text-gray-600">{project.company} • {project.genre}</p>
                       </div>
-                      <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(project.distributionStatus)}`}>
-                        {project.distributionStatus.replace('-', ' ')}
+                      <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(project.distributionStatus || 'pending-release')}`}>
+                        {(project.distributionStatus || 'pending-release').replace('-', ' ')}
                       </span>
                     </div>
                     
@@ -334,35 +336,35 @@ const CompletedProjects = () => {
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                       <div>
                         <p className="text-xs text-gray-500">Completion Date</p>
-                        <p className="text-sm font-medium">{new Date(project.completionDate).toLocaleDateString()}</p>
+                        <p className="text-sm font-medium">{new Date(project.completionDate || '').toLocaleDateString()}</p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">Duration</p>
-                        <p className="text-sm font-medium">{project.duration}</p>
+                        <p className="text-sm font-medium">{project.duration || 'N/A'}</p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">Market Performance</p>
-                        <p className={`text-sm font-medium ${getPerformanceColor(project.marketPerformance)}`}>
-                          {project.marketPerformance}
+                        <p className={`text-sm font-medium ${getPerformanceColor(project.marketPerformance || 'pending')}`}>
+                          {project.marketPerformance || 'pending'}
                         </p>
                       </div>
-                      {project.rating > 0 && (
+                      {(project.rating || 0) > 0 && (
                         <div>
                           <p className="text-xs text-gray-500">Rating</p>
                           <div className="flex items-center">
                             <Star className="h-4 w-4 text-yellow-500 mr-1" />
-                            <span className="text-sm font-medium">{project.rating}/10</span>
+                            <span className="text-sm font-medium">{project.rating || 0}/10</span>
                           </div>
                         </div>
                       )}
                     </div>
 
                     {/* Awards */}
-                    {project.awards.length > 0 && (
+                    {(project.awards || []).length > 0 && (
                       <div className="mb-4">
                         <p className="text-xs text-gray-500 mb-2">Awards & Recognition</p>
                         <div className="flex flex-wrap gap-2">
-                          {project.awards.map((award, idx) => (
+                          {(project.awards || []).map((award, idx) => (
                             <span key={idx} className="inline-flex items-center px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">
                               <Award className="h-3 w-3 mr-1" />
                               {award}
@@ -381,43 +383,43 @@ const CompletedProjects = () => {
                       <div className="space-y-3">
                         <div className="flex justify-between">
                           <span className="text-sm text-gray-600">Investment</span>
-                          <span className="text-sm font-medium">{formatCurrency(project.investmentAmount)}</span>
+                          <span className="text-sm font-medium">{formatCurrency(project.investmentAmount || 0)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-sm text-gray-600">Returns</span>
-                          <span className="text-sm font-medium text-green-600">{formatCurrency(project.finalReturn)}</span>
+                          <span className="text-sm font-medium text-green-600">{formatCurrency(project.finalReturn || 0)}</span>
                         </div>
                         <div className="flex justify-between border-t pt-3">
                           <span className="text-sm font-semibold">ROI</span>
-                          <span className={`text-lg font-bold ${project.roi > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {project.roi > 0 ? '+' : ''}{project.roi}%
+                          <span className={`text-lg font-bold ${(project.roi || 0) > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {(project.roi || 0) > 0 ? '+' : ''}{project.roi || 0}%
                           </span>
                         </div>
                       </div>
 
-                      {project.revenue.total > 0 && (
+                      {(project.revenue?.total || 0) > 0 && (
                         <div className="mt-4 pt-4 border-t">
                           <p className="text-sm font-semibold text-gray-900 mb-2">Revenue Breakdown</p>
                           <div className="space-y-2 text-xs">
-                            {project.revenue.boxOffice && (
+                            {project.revenue?.boxOffice && (
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Box Office</span>
                                 <span>{formatCurrency(project.revenue.boxOffice)}</span>
                               </div>
                             )}
-                            {project.revenue.streaming && (
+                            {project.revenue?.streaming && (
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Streaming</span>
                                 <span>{formatCurrency(project.revenue.streaming)}</span>
                               </div>
                             )}
-                            {project.revenue.international && (
+                            {project.revenue?.international && (
                               <div className="flex justify-between">
                                 <span className="text-gray-600">International</span>
                                 <span>{formatCurrency(project.revenue.international)}</span>
                               </div>
                             )}
-                            {project.revenue.merchandising && (
+                            {project.revenue?.merchandising && (
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Merchandising</span>
                                 <span>{formatCurrency(project.revenue.merchandising)}</span>
@@ -425,7 +427,7 @@ const CompletedProjects = () => {
                             )}
                             <div className="flex justify-between font-semibold pt-2 border-t">
                               <span>Total Revenue</span>
-                              <span>{formatCurrency(project.revenue.total)}</span>
+                              <span>{formatCurrency(project.revenue?.total || 0)}</span>
                             </div>
                           </div>
                         </div>

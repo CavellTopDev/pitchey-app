@@ -26,10 +26,12 @@ export default function PitchAnalytics() {
       const [pitchDetails, analyticsData] = await Promise.all([
         pitchService.getById(pitchId).catch(() => null),
         analyticsService.getPitchAnalytics(
-          pitchId, 
+          pitchId,
           {
-            preset: timeRange === '7d' ? 'week' : 
-                    timeRange === '30d' ? 'month' : 'quarter'
+            start: '',
+            end: '',
+            preset: (timeRange === '7d' ? 'week' :
+                    timeRange === '30d' ? 'month' : 'quarter') as 'week' | 'month' | 'quarter'
           }
         )
       ]);
@@ -249,7 +251,7 @@ export default function PitchAnalytics() {
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Views Over Time</h3>
             <div className="space-y-3">
-              {(analytics?.viewsByDay || []).slice(-7).map((day, index) => (
+              {(analytics?.viewsByDate || []).slice(-7).map((day: any, index: number) => (
                 <div key={day.date} className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">
                     {new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
@@ -258,7 +260,7 @@ export default function PitchAnalytics() {
                     <div className="flex-1 bg-gray-200 rounded-full h-2">
                       <div 
                         className="bg-purple-600 h-2 rounded-full" 
-                        style={{ width: `${Math.max(5, ((day.views || 0) / Math.max(...(analytics?.viewsByDay || []).map(d => d.views || d.count || 0), 1)) * 100)}%` }}
+                        style={{ width: `${Math.max(5, ((day.views || 0) / Math.max(...(analytics?.viewsByDate || []).map((d: any) => d.views || d.count || 0), 1)) * 100)}%` }}
                       ></div>
                     </div>
                     <span className="text-sm font-medium text-gray-900 min-w-[40px] text-right">{day.views || day.count || 0}</span>
@@ -272,7 +274,7 @@ export default function PitchAnalytics() {
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Viewer Types</h3>
             <div className="space-y-4">
-              {(analytics?.viewerTypes || []).map((viewer, index) => (
+              {(analytics?.viewerTypes || []).map((viewer: any, index: number) => (
                 <div key={viewer.type} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className={`w-3 h-3 rounded-full ${
@@ -340,8 +342,8 @@ export default function PitchAnalytics() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center p-4 bg-green-50 rounded-lg">
               <div className="text-2xl font-bold text-green-600 mb-1">
-                {analytics.viewsThisMonth > 0 ? 
-                  (analytics.viewsThisMonth > analytics.viewsThisWeek * 4 ? 'Strong' : 'Growing') : 
+                {(analytics.viewsThisMonth || 0) > 0 ?
+                  ((analytics.viewsThisMonth || 0) > (analytics.viewsThisWeek || 0) * 4 ? 'Strong' : 'Growing') :
                   'New'}
               </div>
               <div className="text-sm text-gray-600">Monthly Performance</div>
@@ -355,8 +357,8 @@ export default function PitchAnalytics() {
             </div>
             <div className="text-center p-4 bg-purple-50 rounded-lg">
               <div className="text-2xl font-bold text-purple-600 mb-1">
-                {analytics.totalViews > 0 ? 
-                  `${(analytics.totalMessages / analytics.totalViews * 100).toFixed(1)}%` : 
+                {(analytics.totalViews || 0) > 0 ?
+                  `${((analytics.totalMessages || 0) / (analytics.totalViews || 1) * 100).toFixed(1)}%` :
                   'N/A'}
               </div>
               <div className="text-sm text-gray-600">Conversion Rate</div>

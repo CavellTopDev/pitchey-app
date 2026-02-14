@@ -47,11 +47,12 @@ export default function ProtectedContent({
   const fetchAccessData = async () => {
     try {
       const response = await apiClient.get(`/api/pitches/${pitchId}/nda-status`);
-      if (response.success && response.protectedContent) {
+      if (response.success && (response.data as any)?.protectedContent) {
+        const protectedContent = (response.data as any).protectedContent;
         setAccessData({
-          hasAccess: response.protectedContent.hasAccess,
-          accessLevel: response.protectedContent.accessLevel,
-          protectedFields: response.protectedContent.protectedFields || []
+          hasAccess: protectedContent.hasAccess,
+          accessLevel: protectedContent.accessLevel,
+          protectedFields: protectedContent.protectedFields || []
         });
       }
     } catch (error) {

@@ -44,8 +44,8 @@ export default function InvestmentAnalytics({ userType, className = '' }: Invest
       
       if (userType === 'investor') {
         const response = await InvestmentService.getPortfolioAnalytics();
-        if (response.success) {
-          setAnalytics(response.data!);
+        if (response.success && response.data) {
+          setAnalytics(response.data as any);
         }
       }
       // Add similar calls for creator and production analytics

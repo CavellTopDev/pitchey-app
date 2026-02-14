@@ -197,8 +197,8 @@ function EnhancedNavigation({
             
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center ml-10 space-x-1">
-              {navItems.map((item) => (
-                <div 
+              {navItems.map((item: any) => (
+                <div
                   key={item.key}
                   ref={(ref) => { dropdownRefs.current[item.key] = ref; }}
                   className="relative"
@@ -212,8 +212,8 @@ function EnhancedNavigation({
                     className={`
                       flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md
                       transition-colors duration-200
-                      ${activeDropdown === item.key 
-                        ? 'text-purple-600 bg-purple-50' 
+                      ${activeDropdown === item.key
+                        ? 'text-purple-600 bg-purple-50'
                         : 'text-gray-700 hover:text-purple-600 hover:bg-gray-50'
                       }
                     `}
@@ -225,7 +225,7 @@ function EnhancedNavigation({
                       ${activeDropdown === item.key ? 'rotate-180' : ''}
                     `} />
                   </button>
-                  
+
                   {/* Dropdown Menu */}
                   {activeDropdown === item.key && item.dropdown && (
                     <div 
@@ -316,7 +316,7 @@ function EnhancedNavigation({
       {mobileMenuOpen && (
         <div className="lg:hidden border-t bg-white">
           <nav className="px-4 py-2 space-y-1 max-h-[calc(100vh-4rem)] overflow-y-auto">
-            {navItems.map((item) => (
+            {navItems.map((item: any) => (
               <div key={item.key}>
                 <button
                   onClick={(e) => {
@@ -335,7 +335,7 @@ function EnhancedNavigation({
                     ${activeDropdown === item.key ? 'rotate-180' : ''}
                   `} />
                 </button>
-                
+
                 {/* Mobile Dropdown */}
                 {activeDropdown === item.key && item.dropdown && (
                   <div className="ml-8 mt-1 space-y-1 animate-in slide-in-from-top-2 duration-200">

@@ -88,9 +88,9 @@ export class PortalErrorBoundary extends Component<PortalErrorBoundaryProps, Por
     };
   }
 
-  private extractComponentName(componentStack?: string): string {
+  private extractComponentName(componentStack: string | null | undefined): string {
     if (!componentStack) return 'Unknown';
-    
+
     const match = componentStack.match(/in (\w+)/);
     return match ? match[1] : 'Unknown';
   }
@@ -271,15 +271,15 @@ export function withPortalErrorBoundary<P extends object>(
     const userName = (window as any).__authStore?.user?.username;
 
     return (
-      <PortalErrorBoundary 
+      <PortalErrorBoundary
         portalType={portalType}
         userId={userId}
         userName={userName}
       >
-        <Component {...props} ref={ref} />
+        <Component {...(props as any)} ref={ref} />
       </PortalErrorBoundary>
     );
-  });
+  }) as any;
 }
 
 // Sentry-integrated error boundary

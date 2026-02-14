@@ -302,39 +302,40 @@ export const createValidator = (schema: Record<string, ValidationRule[]>) => {
 
 // Utility function to validate pitch with conditional custom format
 export const validatePitchForm = (data: any): ValidationResult => {
-  const schema = { ...validationSchemas.pitch };
-  
+  const schema: Record<string, ValidationRule[]> = { ...validationSchemas.pitch };
+
   // Add conditional validation for custom format
   if (data.formatSubtype === 'Custom Format (please specify)') {
     schema.customFormat = [validationRules.required('Custom Format'), validationRules.maxLength(100)];
   } else {
-    delete schema.customFormat;
+    // Use omit pattern instead of delete
+    const { customFormat, ...rest } = schema;
+    return new FormValidator(rest).validateForm(data);
   }
-  
+
   const validator = new FormValidator(schema);
   return validator.validateForm(data);
 };
 
 // Utility function to validate production registration with password confirmation
 export const validateProductionRegistration = (data: any): ValidationResult => {
-  const schema = { ...validationSchemas.productionRegistration };
-  
+  const schema: Record<string, ValidationRule[]> = { ...validationSchemas.productionRegistration };
+
   // Add password confirmation validation
   schema.confirmPassword = [
     validationRules.required('Confirm Password'),
     validationRules.passwordConfirm(data.password)
   ];
-  
+
   // Make social media fields optional but validate format if provided
   const optionalUrlFields = ['linkedin', 'twitter', 'instagram', 'facebook'];
   optionalUrlFields.forEach(field => {
     if (data[field] && data[field].trim() !== '') {
       schema[field] = [validationRules.url()];
-    } else {
-      delete schema[field];
     }
+    // Don't delete - just skip in validation if not present
   });
-  
+
   const validator = new FormValidator(schema);
   return validator.validateForm(data);
 };

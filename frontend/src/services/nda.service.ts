@@ -138,7 +138,7 @@ export class NDAService {
       signedAt: ndaData.signedAt,
       documentUrl: ndaData.documentUrl,
       customNdaUrl: ndaData.customNdaUrl
-    } as NDA;
+    } as unknown as NDA;
   }
 
   // Sign NDA

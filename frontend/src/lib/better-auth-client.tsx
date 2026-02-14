@@ -49,6 +49,10 @@ export interface AuthResponse {
   token?: string;
   message?: string;
   error?: string;
+  data?: {
+    user?: User;
+    token?: string;
+  };
 }
 
 export interface Session {
@@ -109,8 +113,8 @@ export function createPortalAuthMethods(): PortalAuthMethods {
       }
 
       return {
-        success: true,
-        ...responseData
+        ...responseData,
+        success: true
       };
     } catch (error) {
       return {
@@ -213,7 +217,7 @@ export async function isAuthenticated(): Promise<boolean> {
   try {
     const portalAuth = createPortalAuthMethods();
     const session = await portalAuth.getSession();
-    return session && session.user;
+    return !!(session && session.user);
   } catch {
     return false;
   }
@@ -247,7 +251,7 @@ export function withBetterAuth<T extends object>(
   return function AuthenticatedComponent(props: T) {
     const [isLoading, setIsLoading] = React.useState(true);
     const [isAuthed, setIsAuthed] = React.useState(false);
-    const [user, setUser] = React.useState(null);
+    const [user, setUser] = React.useState<User | null>(null);
 
     React.useEffect(() => {
       const checkAuth = async () => {

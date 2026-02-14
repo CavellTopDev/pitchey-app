@@ -10,7 +10,7 @@ interface PollingConfig {
 
 class PollingService {
   private static instance: PollingService;
-  private pollingIntervals: Map<string, NodeJS.Timer> = new Map();
+  private pollingIntervals: Map<string, ReturnType<typeof setInterval>> = new Map();
   private retryCounters: Map<string, number> = new Map();
   private isActive: boolean = false;
   private lastPollTimes: Map<string, number> = new Map();

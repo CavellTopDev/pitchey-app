@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { 
-  BarChart3, Activity, TrendingUp, DollarSign
+import {
+  BarChart3, Activity, TrendingUp, DollarSign,
+  Film, Award, Briefcase, Clock, Target
 } from 'lucide-react';
 import ProductionAnalytics from './production/ProductionAnalytics';
 import ProductionActivity from './production/ProductionActivity';

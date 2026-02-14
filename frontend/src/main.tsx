@@ -41,7 +41,7 @@ if (rootElement) {
         return React.createElement(App);
       } catch (error) {
         console.warn('App initialization error:', error);
-        window.__appInitError = error;
+        window.__appInitError = error as Error;
         throw error;
       }
     };
@@ -51,13 +51,14 @@ if (rootElement) {
     );
   } catch (error) {
     console.warn('main.tsx: Fatal error during app initialization:', error);
-    window.__fatalInitError = error;
+    window.__fatalInitError = error as Error;
+    const err = error as Error;
     // Display error on page
     rootElement.innerHTML = `
       <div style="padding: 20px; font-family: monospace;">
         <h1>Initialization Error</h1>
-        <pre>${error.message}</pre>
-        <pre>${error.stack}</pre>
+        <pre>${err.message}</pre>
+        <pre>${err.stack}</pre>
       </div>
     `;
   }

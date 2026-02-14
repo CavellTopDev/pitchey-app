@@ -40,7 +40,7 @@ export default function PitchEdit() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [genres] = useState<string[]>(getGenresSync());
+  const [genres] = useState<readonly string[] | string[]>(getGenresSync());
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
   const [formData, setFormData] = useState<PitchFormData>({
     title: '',

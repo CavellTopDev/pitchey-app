@@ -36,9 +36,9 @@ export default function ProductionPitchCreate() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDraft, setIsDraft] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
-  const [genres, setGenres] = useState<string[]>(getGenresSync() || []);
-  const [formats, setFormats] = useState<string[]>(getFormatsSync() || []);
-  const [budgetBrackets, setBudgetBrackets] = useState<string[]>(getBudgetRangesSync() || []);
+  const [genres, setGenres] = useState<string[]>((getGenresSync() as string[]) || []);
+  const [formats, setFormats] = useState<string[]>((getFormatsSync() as string[]) || []);
+  const [budgetBrackets, setBudgetBrackets] = useState<string[]>((getBudgetRangesSync() as string[]) || []);
   
   // Form Data State
   const [formData, setFormData] = useState({
@@ -142,7 +142,7 @@ export default function ProductionPitchCreate() {
             showBudget: false,
             showMedia: false,
           },
-          ndaConfig: draft.ndaConfig || {
+          ndaConfig: (draft as any).ndaConfig || {
             requireNDA: false,
             ndaType: 'none',
             customNDA: null
@@ -175,7 +175,7 @@ export default function ProductionPitchCreate() {
           showBudget: false,
           showMedia: false,
         },
-        ndaConfig: currentDraft.ndaConfig || {
+        ndaConfig: (currentDraft as any).ndaConfig || {
           requireNDA: false,
           ndaType: 'none',
           customNDA: null

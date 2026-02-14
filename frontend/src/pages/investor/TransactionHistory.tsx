@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { 
   History, Download, Filter, Search, ArrowUpRight,
   ArrowDownLeft, Calendar, DollarSign, RefreshCw, ChevronLeft, ChevronRight
@@ -26,7 +28,8 @@ interface TransactionStats {
 }
 
 const TransactionHistory = () => {
-    
+  const navigate = useNavigate();
+  const { user, logout } = useBetterAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [stats, setStats] = useState<TransactionStats | null>(null);
@@ -53,8 +56,8 @@ const TransactionHistory = () => {
         endDate: dateRange.end,
       });
       
-      setTransactions(response.data.items || []);
-      setTotalPages(Math.ceil((response.data.total || 0) / 20));
+      setTransactions((response.data as any)?.items || []);
+      setTotalPages(Math.ceil(((response.data as any)?.total || 0) / 20));
     } catch (error) {
       console.error('Error fetching transactions:', error);
     } finally {
@@ -65,7 +68,9 @@ const TransactionHistory = () => {
   const fetchStats = async () => {
     try {
       const response = await investorApi.getTransactionStats();
-      setStats(response.data.stats);
+      if (response.data) {
+        setStats((response.data as any).stats || response.data as any);
+      }
     } catch (error) {
       console.error('Error fetching stats:', error);
     }
@@ -74,7 +79,7 @@ const TransactionHistory = () => {
   const handleExport = async () => {
     try {
       const response = await investorApi.exportTransactions();
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const url = window.URL.createObjectURL(new Blob([(response as any).data]));
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `transactions_${Date.now()}.csv`);
@@ -86,14 +91,6 @@ const TransactionHistory = () => {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login/investor');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {

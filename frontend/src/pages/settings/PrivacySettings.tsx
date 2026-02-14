@@ -198,7 +198,7 @@ export default function PrivacySettings() {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-50">
       <DashboardHeader
         user={user}
-        userType={user?.userType || 'creator'}
+        userType={(user?.userType || 'creator') as 'creator' | 'investor' | 'production'}
         title="Privacy & Security"
         onLogout={logout}
       />

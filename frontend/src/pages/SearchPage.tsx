@@ -152,7 +152,7 @@ export default function SearchPage() {
     <div className="min-h-screen bg-gray-50">
       <DashboardHeader
         user={user}
-        userType={user?.userType || 'creator'}
+        userType={(user?.userType as 'creator' | 'investor' | 'production') || 'creator'}
         title="Search"
         onLogout={logout}
       />

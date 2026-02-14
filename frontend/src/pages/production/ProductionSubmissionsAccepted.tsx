@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { 
-  FileText, Clock, Star, CheckCircle, XCircle, Archive, 
+import { useNavigate } from 'react-router-dom';
+import {
+  FileText, Clock, Star, CheckCircle, XCircle, Archive,
   Filter, Search, Calendar, User, DollarSign, TrendingUp,
   Eye, Download, MessageSquare, Play, Pause, Settings,
   Award, Briefcase, Users, BarChart3
@@ -32,7 +33,8 @@ interface Submission {
 }
 
 export default function ProductionSubmissionsAccepted() {
-    
+  const navigate = useNavigate();
+
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

@@ -1592,9 +1592,6 @@ export { UploadService };
 
 // Export types for use in other components
 export type {
-  UploadProgress,
-  UploadResult,
-  UploadOptions,
   ChunkedUploadState,
   UploadedPart,
   LargeFileUploadOptions

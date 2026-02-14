@@ -104,9 +104,9 @@ export default function SubscriptionCard({ subscription, onRefresh }: Subscripti
       setLoading(true);
       setError(null);
 
-      const result = await paymentsAPI.subscribe(planKey, selectedBilling);
-      
-      if (result.url) {
+      const result = await paymentsAPI.subscribe(planKey, selectedBilling) as any;
+
+      if (result && result.url) {
         // Redirect to Stripe checkout
         window.location.href = result.url;
       } else {

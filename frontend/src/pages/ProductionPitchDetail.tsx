@@ -17,6 +17,8 @@ interface PitchDetails {
   logline: string;
   genre: string;
   format: string;
+  formatCategory?: string;
+  formatSubtype?: string;
   shortSynopsis: string;
   longSynopsis: string;
   budget: string;

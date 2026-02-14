@@ -68,30 +68,30 @@ export const PollingProvider: React.FC<PollingProviderProps> = ({
     }
 
     try {
-      const response = await apiClient.get('/api/poll/all');
-      
-      if (response.notifications) {
+      const response = await apiClient.get('/api/poll/all') as any;
+
+      if ((response as any).notifications) {
         setNotifications(prev => {
           // Merge new notifications, avoiding duplicates
           const existingIds = new Set(prev.map(n => n.id));
-          const newNotifs = response.notifications.filter((n: any) => !existingIds.has(n.id));
+          const newNotifs = (response as any).notifications.filter((n: any) => !existingIds.has(n.id));
           return [...newNotifs, ...prev].slice(0, 50); // Keep last 50
         });
       }
-      
-      if (response.messages) {
-        setMessages(response.messages);
+
+      if ((response as any).messages) {
+        setMessages((response as any).messages);
       }
-      
-      if (response.updates && response.updates.length > 0) {
-        setDashboardUpdates(response.updates[0]);
+
+      if ((response as any).updates && (response as any).updates.length > 0) {
+        setDashboardUpdates((response as any).updates[0]);
       }
-      
+
       setLastPollTime(Date.now());
-      
+
       // Use server-suggested interval if provided
-      if (response.nextPollIn && response.nextPollIn > 0) {
-        setPollingIntervalState(response.nextPollIn);
+      if ((response as any).nextPollIn && (response as any).nextPollIn > 0) {
+        setPollingIntervalState((response as any).nextPollIn);
       }
     } catch (error) {
       console.error('Polling error:', error);
@@ -279,9 +279,9 @@ export const useMessagePolling = (conversationId?: string) => {
 
     const pollMessages = async () => {
       try {
-        const response = await apiClient.get(`/api/poll/messages?conversation=${conversationId}`);
-        if (response.messages) {
-          setMessages(response.messages);
+        const response = await apiClient.get(`/api/poll/messages?conversation=${conversationId}`) as any;
+        if ((response as any).messages) {
+          setMessages((response as any).messages);
         }
       } catch (error) {
         console.error('Message polling error:', error);

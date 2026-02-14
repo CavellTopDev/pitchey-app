@@ -8,7 +8,8 @@ interface WebSocketStatusProps {
 }
 
 export function WebSocketStatus({ showDetails = false, className = '' }: WebSocketStatusProps) {
-  const { connectionStatus, isConnected, isConnecting, isReconnecting } = useWebSocket();
+  const { connectionStatus, isConnected, isReconnecting } = useWebSocket();
+  const isConnecting = connectionStatus.reconnectAttempts > 0 && !isConnected;
 
   // Don't show anything if connected and no details requested
   if (isConnected && !showDetails) {
@@ -68,7 +69,8 @@ export function WebSocketStatus({ showDetails = false, className = '' }: WebSock
 
 // Compact version for headers/toolbars
 export function WebSocketStatusCompact({ className = '' }: { className?: string }) {
-  const { isConnected, isConnecting, isReconnecting } = useWebSocket();
+  const { isConnected, connectionStatus, isReconnecting } = useWebSocket();
+  const isConnecting = connectionStatus.reconnectAttempts > 0 && !isConnected;
 
   const getIcon = () => {
     if (isConnected) return <Wifi className="w-4 h-4 text-green-500" />;

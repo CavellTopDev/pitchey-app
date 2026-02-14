@@ -140,8 +140,7 @@ export default function InvestorStats() {
   }, [timeRange]);
 
   useEffect(() => {
-    const cleanup = loadStats();
-    return cleanup;
+    loadStats();
   }, [loadStats]);
 
   // Chart data

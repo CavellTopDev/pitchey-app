@@ -59,7 +59,7 @@ export function EnhancedNavigationShadcn({
 
   useEffect(() => {
     if (userType === 'creator') {
-      paymentsAPI.getCreditBalance().then((data) => {
+      paymentsAPI.getCreditBalance().then((data: any) => {
         if (data) {
           setCreditBalance(data.balance?.credits ?? data.credits ?? 0);
         }
@@ -205,13 +205,13 @@ export function EnhancedNavigationShadcn({
 
   const getNavigationItemStyle = () => {
     const baseStyle = "flex items-center gap-2 px-3 py-2 text-gray-600 rounded-lg transition-colors cursor-pointer";
-    switch (themeColor) {
+    switch (themeColor as 'purple' | 'green' | 'orange' | 'gray') {
       case 'purple':
         return `${baseStyle} hover:text-purple-600 hover:bg-purple-50`;
       case 'green':
         return `${baseStyle} hover:text-green-600 hover:bg-green-50`;
-      case 'blue':
-        return `${baseStyle} hover:text-blue-600 hover:bg-blue-50`;
+      case 'orange':
+        return `${baseStyle} hover:text-orange-600 hover:bg-orange-50`;
       default:
         return `${baseStyle} hover:text-gray-900 hover:bg-gray-100`;
     }

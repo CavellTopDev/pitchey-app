@@ -385,8 +385,8 @@ export const EnhancedProductionAnalytics: React.FC<ProductionAnalyticsProps> = (
               defaultRange="30d"
             />
             
-            <AnalyticsExport 
-              data={analyticsData}
+            <AnalyticsExport
+              data={analyticsData as any}
               title="Production Analytics"
             />
           </div>

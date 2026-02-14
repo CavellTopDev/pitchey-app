@@ -391,7 +391,7 @@ export class AnalyticsService {
       }
 
       // api-client already unwraps { success, data }, so response.data is the payload
-      const activities = safeArray(safeAccess(response, 'data.activities', []));
+      const activities = safeArray(safeAccess(response, 'data.activities', [])) as Activity[];
       const total = safeNumber(safeAccess(response, 'data.total', 0));
 
       return { activities, total };
@@ -455,9 +455,9 @@ export class AnalyticsService {
   // Get comparison data
   static async getComparison(
     type: 'pitch' | 'user' | 'dashboard',
-    id?: number,
     currentRange: TimeRange,
-    previousRange: TimeRange
+    previousRange: TimeRange,
+    id?: number
   ): Promise<ComparisonData> {
     const params = new URLSearchParams();
     params.append('currentStart', currentRange.start);
@@ -707,4 +707,4 @@ export class AnalyticsService {
 export const analyticsService = AnalyticsService;
 
 // Re-export types for better module resolution
-export type { TimeRange };
+export type { TimeRange as AnalyticsTimeRange };

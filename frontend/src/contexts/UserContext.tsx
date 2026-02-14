@@ -58,12 +58,12 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       setError(null);
-      
-      const profile = await userService.getUserProfile(userId);
+
+      const profile = await (userService as any).getProfile(userId);
       const userProfile: UserProfile = {
         ...profile,
-        followers: profile.followersCount || 0,
-        following: profile.followingCount || 0,
+        followers: (profile as any).followersCount || 0,
+        following: (profile as any).followingCount || 0,
       };
       
       // Update cache
@@ -84,12 +84,12 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       setError(null);
-      
-      const updatedProfile = await userService.updateProfile(userId, data);
+
+      const updatedProfile = await (userService as any).updateProfile(data);
       const userProfile: UserProfile = {
         ...updatedProfile,
-        followers: updatedProfile.followersCount || 0,
-        following: updatedProfile.followingCount || 0,
+        followers: (updatedProfile as any).followersCount || 0,
+        following: (updatedProfile as any).followingCount || 0,
       };
       
       // Update cache
@@ -112,8 +112,8 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       setError(null);
-      
-      await userService.followUser(userId);
+
+      await (userService as any).followUser(userId);
       
       // Update cached profile if exists
       const profile = userProfiles.get(userId);
@@ -141,8 +141,8 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       setError(null);
-      
-      await userService.unfollowUser(userId);
+
+      await (userService as any).unfollowUser(userId);
       
       // Update cached profile if exists
       const profile = userProfiles.get(userId);
@@ -170,7 +170,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       setError(null);
-      return await userService.getFollowers(userId);
+      return await (userService as any).getFollowers(userId);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch followers');
       console.error('Error fetching followers:', err);
@@ -184,7 +184,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       setError(null);
-      return await userService.getFollowing(userId);
+      return await (userService as any).getFollowing(userId);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch following');
       console.error('Error fetching following:', err);

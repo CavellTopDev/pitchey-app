@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   TrendingUp, TrendingDown, Activity, Globe, Calendar,
   BarChart3, PieChart, Download, Filter, Info
@@ -9,7 +10,8 @@ import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { investorApi } from '@/services/investor.service';
 
 const MarketTrends = () => {
-    const { user, logout } = useBetterAuthStore();
+  const navigate = useNavigate();
+  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('3m');
   const [trendsData, setTrendsData] = useState<any>(null);
@@ -49,14 +51,6 @@ const MarketTrends = () => {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login/investor');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {

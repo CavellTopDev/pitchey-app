@@ -59,7 +59,7 @@ export default function PublicPitchView() {
   // Business rule validation for NDA access
   const validateNDAAccess = (pitch: Pitch, user: any): { canRequest: boolean; reason?: string } => {
     // Rule 1: Users cannot request NDAs for their own pitches
-    if (pitch.creatorId === user.id || pitch.creator?.id === user.id) {
+    if ((pitch as any).creatorId === user.id || pitch.creator?.id === user.id) {
       return { canRequest: false, reason: 'Cannot request NDA for your own pitch' };
     }
 
@@ -88,8 +88,8 @@ export default function PublicPitchView() {
     
     try {
       // Check if user owns this pitch
-      const userOwnsThisPitch = pitch && user && 
-        (pitch.creatorId === user.id || pitch.creator?.id === user.id);
+      const userOwnsThisPitch = pitch && user &&
+        ((pitch as any).creatorId === user.id || pitch.creator?.id === user.id);
       
       setIsOwner(!!userOwnsThisPitch);
 
@@ -135,9 +135,9 @@ export default function PublicPitchView() {
     }
     
     if (response.hasNDA && response.nda) {
-      setNdaRequestStatus(response.nda.status);
+      setNdaRequestStatus(response.nda.status as 'none' | 'pending' | 'approved' | 'rejected');
       // Check if NDA grants access (approved or signed status)
-      if (response.nda.status === 'approved' || response.nda.status === 'signed' || response.nda.accessGranted) {
+      if (response.nda.status === 'approved' || response.nda.status === 'signed' || (response.nda as any).accessGranted) {
         setHasSignedNDA(true);
         setCanRequestNDA(false); // Can't request if already have NDA
       }
@@ -194,8 +194,8 @@ export default function PublicPitchView() {
     );
   }
 
-  const isProduction = pitch.creator?.type === 'production';
-  const isInvestor = pitch.creator?.type === 'investor';
+  const isProduction = (pitch.creator as any)?.type === 'production';
+  const isInvestor = (pitch.creator as any)?.type === 'investor';
   const creatorHidden = pitch.creator?.name === 'Hidden (NDA Required)';
 
   return (

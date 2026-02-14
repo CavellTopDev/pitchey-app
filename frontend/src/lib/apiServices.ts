@@ -120,45 +120,45 @@ export const ndaAPI = {
   
   // Enhanced methods using robust API client
   async getSignedNDAs() {
-    const response = await apiClient.get('/api/ndas/signed');
+    const response = await apiClient.get<any>('/api/ndas/signed');
     if (response.success) {
-      return { success: true, ...response.data };
+      return { success: true, ...(response.data as object || {}) };
     }
     return { success: false, error: response.error?.message };
   },
 
   // New categorized NDA endpoints
   async getIncomingSignedNDAs() {
-    const response = await apiClient.get('/api/ndas/incoming-signed');
+    const response = await apiClient.get<any>('/api/ndas/incoming-signed');
     if (response.success) {
-      return { success: true, ndas: response.data.ndas || [], count: response.data.count || 0 };
+      return { success: true, ndas: (response.data as any)?.ndas || [], count: (response.data as any)?.count || 0 };
     }
     return { success: false, error: response.error?.message, ndas: [], count: 0 };
   },
 
   async getOutgoingSignedNDAs() {
-    const response = await apiClient.get('/api/ndas/outgoing-signed');
+    const response = await apiClient.get<any>('/api/ndas/outgoing-signed');
     if (response.success) {
-      return { success: true, ndas: response.data.ndas || [], count: response.data.count || 0 };
+      return { success: true, ndas: (response.data as any)?.ndas || [], count: (response.data as any)?.count || 0 };
     }
     return { success: false, error: response.error?.message, ndas: [], count: 0 };
   },
 
   async getIncomingRequests() {
-    const response = await apiClient.get('/api/ndas/incoming-requests');
+    const response = await apiClient.get<any>('/api/ndas/incoming-requests');
     if (response.success) {
       // API returns data as array directly, not nested under 'requests'
-      const requests = Array.isArray(response.data) ? response.data : (response.data?.requests || response.data?.data || []);
+      const requests = Array.isArray(response.data) ? response.data : ((response.data as any)?.requests || (response.data as any)?.data || []);
       return { success: true, requests, count: requests.length };
     }
     return { success: false, error: response.error?.message, requests: [], count: 0 };
   },
 
   async getOutgoingRequests() {
-    const response = await apiClient.get('/api/ndas/outgoing-requests');
+    const response = await apiClient.get<any>('/api/ndas/outgoing-requests');
     if (response.success) {
       // API returns data as array directly, not nested under 'requests'
-      const requests = Array.isArray(response.data) ? response.data : (response.data?.requests || response.data?.data || []);
+      const requests = Array.isArray(response.data) ? response.data : ((response.data as any)?.requests || (response.data as any)?.data || []);
       return { success: true, requests, count: requests.length };
     }
     return { success: false, error: response.error?.message, requests: [], count: 0 };
@@ -169,9 +169,9 @@ export const ndaAPI = {
 export const companyAPI = {
   // Get verification status
   async getVerificationStatus() {
-    const response = await apiClient.get('/api/company/verify');
+    const response = await apiClient.get<any>('/api/company/verify');
     if (response.success) {
-      return { success: true, ...response.data };
+      return { success: true, ...(response.data as object || {}) };
     }
     return { success: false, error: response.error?.message };
   },
@@ -183,9 +183,9 @@ export const companyAPI = {
     companyWebsite?: string;
     companyAddress?: string;
   }) {
-    const response = await apiClient.post('/api/company/verify', data);
+    const response = await apiClient.post<any>('/api/company/verify', data);
     if (response.success) {
-      return { success: true, ...response.data };
+      return { success: true, ...(response.data as object || {}) };
     }
     return { success: false, error: response.error?.message };
   },
@@ -195,10 +195,10 @@ export const companyAPI = {
 export const analyticsAPI = {
   // Get dashboard analytics
   async getDashboardAnalytics() {
-    const response = await apiClient.get('/api/analytics/dashboard');
+    const response = await apiClient.get<any>('/api/analytics/dashboard');
     if (response.success) {
       // Handle nested response structure
-      const analytics = response.data?.analytics || response.data;
+      const analytics = (response.data as any)?.analytics || response.data;
       return { success: true, analytics };
     }
     return { success: false, error: response.error?.message };
@@ -209,9 +209,9 @@ export const analyticsAPI = {
     viewType?: string;
     sessionId?: string;
   }) {
-    const response = await apiClient.post('/api/analytics/track-view', { pitchId, ...viewData });
+    const response = await apiClient.post<any>('/api/analytics/track-view', { pitchId, ...viewData });
     if (response.success) {
-      return { success: true, ...response.data };
+      return { success: true, ...(response.data as object || {}) };
     }
     return { success: false, error: response.error?.message };
   },
@@ -438,9 +438,9 @@ export const messageAPI = {
     content: string;
     offPlatformRequested?: boolean;
   }) {
-    const response = await apiClient.post('/api/messages/send', data);
+    const response = await apiClient.post<any>('/api/messages/send', data);
     if (response.success) {
-      return { success: true, ...response.data };
+      return { success: true, ...(response.data as object || {}) };
     }
     return { success: false, error: response.error?.message };
   },
@@ -451,27 +451,27 @@ export const messageAPI = {
     if (pitchId) {
       endpoint += `&pitchId=${pitchId}`;
     }
-    const response = await apiClient.get(endpoint);
+    const response = await apiClient.get<any>(endpoint);
     if (response.success) {
-      return { success: true, ...response.data };
+      return { success: true, ...(response.data as object || {}) };
     }
     return { success: false, error: response.error?.message };
   },
 
   // Mark message as read
   async markAsRead(messageId: number) {
-    const response = await apiClient.post(`/api/messages/${messageId}/read`);
+    const response = await apiClient.post<any>(`/api/messages/${messageId}/read`);
     if (response.success) {
-      return { success: true, ...response.data };
+      return { success: true, ...(response.data as object || {}) };
     }
     return { success: false, error: response.error?.message };
   },
 
   // Approve off-platform request
   async approveOffPlatform(messageId: number) {
-    const response = await apiClient.post(`/api/messages/${messageId}/approve-offplatform`);
+    const response = await apiClient.post<any>(`/api/messages/${messageId}/approve-offplatform`);
     if (response.success) {
-      return { success: true, ...response.data };
+      return { success: true, ...(response.data as object || {}) };
     }
     return { success: false, error: response.error?.message };
   },
@@ -481,7 +481,7 @@ export const messageAPI = {
 export const pitchServicesAPI = {
   // Get pitches with NDA status
   async getPitchesWithNDAStatus() {
-    const response = await apiClient.get('/api/pitches/with-nda-status');
+    const response = await apiClient.get<any>('/api/pitches/with-nda-status');
     if (response.success) {
       return { success: true, pitches: response.data };
     }
@@ -490,10 +490,10 @@ export const pitchServicesAPI = {
 
   // Get following pitches
   async getFollowingPitches() {
-    const response = await apiClient.get('/api/pitches/following');
+    const response = await apiClient.get<any>('/api/pitches/following');
     if (response.success) {
       // Check if response.data is already structured with pitches property
-      if (response.data && response.data.pitches !== undefined) {
+      if (response.data && (response.data as any)?.pitches !== undefined) {
         return response.data; // Already has the correct structure
       }
       // Otherwise wrap in expected structure
@@ -504,9 +504,9 @@ export const pitchServicesAPI = {
 
   // Follow/Unfollow pitch
   async toggleFollow(pitchId: number, follow: boolean) {
-    const response = await apiClient.post(`/api/pitches/${pitchId}/${follow ? 'follow' : 'unfollow'}`);
+    const response = await apiClient.post<any>(`/api/pitches/${pitchId}/${follow ? 'follow' : 'unfollow'}`);
     if (response.success) {
-      return { success: true, ...response.data };
+      return { success: true, ...(response.data as object || {}) };
     }
     return { success: false, error: response.error?.message };
   },
@@ -526,18 +526,18 @@ export const paymentsAPI = {
 
   // Subscribe to a plan
   async subscribe(tier: string, billingInterval?: 'monthly' | 'yearly') {
-    const response = await apiClient.post('/api/payments/subscribe', { tier, billingInterval });
+    const response = await apiClient.post<any>('/api/payments/subscribe', { tier, billingInterval });
     if (response.success) {
-      return { success: true, ...response.data };
+      return { success: true, ...(response.data as object || {}) };
     }
     return { success: false, error: response.error?.message };
   },
 
   // Cancel subscription
   async cancelSubscription() {
-    const response = await apiClient.post('/api/payments/cancel-subscription');
+    const response = await apiClient.post<any>('/api/payments/cancel-subscription');
     if (response.success) {
-      return { success: true, ...response.data };
+      return { success: true, ...(response.data as object || {}) };
     }
     return { success: false, error: response.error?.message };
   },
@@ -559,18 +559,18 @@ export const paymentsAPI = {
 
   // Purchase credits
   async purchaseCredits(creditPackage: string) {
-    const response = await apiClient.post('/api/payments/credits/purchase', { creditPackage });
+    const response = await apiClient.post<any>('/api/payments/credits/purchase', { creditPackage });
     if (response.success) {
-      return { success: true, ...response.data };
+      return { success: true, ...(response.data as object || {}) };
     }
     return { success: false, error: response.error?.message };
   },
 
   // Use credits
   async useCredits(amount: number, description: string, usageType?: string, pitchId?: number) {
-    const response = await apiClient.post('/api/payments/credits/use', { amount, description, usageType, pitchId });
+    const response = await apiClient.post<any>('/api/payments/credits/use', { amount, description, usageType, pitchId });
     if (response.success) {
-      return { success: true, ...response.data };
+      return { success: true, ...(response.data as object || {}) };
     }
     return { success: false, error: response.error?.message };
   },
@@ -633,27 +633,27 @@ export const paymentsAPI = {
 
   // Add payment method
   async addPaymentMethod() {
-    const response = await apiClient.post('/api/payments/payment-methods');
+    const response = await apiClient.post<any>('/api/payments/payment-methods');
     if (response.success) {
-      return { success: true, ...response.data };
+      return { success: true, ...(response.data as object || {}) };
     }
     return { success: false, error: response.error?.message };
   },
 
   // Remove payment method
   async removePaymentMethod(paymentMethodId: string) {
-    const response = await apiClient.delete('/api/payments/payment-methods');
+    const response = await apiClient.delete<any>('/api/payments/payment-methods');
     if (response.success) {
-      return { success: true, ...response.data };
+      return { success: true, ...(response.data as object || {}) };
     }
     return { success: false, error: response.error?.message };
   },
 
   // Set default payment method
   async setDefaultPaymentMethod(paymentMethodId: string) {
-    const response = await apiClient.put('/api/payments/payment-methods', { paymentMethodId });
+    const response = await apiClient.put<any>('/api/payments/payment-methods', { paymentMethodId });
     if (response.success) {
-      return { success: true, ...response.data };
+      return { success: true, ...(response.data as object || {}) };
     }
     return { success: false, error: response.error?.message };
   },
@@ -682,7 +682,7 @@ export const savedPitchesService = {
   async savePitch(pitchId: number, notes?: string) {
     const response = await savedPitchesAPI.savePitch(pitchId, notes);
     if (response.success) {
-      return { success: true, ...response.data };
+      return { success: true, ...(response.data as object || {}) };
     }
     return { success: false, error: response.error?.message };
   },
@@ -690,7 +690,7 @@ export const savedPitchesService = {
   async unsavePitch(savedPitchId: number) {
     const response = await savedPitchesAPI.unsavePitch(savedPitchId);
     if (response.success) {
-      return { success: true, ...response.data };
+      return { success: true, ...(response.data as object || {}) };
     }
     return { success: false, error: response.error?.message };
   },
@@ -698,7 +698,7 @@ export const savedPitchesService = {
   async isPitchSaved(pitchId: number) {
     const response = await savedPitchesAPI.isPitchSaved(pitchId);
     if (response.success) {
-      return { success: true, ...response.data };
+      return { success: true, ...(response.data as object || {}) };
     }
     return { success: false, error: response.error?.message, isSaved: false };
   }

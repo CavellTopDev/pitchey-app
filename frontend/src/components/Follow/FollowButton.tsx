@@ -31,13 +31,6 @@ export const FollowButton: React.FC<FollowButtonProps> = ({
     setIsFollowing(initialFollowing);
   }, [initialFollowing]);
 
-  useEffect(() => {
-    // Check follow status on mount if not provided
-    if (!initialFollowing && user?.id && userId && user.id !== userId) {
-      checkFollowStatus();
-    }
-  }, [userId, user?.id, initialFollowing, checkFollowStatus]);
-
   const checkFollowStatus = useCallback(async () => {
     try {
       const following = await followService.isFollowing(userId);
@@ -47,14 +40,21 @@ export const FollowButton: React.FC<FollowButtonProps> = ({
     }
   }, [userId]);
 
+  useEffect(() => {
+    // Check follow status on mount if not provided
+    if (!initialFollowing && user?.id && userId && String(user.id) !== String(userId)) {
+      checkFollowStatus();
+    }
+  }, [userId, user?.id, initialFollowing, checkFollowStatus]);
+
   const handleFollow = async () => {
     if (!user) {
       // Don't redirect - Better Auth handles authentication
-      toast.error('Please log in to follow users');
+      console.error('Please log in to follow users');
       return;
     }
 
-    if (user.id === userId) {
+    if (String(user.id) === String(userId)) {
       return; // Can't follow yourself
     }
 
@@ -80,7 +80,7 @@ export const FollowButton: React.FC<FollowButtonProps> = ({
   };
 
   // Don't show for own profile
-  if (user?.id === userId) {
+  if (user?.id && String(user.id) === String(userId)) {
     return null;
   }
 

@@ -5,7 +5,7 @@
 
 import React, { useState, useRef } from 'react';
 import { useSwipeNavigation, useLongPress } from '../../hooks/useMobileGestures';
-import { LazyImage } from '../LazyImage';
+import LazyImage from '../LazyImage';
 
 interface Pitch {
   id: number;
@@ -175,7 +175,6 @@ export default function MobilePitchCard({
               src={pitch.thumbnail_url}
               alt={pitch.title}
               className="w-full h-full object-cover"
-              loading="lazy"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
@@ -216,7 +215,6 @@ export default function MobilePitchCard({
                 src={pitch.creator_avatar}
                 alt={pitch.creator_name}
                 className="w-8 h-8 rounded-full object-cover"
-                loading="lazy"
               />
             ) : (
               <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">

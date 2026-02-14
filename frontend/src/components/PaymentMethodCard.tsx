@@ -26,9 +26,9 @@ export default function PaymentMethodCard({ paymentMethods, onRefresh }: Payment
       setLoading(true);
       setError(null);
 
-      const result = await paymentsAPI.addPaymentMethod();
-      
-      if (result.url) {
+      const result = await paymentsAPI.addPaymentMethod() as any;
+
+      if (result && result.url) {
         // Redirect to Stripe setup intent
         window.location.href = result.url;
       } else {

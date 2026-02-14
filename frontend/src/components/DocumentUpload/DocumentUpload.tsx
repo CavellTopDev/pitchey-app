@@ -953,7 +953,7 @@ export default function DocumentUpload({
                         <button
                           type="button"
                           onClick={() => {
-                            const link = document.createElement('a');
+                            const link = window.document.createElement('a');
                             link.href = document.url!;
                             link.download = document.file.name;
                             link.click();

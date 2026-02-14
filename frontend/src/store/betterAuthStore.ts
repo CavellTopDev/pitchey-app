@@ -30,6 +30,7 @@ interface BetterAuthState {
     username: string;
     password: string;
     userType: string;
+    companyName?: string;
   }) => Promise<void>;
   
   // Sign out
@@ -82,7 +83,7 @@ export const useBetterAuthStore = create<BetterAuthState>((set) => ({
       sessionCache.set(user); // Cache the user session
       sessionManager.updateCache(user); // Update session manager cache
       if (user.userType) localStorage.setItem('userType', user.userType);
-      set({ user, isAuthenticated: true, loading: false });
+      set({ user: user as User, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({
         error: error.message || 'Login failed',
@@ -109,7 +110,7 @@ export const useBetterAuthStore = create<BetterAuthState>((set) => ({
       sessionCache.set(user); // Cache the user session
       sessionManager.updateCache(user); // Update session manager cache
       if (user.userType) localStorage.setItem('userType', user.userType);
-      set({ user, isAuthenticated: true, loading: false });
+      set({ user: user as User, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({
         error: error.message || 'Login failed',
@@ -136,7 +137,7 @@ export const useBetterAuthStore = create<BetterAuthState>((set) => ({
       sessionCache.set(user); // Cache the user session
       sessionManager.updateCache(user); // Update session manager cache
       if (user.userType) localStorage.setItem('userType', user.userType);
-      set({ user, isAuthenticated: true, loading: false });
+      set({ user: user as User, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({
         error: error.message || 'Login failed',
@@ -285,7 +286,7 @@ export const useBetterAuthStore = create<BetterAuthState>((set) => ({
 export async function checkBetterAuthSession(): Promise<User | null> {
   try {
     const session = await portalAuth.getSession();
-    return session?.user || null;
+    return (session?.user as User) || null;
   } catch {
     return null;
   }

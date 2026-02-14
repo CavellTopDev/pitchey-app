@@ -345,9 +345,9 @@ const InvestorPitchView: React.FC = () => {
                     {pitch.genre}
                   </span>
                   <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
-                    <FormatDisplay 
-                      formatCategory={pitch.formatCategory}
-                      formatSubtype={pitch.formatSubtype}
+                    <FormatDisplay
+                      formatCategory={(pitch as any).formatCategory}
+                      formatSubtype={(pitch as any).formatSubtype}
                       format={pitch.format}
                       variant="compact"
                     />

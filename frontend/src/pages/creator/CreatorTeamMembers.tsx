@@ -443,9 +443,9 @@ export default function CreatorTeamMembers() {
                       
                       <div className="flex items-center gap-2">
                         {member.isPublic ? (
-                          <Globe className="w-4 h-4 text-green-600" title="Public profile" />
+                          <Globe className="w-4 h-4 text-green-600" />
                         ) : (
-                          <Lock className="w-4 h-4 text-gray-400" title="Private profile" />
+                          <Lock className="w-4 h-4 text-gray-400" />
                         )}
                         <div className="relative">
                           <button className="p-1 hover:bg-gray-100 rounded">

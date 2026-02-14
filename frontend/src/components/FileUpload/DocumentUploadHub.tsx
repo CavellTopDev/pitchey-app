@@ -168,8 +168,11 @@ export default function DocumentUploadHub({
         'pitch-documents',
         {
           ...uploadOptions,
-          pitchId,
           userId: user?.id || 0,
+          metadata: {
+            ...(uploadOptions.metadata || {}),
+            pitchId
+          },
           maxConcurrency: 3,
           onBatchProgress: (progress) => {
             setUploadStats(progress);

@@ -97,22 +97,53 @@ export interface Pitch {
     username: string;
     name?: string;
     profileImage?: string;
+    userType?: string;
+    companyName?: string;
   };
   hasNDA?: boolean; // For current viewer
   isLiked?: boolean; // For current viewer
   canEdit?: boolean; // For current viewer
+  isOwner?: boolean; // Whether current user owns this pitch
   hasSignedNDA?: boolean; // Whether user has signed NDA
+  seekingInvestment?: boolean; // Whether pitch is seeking investment
+  budget?: string; // Budget information
+  rating?: number; // Pitch rating
+  reviewCount?: number; // Number of reviews
+  thumbnailUrl?: string; // Thumbnail image URL
+  productionStage?: string; // Current production stage
   protectedContent?: {
     budgetBreakdown?: Record<string, number | string>;
     productionTimeline?: string;
-    attachedTalent?: Array<{ name: string; role: string; confirmed?: boolean }>;
+    attachedTalent?: Array<{ name: string; role: string; confirmed?: boolean; notable_works?: string[] }>;
     financialProjections?: Record<string, number | string>;
     distributionPlan?: string;
     marketingStrategy?: string;
     privateAttachments?: Array<{ url: string; name: string; type: string }>;
-    contactDetails?: { email?: string; phone?: string; address?: string };
+    contactDetails?: {
+      email?: string;
+      phone?: string;
+      address?: string;
+      producer?: { name?: string; email?: string; phone?: string };
+      agent?: { name?: string; email?: string; phone?: string };
+    };
     revenueModel?: string;
   };
+  // Snake_case versions from API
+  budget_breakdown?: Record<string, number | string>;
+  attached_talent?: Array<{ name: string; role: string; confirmed?: boolean; notable_works?: string[] }>;
+  financial_projections?: Record<string, number | string>;
+  distribution_plan?: string;
+  marketing_strategy?: string;
+  private_attachments?: Array<{ url: string; name: string; type: string }>;
+  contact_details?: {
+    email?: string;
+    phone?: string;
+    address?: string;
+    producer?: { name?: string; email?: string; phone?: string };
+    agent?: { name?: string; email?: string; phone?: string };
+  };
+  revenue_model?: string;
+  production_timeline?: string;
 }
 
 // Raw pitch data from API (snake_case)
@@ -321,8 +352,8 @@ function transformPitchData(pitch: RawPitchData | null | undefined): Partial<Pit
     name: attachment.name,
     role: attachment.role,
     bio: attachment.bio,
-    imdbLink: attachment.imdb_link ?? attachment.imdbLink,
-    websiteLink: attachment.website_link ?? attachment.websiteLink,
+    imdbLink: (attachment as any).imdb_link ?? attachment.imdbLink,
+    websiteLink: (attachment as any).website_link ?? attachment.websiteLink,
   }));
   
   return {
@@ -343,7 +374,7 @@ function transformPitchData(pitch: RawPitchData | null | undefined): Partial<Pit
     storyBreakdown: pitch.story_breakdown ?? pitch.storyBreakdown,
     whyNow: pitch.why_now ?? pitch.whyNow,
     productionLocation: pitch.production_location ?? pitch.productionLocation,
-    developmentStage: pitch.development_stage ?? pitch.developmentStage,
+    developmentStage: (pitch.development_stage ?? pitch.developmentStage) as any,
     developmentStageOther: pitch.development_stage_other ?? pitch.developmentStageOther,
     creativeAttachments: transformedAttachments,
     videoUrl: pitch.video_url ?? pitch.videoUrl,

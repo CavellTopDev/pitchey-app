@@ -76,10 +76,10 @@ export class CollaborationService {
       const queryString = params.toString();
       const url = `/api/collaborations${queryString ? `?${queryString}` : ''}`;
 
-      const response = await apiClient.get<ApiResponse<{ collaborations: Collaboration[] }>>(url);
+      const response = await apiClient.get<{ collaborations: Collaboration[] }>(url);
 
-      if (response.success && response.data?.collaborations) {
-        return response.data.collaborations;
+      if (response.success && (response.data as any)?.collaborations) {
+        return (response.data as any).collaborations;
       }
 
       // If no dedicated endpoint exists, return empty array
@@ -96,12 +96,12 @@ export class CollaborationService {
    */
   static async getCollaborationById(collaborationId: string): Promise<Collaboration | null> {
     try {
-      const response = await apiClient.get<ApiResponse<{ collaboration: Collaboration }>>(
+      const response = await apiClient.get<{ collaboration: Collaboration }>(
         `/api/collaborations/${collaborationId}`
       );
 
-      if (response.success && response.data?.collaboration) {
-        return response.data.collaboration;
+      if (response.success && (response.data as any)?.collaboration) {
+        return (response.data as any).collaboration;
       }
 
       return null;
@@ -123,12 +123,12 @@ export class CollaborationService {
     terms?: CollaborationTerms;
     priority?: Collaboration['priority'];
   }): Promise<Collaboration> {
-    const response = await apiClient.post<ApiResponse<{ collaboration: Collaboration }>>(
+    const response = await apiClient.post<{ collaboration: Collaboration }>(
       '/api/collaborations',
       data
     );
 
-    if (!response.success || !response.data?.collaboration) {
+    if (!response.success || !(response.data as any)?.collaboration) {
       throw new Error(
         typeof response.error === 'string'
           ? response.error
@@ -136,7 +136,7 @@ export class CollaborationService {
       );
     }
 
-    return response.data.collaboration;
+    return (response.data as any).collaboration;
   }
 
   /**
@@ -230,8 +230,8 @@ export class CollaborationService {
         };
       }>>('/api/collaborations/stats');
 
-      if (response.success && response.data?.stats) {
-        return response.data.stats;
+      if (response.success && (response.data as any)?.stats) {
+        return (response.data as any).stats;
       }
 
       return {

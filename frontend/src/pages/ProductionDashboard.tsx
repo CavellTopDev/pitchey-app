@@ -239,15 +239,15 @@ function ProductionDashboard() {
         
         if (safeAccess(analyticsData, 'success', false)) {
           const analyticsRaw = safeAccess(analyticsData, 'analytics', {});
-          const safeAnalytics = {
+          const safeAnalytics: Analytics = {
             totalViews: safeNumber(safeAccess(analyticsRaw, 'totalViews', 0)),
             totalLikes: safeNumber(safeAccess(analyticsRaw, 'totalLikes', 0)),
             totalNDAs: safeNumber(safeAccess(analyticsRaw, 'totalNDAs', 0)),
             viewsChange: safeNumber(safeAccess(analyticsRaw, 'viewsChange', 0)),
             likesChange: safeNumber(safeAccess(analyticsRaw, 'likesChange', 0)),
             ndasChange: safeNumber(safeAccess(analyticsRaw, 'ndasChange', 0)),
-            topPitch: safeAccess(analyticsRaw, 'topPitch', null),
-            recentActivity: safeArray(safeAccess(analyticsRaw, 'recentActivity', []))
+            topPitch: safeAccess(analyticsRaw, 'topPitch', null) as Pitch | null,
+            recentActivity: safeArray(safeAccess(analyticsRaw, 'recentActivity', [])) as Activity[]
           };
           setAnalytics(safeAnalytics);
         } else {
@@ -362,7 +362,7 @@ function ProductionDashboard() {
             const fallbackResponse = await apiClient.get('/api/follows/following?type=pitches');
             
             if (fallbackResponse.success) {
-              setFollowingPitches(fallbackResponse.data.following || []);
+              setFollowingPitches((fallbackResponse.data as any)?.following || []);
             } else {
               setFollowingPitches([]);
             }
@@ -387,7 +387,7 @@ function ProductionDashboard() {
           setAnalytics(prev => ({
             ...prev,
             topPitch: dashboardPitches[0] || null,
-            recentActivity: realtimeResponse.data.recentActivity || []
+            recentActivity: (realtimeResponse.data as any)?.recentActivity || []
           }));
         } else {
           // Fallback to basic analytics data
@@ -431,15 +431,15 @@ function ProductionDashboard() {
     let investmentCleanup: (() => void) | undefined;
 
     const initializeData = async () => {
-      fetchCleanup = await fetchData();
-      investmentCleanup = await fetchInvestmentData();
+      fetchCleanup = (await fetchData()) as (() => void) | undefined;
+      investmentCleanup = (await fetchInvestmentData()) as (() => void) | undefined;
     };
 
     void initializeData();
-    
+
     return () => {
-      fetchCleanup?.();
-      investmentCleanup?.();
+      if (fetchCleanup) fetchCleanup();
+      if (investmentCleanup) investmentCleanup();
     };
   }, [fetchData, fetchInvestmentData, sessionChecked, isAuthenticated]);
 
@@ -1477,7 +1477,7 @@ function ProductionDashboard() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <Link
-                              to={`/creator/${pitch.creator?.id || pitch.creatorId}`}
+                              to={`/creator/${pitch.creator?.id || pitch.userId}`}
                               className="font-medium text-gray-900 hover:text-purple-600 cursor-pointer"
                             >
                               {pitch.creator?.companyName || pitch.creator?.username || 'Unknown Creator'}
@@ -1614,7 +1614,7 @@ function ProductionDashboard() {
                       <div className="p-6">
                         <div className="flex items-center justify-between mb-2">
                           <Link
-                            to={`/creator/${pitch.creator?.id || pitch.creatorId}`}
+                            to={`/creator/${pitch.creator?.id || pitch.userId}`}
                             className="text-xs text-purple-600 hover:text-purple-700 cursor-pointer"
                           >
                             by @{pitch.creator?.username || 'Unknown'}

@@ -198,8 +198,8 @@ describe('LoginForm Components', () => {
 
       it('should handle login errors', async () => {
         const authStore = getMockAuthStore()
-        authStore.error = 'Invalid credentials'
-        
+        authStore.error = 'Invalid credentials' as any
+
         render(<CreatorLogin />)
 
         expect(screen.getByText('Invalid credentials')).toBeInTheDocument()
@@ -229,8 +229,8 @@ describe('LoginForm Components', () => {
 
       it('should show error with proper ARIA attributes', () => {
         const authStore = getMockAuthStore()
-        authStore.error = 'Login failed'
-        
+        authStore.error = 'Login failed' as any
+
         render(<CreatorLogin />)
 
         // Error is displayed but might not have role="alert"
@@ -401,8 +401,8 @@ describe('LoginForm Components', () => {
     it('should handle API login failure', async () => {
       const authStore = getMockAuthStore()
       authStore.loginCreator.mockRejectedValue(new Error('Login failed'))
-      authStore.error = 'Invalid credentials'
-      
+      authStore.error = 'Invalid credentials' as any
+
       render(<CreatorLogin />)
 
       expect(screen.getByText('Invalid credentials')).toBeInTheDocument()
@@ -411,8 +411,8 @@ describe('LoginForm Components', () => {
     it('should handle network errors', async () => {
       const authStore = getMockAuthStore()
       authStore.loginCreator.mockRejectedValue(new Error('Network error'))
-      authStore.error = 'Network error'
-      
+      authStore.error = 'Network error' as any
+
       render(<CreatorLogin />)
 
       expect(screen.getByText('Network error')).toBeInTheDocument()

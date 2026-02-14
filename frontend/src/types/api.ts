@@ -20,6 +20,7 @@ export interface User {
   email: string;
   username: string;
   userType: 'creator' | 'investor' | 'production' | 'admin' | 'viewer';
+  verified: boolean;
   firstName?: string;
   lastName?: string;
   phone?: string;

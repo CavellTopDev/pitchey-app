@@ -231,7 +231,7 @@ export class ProductionService {
   }): Promise<{ projects: ProductionProject[]; total: number }> {
     const params = new URLSearchParams();
     if (filters?.status !== undefined && filters.status !== '') params.append('status', filters.status);
-    if (filters?.sortBy !== undefined && filters.sortBy !== '') params.append('sortBy', filters.sortBy);
+    if (filters?.sortBy && (filters.sortBy === 'title' || filters.sortBy === 'budget' || filters.sortBy === 'startDate')) params.append('sortBy', filters.sortBy);
     if (filters?.limit !== undefined && filters.limit !== 0) params.append('limit', filters.limit.toString());
     if (filters?.offset !== undefined && filters.offset !== 0) params.append('offset', filters.offset.toString());
 
@@ -292,7 +292,7 @@ export class ProductionService {
     const params = new URLSearchParams();
     if (filters?.status !== undefined && filters.status !== '') params.append('status', filters.status);
     if (filters?.creatorId !== undefined && filters.creatorId !== 0) params.append('creatorId', filters.creatorId.toString());
-    if (filters?.sortBy !== undefined && filters.sortBy !== '') params.append('sortBy', filters.sortBy);
+    if (filters?.sortBy && (filters.sortBy === 'signedAt' || filters.sortBy === 'amount' || filters.sortBy === 'expiresAt')) params.append('sortBy', filters.sortBy);
 
     const response = await apiClient.get<DealsResponseData>(
       `/api/production/deals?${params.toString()}`

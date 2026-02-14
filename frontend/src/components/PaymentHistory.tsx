@@ -88,11 +88,11 @@ export default function PaymentHistory({ payments: initialPayments, onRefresh }:
       if (filters.startDate) params.startDate = filters.startDate;
       if (filters.endDate) params.endDate = filters.endDate;
       
-      const result = await paymentsAPI.getPaymentHistory(params);
-      
-      if (result.payments) {
+      const result = await paymentsAPI.getPaymentHistory(params) as any;
+
+      if (result && result.payments) {
         let filteredPayments = result.payments;
-        
+
         // Apply client-side search filter
         if (filters.searchTerm) {
           const searchLower = filters.searchTerm.toLowerCase();
@@ -102,7 +102,7 @@ export default function PaymentHistory({ payments: initialPayments, onRefresh }:
             payment.stripePaymentIntentId?.toLowerCase().includes(searchLower)
           );
         }
-        
+
         setPayments(filteredPayments);
         setTotalPages(Math.ceil((result.total || filteredPayments.length) / paymentsPerPage));
       }

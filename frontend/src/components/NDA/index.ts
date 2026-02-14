@@ -8,10 +8,6 @@ export { default as NDAApprovalWorkflow } from './NDAApprovalWorkflow';
 export { default as NDARequestPanel } from './NDARequestPanel';
 export { default as NDANotificationCenter } from './NDANotificationCenter';
 
-// File upload components (from previous upload enhancement)
-export { default as NDAUploadSection } from './NDAUploadSection';
-export type { NDADocument } from './NDAUploadSection';
-
 // Re-export NDA service
 export { ndaService } from '../../services/nda.service';
 

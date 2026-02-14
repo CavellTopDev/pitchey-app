@@ -21,6 +21,8 @@ interface Pitch {
   logline: string;
   genre: string;
   format: string;
+  formatCategory?: string;
+  formatSubtype?: string;
   pages?: number;
   shortSynopsis: string;
   longSynopsis?: string;

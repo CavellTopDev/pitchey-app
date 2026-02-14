@@ -110,7 +110,7 @@ export const OnboardingWelcome: React.FC<OnboardingWelcomeProps> = ({
     }
   };
 
-  const colors = colorClasses[content.color];
+  const colors = colorClasses[content.color as keyof typeof colorClasses] || colorClasses.blue;
 
   return (
     <div className="max-w-4xl mx-auto">

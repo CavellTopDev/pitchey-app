@@ -443,7 +443,7 @@ export const ContextualHelp: React.FC<ContextualHelpProps> = ({
       {featureSpotlightQueue.map(featureId => showFeatureSpotlight(featureId))}
       
       {/* Interactive tooltips for discovered features */}
-      {Object.entries(contextualFeatures).map(([featureId, feature]) => (
+      {Object.entries(contextualFeatures).map(([featureId, feature]: [string, any]) => (
         <InteractiveTooltip
           key={featureId}
           id={featureId}

@@ -44,7 +44,7 @@ window.fetch = function(...args: Parameters<typeof fetch>) {
     }
   }
   
-  return originalFetch.apply(this, args);
+  return originalFetch.apply(globalThis, args);
 } as typeof fetch;
 
 // Export lazy getters for components that import this

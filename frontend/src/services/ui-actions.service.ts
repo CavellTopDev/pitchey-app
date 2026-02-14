@@ -18,7 +18,7 @@ export class UIActionsService {
   }) {
     try {
       // Create calendar event
-      const response = await apiClient.post('/api/meetings/schedule', {
+      const response = await apiClient.post<any>('/api/meetings/schedule', {
         ...data,
         duration: 60, // Default 60 minutes
         platform: 'zoom', // Default to Zoom
@@ -26,13 +26,13 @@ export class UIActionsService {
 
       // Open calendar integration if available
       if (response.data?.calendarUrl) {
-        window.open(response.data.calendarUrl, '_blank');
+        window.open(response.data.calendarUrl as string, '_blank');
       }
 
       return {
         success: true,
-        meetingId: response.data?.meetingId,
-        calendarUrl: response.data?.calendarUrl,
+        meetingId: response.data?.meetingId as string | undefined,
+        calendarUrl: response.data?.calendarUrl as string | undefined,
         message: 'Meeting request sent successfully',
       };
     } catch (error) {
@@ -62,11 +62,11 @@ export class UIActionsService {
     preferredTime?: string;
   }) {
     try {
-      const response = await apiClient.post('/api/demos/request', data);
-      
+      const response = await apiClient.post<any>('/api/demos/request', data);
+
       // Track the demo request
-      if (window.gtag) {
-        window.gtag('event', 'demo_requested', {
+      if ((window as any).gtag) {
+        (window as any).gtag('event', 'demo_requested', {
           type: data.requestType,
           pitch_id: data.pitchId,
         });
@@ -74,8 +74,8 @@ export class UIActionsService {
 
       return {
         success: true,
-        demoId: response.data?.demoId,
-        scheduledTime: response.data?.scheduledTime,
+        demoId: response.data?.demoId as string | undefined,
+        scheduledTime: response.data?.scheduledTime as string | undefined,
         message: 'Demo request submitted. We\'ll contact you within 24 hours.',
       };
     } catch (error) {
@@ -150,8 +150,8 @@ export class UIActionsService {
             url: shareUrl,
           });
           return { success: true, message: 'Content shared successfully' };
-        } catch (error) {
-          if (error.name !== 'AbortError') {
+        } catch (error: unknown) {
+          if ((error as any)?.name !== 'AbortError') {
             console.error('Share failed:', error);
           }
           return { success: false, error: 'Share cancelled' };
@@ -179,12 +179,10 @@ export class UIActionsService {
     dateRange?: { start: string; end: string };
   }) {
     try {
-      const response = await apiClient.post('/api/export', data, {
-        responseType: 'blob',
-      });
+      const response = await apiClient.post<Blob>('/api/export', data);
 
       // Create download link
-      const blob = new Blob([response.data], {
+      const blob = new Blob([response.data as BlobPart], {
         type: data.format === 'pdf' ? 'application/pdf' : 
               data.format === 'csv' ? 'text/csv' : 
               'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -280,15 +278,15 @@ export class UIActionsService {
   }) {
     try {
       // Request 2FA setup
-      const response = await apiClient.post('/api/auth/2fa/setup', data);
-      
+      const response = await apiClient.post<any>('/api/auth/2fa/setup', data);
+
       if (response.data?.qrCode) {
         // For TOTP, return QR code
         return {
           success: true,
-          qrCode: response.data.qrCode,
-          secret: response.data.secret,
-          backupCodes: response.data.backupCodes,
+          qrCode: response.data.qrCode as string,
+          secret: response.data.secret as string,
+          backupCodes: response.data.backupCodes as string[],
         };
       } else {
         // For SMS/Email, verification code sent
@@ -312,15 +310,15 @@ export class UIActionsService {
    */
   static async verifyTwoFactor(code: string) {
     try {
-      const response = await apiClient.post('/api/auth/2fa/verify', { code });
-      
+      const response = await apiClient.post<any>('/api/auth/2fa/verify', { code });
+
       if (response.data?.success) {
         // Store 2FA status
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         user.twoFactorEnabled = true;
         localStorage.setItem('user', JSON.stringify(user));
       }
-      
+
       return response.data;
     } catch (error) {
       return {
@@ -362,14 +360,12 @@ export class UIActionsService {
         formData.append('companyInfo', JSON.stringify(data.companyInfo));
       }
 
-      const response = await apiClient.post('/api/verification/start', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const response = await apiClient.post<any>('/api/verification/start', formData);
 
       return {
         success: true,
-        verificationId: response.data?.verificationId,
-        status: response.data?.status,
+        verificationId: response.data?.verificationId as string | undefined,
+        status: response.data?.status as string | undefined,
         message: 'Verification process started. We\'ll review your submission within 48 hours.',
       };
     } catch (error) {
@@ -391,7 +387,7 @@ export class UIActionsService {
     reason?: string;
   }) {
     try {
-      const response = await apiClient.post(`/api/${data.type}/bulk`, {
+      const response = await apiClient.post<any>(`/api/${data.type}/bulk`, {
         action: data.action,
         ids: data.ids,
         reason: data.reason,
@@ -399,9 +395,9 @@ export class UIActionsService {
 
       return {
         success: true,
-        processed: response.data?.processed || data.ids.length,
-        failed: response.data?.failed || [],
-        message: `${response.data?.processed || data.ids.length} items processed successfully`,
+        processed: (response.data?.processed as number) || data.ids.length,
+        failed: (response.data?.failed as any[]) || [],
+        message: `${(response.data?.processed as number) || data.ids.length} items processed successfully`,
       };
     } catch (error) {
       console.error('Bulk action failed:', error);
@@ -416,7 +412,7 @@ export class UIActionsService {
    * Process bulk actions individually as fallback
    */
   private static async processBulkIndividually(data: any) {
-    const results = {
+    const results: { success: string[]; failed: string[] } = {
       success: [],
       failed: [],
     };
@@ -426,9 +422,9 @@ export class UIActionsService {
         await apiClient.post(`/api/${data.type}/${id}/${data.action}`, {
           reason: data.reason,
         });
-        results.success.push(id);
+        results.success.push(id as string);
       } catch (error) {
-        results.failed.push(id);
+        results.failed.push(id as string);
       }
     }
 
@@ -479,22 +475,22 @@ export class UIActionsService {
     returnUrl?: string;
   }) {
     try {
-      const response = await apiClient.post('/api/payments/methods/add', data);
-      
+      const response = await apiClient.post<any>('/api/payments/methods/add', data);
+
       if (response.data?.setupUrl) {
         // Redirect to Stripe setup
-        window.location.href = response.data.setupUrl;
+        window.location.href = response.data.setupUrl as string;
       } else if (response.data?.clientSecret) {
         // Return client secret for Stripe Elements
         return {
           success: true,
-          clientSecret: response.data.clientSecret,
+          clientSecret: response.data.clientSecret as string,
           requiresAction: true,
         };
       } else {
         return {
           success: true,
-          paymentMethodId: response.data?.paymentMethodId,
+          paymentMethodId: response.data?.paymentMethodId as string | undefined,
           message: 'Payment method added successfully',
         };
       }

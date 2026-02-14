@@ -96,11 +96,11 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
       setLoading(true);
       
       // Map time range to preset
-      const preset: TimeRange['preset'] = timeRange === '7d' ? 'week' : 
-                                         timeRange === '30d' ? 'month' :
-                                         timeRange === '90d' ? 'quarter' : 'year';
-      
-      
+      const preset = timeRange === '7d' ? 'week' :
+                     timeRange === '30d' ? 'month' :
+                     timeRange === '90d' ? 'quarter' : 'year';
+
+
       // If user is not loaded yet, use mock data as fallback
       if (!user?.id) {
         console.log('User not loaded, using fallback analytics data');
@@ -110,8 +110,8 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
       }
 
       const [dashboardMetrics, userAnalytics] = await Promise.all([
-        analyticsService.getDashboardMetrics({ preset }),
-        analyticsService.getUserAnalytics(user.id, { preset })
+        analyticsService.getDashboardMetrics({ preset } as any),
+        analyticsService.getUserAnalytics(user.id, { preset } as any)
       ]);
       
 
@@ -158,14 +158,17 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
           ndaChange: 15,
         },
         charts: {
-          pitchViews: (performance.engagementTrend && performance.engagementTrend.length > 0) 
-            ? performance.engagementTrend.map((item, index) => ({
+          pitchViews: (performance.engagementTrend && performance.engagementTrend.length > 0)
+            ? performance.engagementTrend.map((item: any, index: number) => ({
                 date: item?.date || new Date().toISOString(),
                 value: Math.floor(Math.random() * 200) + 100 + index * 10
               }))
             : getMockData(timeRange).charts.pitchViews,
-          engagementTrends: (performance.engagementTrend && performance.engagementTrend.length > 0) 
-            ? performance.engagementTrend 
+          engagementTrends: (performance.engagementTrend && performance.engagementTrend.length > 0)
+            ? performance.engagementTrend.map((item: any) => ({
+                date: item?.date || new Date().toISOString(),
+                value: item?.rate || item?.value || 0
+              }))
             : getMockData(timeRange).charts.engagementTrends,
           fundingProgress: Array.from({ length: 6 }, (_, i) => ({
             date: new Date(2024, i * 2, 1).toISOString().split('T')[0],
@@ -375,8 +378,8 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
               defaultRange="30d"
             />
             
-            <AnalyticsExport 
-              data={analyticsData}
+            <AnalyticsExport
+              data={analyticsData as any}
               title="Creator Analytics"
             />
           </div>

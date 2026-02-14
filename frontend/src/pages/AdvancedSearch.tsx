@@ -20,6 +20,10 @@ interface SearchFilters {
     min: number;
     max: number;
   };
+  budget?: {
+    min: number;
+    max: number;
+  };
   dateRange: {
     start: string;
     end: string;
@@ -329,7 +333,7 @@ export default function AdvancedSearch() {
     <div className="min-h-screen bg-gray-50">
       <DashboardHeader
         user={user}
-        userType={user?.userType || 'creator'}
+        userType={(user?.userType as 'creator' | 'investor' | 'production') || 'creator'}
         title="Advanced Search"
         onLogout={logout}
         useEnhancedNav={true}

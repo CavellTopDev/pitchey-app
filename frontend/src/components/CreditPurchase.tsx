@@ -80,9 +80,9 @@ export default function CreditPurchase({ credits, onRefresh }: CreditPurchasePro
       setError(null);
       setSelectedPackage(packageId);
 
-      const result = await paymentsAPI.purchaseCredits(packageId);
-      
-      if (result.url) {
+      const result = await paymentsAPI.purchaseCredits(packageId) as any;
+
+      if (result && result.url) {
         // Redirect to Stripe checkout
         window.location.href = result.url;
       } else {

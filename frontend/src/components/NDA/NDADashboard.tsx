@@ -84,7 +84,7 @@ export default function NDADashboard({ userId, userRole }: NDADashboardProps) {
         })
       ]);
       
-      setStats(statsData as NDAStats);
+      setStats(statsData as unknown as NDAStats);
       setRecentNDAs(ndaData.ndas);
       
     } catch (err) {
@@ -394,9 +394,9 @@ export default function NDADashboard({ userId, userRole }: NDADashboardProps) {
                           {nda.pitch?.title || 'Unknown Pitch'}
                         </p>
                         <p className="text-sm text-gray-500">
-                          {userRole === 'creator' 
-                            ? `Request from ${nda.requester?.username || 'Unknown User'}`
-                            : `Request to ${nda.pitchOwner?.username || 'Unknown Creator'}`
+                          {userRole === 'creator'
+                            ? `Request from ${(nda.requester as any)?.username || 'Unknown User'}`
+                            : `Request to ${(nda.pitchOwner as any)?.username || 'Unknown Creator'}`
                           } • {formatDistanceToNow(new Date(nda.createdAt), { addSuffix: true })}
                         </p>
                       </div>

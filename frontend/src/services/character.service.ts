@@ -185,7 +185,7 @@ class CharacterService {
       id: apiCharacter.id !== undefined ? apiCharacter.id.toString() : '',
       name: apiCharacter.name ?? '',
       description: apiCharacter.description ?? '',
-      age: apiCharacter.age,
+      age: typeof apiCharacter.age === 'number' ? apiCharacter.age.toString() : apiCharacter.age,
       gender: apiCharacter.gender,
       actor: apiCharacter.actor,
       role: apiCharacter.role,

@@ -459,9 +459,9 @@ export default function CreatorPitchesDrafts() {
                       
                       <div className="flex items-center gap-2">
                         {draft.isPublic ? (
-                          <Globe className="w-4 h-4 text-green-600" title="Public" />
+                          <Globe className="w-4 h-4 text-green-600" />
                         ) : (
-                          <Lock className="w-4 h-4 text-gray-400" title="Private" />
+                          <Lock className="w-4 h-4 text-gray-400" />
                         )}
                         <div className="relative">
                           <button className="p-1 hover:bg-gray-100 rounded">

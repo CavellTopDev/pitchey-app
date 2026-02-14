@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from './Toast/ToastProvider';
-import { api } from '../lib/api';
+import api from '../lib/api';
 import {
   Bell,
   Mail,
@@ -379,9 +379,9 @@ export default function NotificationPreferences() {
   const loadPreferences = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/notifications/preferences');
-      
-      if (response.ok) {
+      const response = await api.get('/api/notifications/preferences') as any;
+
+      if (response && response.ok) {
         const loadedPreferences = response.data;
         setPreferences(loadedPreferences);
         setOriginalPreferences(loadedPreferences);
@@ -425,15 +425,15 @@ export default function NotificationPreferences() {
   const savePreferences = async () => {
     try {
       setSaving(true);
-      
-      const response = await api.put('/api/notifications/preferences', preferences);
-      
-      if (response.ok) {
+
+      const response = await api.put('/api/notifications/preferences', preferences) as any;
+
+      if (response && response.ok) {
         setOriginalPreferences(preferences);
         setHasChanges(false);
         toast.success('Notification preferences saved successfully');
       } else {
-        throw new Error(response.data?.message || 'Failed to save preferences');
+        throw new Error(response?.data?.message || 'Failed to save preferences');
       }
     } catch (error) {
       console.error('Failed to save preferences:', error);

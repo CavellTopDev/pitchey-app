@@ -141,7 +141,7 @@ export const navigationRoutes = {
 
 // Helper function to get route config
 export const getRouteConfig = (path: string) => {
-  return navigationRoutes[path] || null;
+  return (navigationRoutes as Record<string, any>)[path] || null;
 };
 
 // Helper function to check if route exists

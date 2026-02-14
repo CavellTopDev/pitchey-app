@@ -185,9 +185,9 @@ class ApiClient {
       const url = `${this.baseURL}${endpoint}`;
       const token = this.getAuthToken();
       
-      const headers = {
+      const headers: Record<string, string> = {
         ...this.defaultHeaders,
-        ...options.headers,
+        ...(options.headers as Record<string, string> || {}),
       };
 
       // CRITICAL: Better Auth uses session cookies, not JWT tokens
@@ -245,8 +245,8 @@ class ApiClient {
         };
       }
 
-      const data = await this.safeJsonParse(responseText);
-      
+      const data = await this.safeJsonParse(responseText) as any;
+
       // Handle parsing errors
       if (data.error && typeof data.error === 'string' && data.error.includes('Invalid JSON')) {
         return {
@@ -270,12 +270,12 @@ class ApiClient {
             localStorage.removeItem('authToken');
             localStorage.removeItem('user');
             localStorage.removeItem('userType');
-            
+
             // DISABLED: This was causing redirect loops with Better Auth
             // Better Auth handles authentication via cookies, not this interceptor
             // if (typeof window !== 'undefined') {
             //   // Redirect to appropriate login page based on user type
-            //   const loginPath = userType === 'creator' ? '/login/creator' : 
+            //   const loginPath = userType === 'creator' ? '/login/creator' :
             //                    userType === 'investor' ? '/login/investor' :
             //                    userType === 'production' ? '/login/production' : '/';
             //   window.location.href = loginPath;
@@ -288,7 +288,7 @@ class ApiClient {
         return {
           success: false,
           error: {
-            message: (typeof data.error === 'string' ? data.error : data.error?.message) || data.message || `HTTP ${response?.status || 'unknown'}: ${response?.statusText || 'unknown'}`,
+            message: (typeof data.error === 'string' ? data.error : (data.error as any)?.message) || data.message || `HTTP ${response?.status || 'unknown'}: ${response?.statusText || 'unknown'}`,
             status: response?.status || 500,
             code: data.code,
             details: data.details
@@ -299,7 +299,7 @@ class ApiClient {
       // Successful response
       return {
         success: true,
-        data: data.data || data
+        data: (data.data || data) as T
       };
 
     } catch (error: unknown) {
@@ -420,9 +420,9 @@ class ApiClient {
           }
         };
       }
-      return { ...response, data: validation.data };
+      return { ...response, data: validation.data as T | undefined };
     }
-    
+
     return response;
   }
 }

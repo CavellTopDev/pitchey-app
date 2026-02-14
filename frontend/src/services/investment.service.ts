@@ -85,9 +85,13 @@ export class InvestmentService {
     error?: string;
   }> {
     try {
-      const response = await apiClient.get('/api/investor/portfolio/summary');
-      return response;
-    } catch (error) {
+      const response = await apiClient.get<PortfolioMetrics>('/api/investor/portfolio/summary');
+      return {
+        success: response.success,
+        data: response.data ?? undefined,
+        error: response.error?.message
+      };
+    } catch (error: unknown) {
       console.error('Error fetching investor portfolio:', error);
       return {
         success: false,
@@ -127,9 +131,24 @@ export class InvestmentService {
       if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
       if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
 
-      const response = await apiClient.get(`/api/investor/investments?${queryParams.toString()}`);
-      return response;
-    } catch (error) {
+      const response = await apiClient.get<{
+        investments: Investment[];
+        total: number;
+        totalPages: number;
+        currentPage: number;
+        summary?: {
+          totalInvested: number;
+          totalCurrentValue: number;
+          activeCount: number;
+          completedCount: number;
+        };
+      }>(`/api/investor/investments?${queryParams.toString()}`);
+      return {
+        success: response.success,
+        data: response.data ?? undefined,
+        error: response.error?.message
+      };
+    } catch (error: unknown) {
       console.error('Error fetching investment history:', error);
       return {
         success: false,
@@ -156,9 +175,13 @@ export class InvestmentService {
       if (params?.stage) queryParams.append('stage', params.stage);
       if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
 
-      const response = await apiClient.get(`/api/investor/recommendations?${queryParams.toString()}`);
-      return response;
-    } catch (error) {
+      const response = await apiClient.get<InvestmentOpportunity[]>(`/api/investor/recommendations?${queryParams.toString()}`);
+      return {
+        success: response.success,
+        data: response.data ?? undefined,
+        error: response.error?.message
+      };
+    } catch (error: unknown) {
       console.error('Error fetching investment opportunities:', error);
       return {
         success: false,
@@ -174,9 +197,13 @@ export class InvestmentService {
     error?: string;
   }> {
     try {
-      const response = await apiClient.get('/api/creator/funding/overview');
-      return response;
-    } catch (error) {
+      const response = await apiClient.get<FundingMetrics>('/api/creator/funding/overview');
+      return {
+        success: response.success,
+        data: response.data ?? undefined,
+        error: response.error?.message
+      };
+    } catch (error: unknown) {
       console.error('Error fetching creator funding:', error);
       return {
         success: false,
@@ -202,9 +229,23 @@ export class InvestmentService {
     error?: string;
   }> {
     try {
-      const response = await apiClient.get('/api/creator/investors');
-      return response;
-    } catch (error) {
+      const response = await apiClient.get<{
+        investors: Array<{
+          id: number;
+          name: string;
+          totalInvested: number;
+          investments: Investment[];
+          joinedDate: Date;
+        }>;
+        totalInvestors: number;
+        totalRaised: number;
+      }>('/api/creator/investors');
+      return {
+        success: response.success,
+        data: response.data ?? undefined,
+        error: response.error?.message
+      };
+    } catch (error: unknown) {
       console.error('Error fetching creator investors:', error);
       return {
         success: false,
@@ -232,9 +273,25 @@ export class InvestmentService {
     error?: string;
   }> {
     try {
-      const response = await apiClient.get('/api/production/investments/overview');
-      return response;
-    } catch (error) {
+      const response = await apiClient.get<{
+        totalInvestments: number;
+        activeDeals: number;
+        pipelineValue: number;
+        monthlyGrowth: number;
+        topOpportunities: InvestmentOpportunity[];
+        recentActivity: Array<{
+          type: 'investment' | 'opportunity' | 'partnership';
+          title: string;
+          amount?: number;
+          date: Date;
+        }>;
+      }>('/api/production/investments/overview');
+      return {
+        success: response.success,
+        data: response.data ?? undefined,
+        error: response.error?.message
+      };
+    } catch (error: unknown) {
       console.error('Error fetching production investments:', error);
       return {
         success: false,
@@ -254,9 +311,13 @@ export class InvestmentService {
     error?: string;
   }> {
     try {
-      const response = await apiClient.post('/api/investments', data);
-      return response;
-    } catch (error) {
+      const response = await apiClient.post<Investment>('/api/investments', data);
+      return {
+        success: response.success,
+        data: response.data ?? undefined,
+        error: response.error?.message
+      };
+    } catch (error: unknown) {
       console.error('Error creating investment:', error);
       return {
         success: false,
@@ -276,9 +337,13 @@ export class InvestmentService {
     error?: string;
   }> {
     try {
-      const response = await apiClient.put(`/api/investor/investments/${investmentId}`, data);
-      return response;
-    } catch (error) {
+      const response = await apiClient.put<Investment>(`/api/investor/investments/${investmentId}`, data);
+      return {
+        success: response.success,
+        data: response.data ?? undefined,
+        error: response.error?.message
+      };
+    } catch (error: unknown) {
       console.error('Error updating investment:', error);
       return {
         success: false,
@@ -313,9 +378,32 @@ export class InvestmentService {
     error?: string;
   }> {
     try {
-      const response = await apiClient.get(`/api/investor/investments/${investmentId}`);
-      return response;
-    } catch (error) {
+      const response = await apiClient.get<Investment & {
+        pitch: {
+          title: string;
+          genre: string;
+          creator: { name: string; };
+        };
+        documents: Array<{
+          id: number;
+          name: string;
+          url: string;
+          uploadedAt: Date;
+        }>;
+        timeline: Array<{
+          id: number;
+          eventType: string;
+          description: string;
+          date: Date;
+        }>;
+        roi: number;
+      }>(`/api/investor/investments/${investmentId}`);
+      return {
+        success: response.success,
+        data: response.data ?? undefined,
+        error: response.error?.message
+      };
+    } catch (error: unknown) {
       console.error('Error fetching investment details:', error);
       return {
         success: false,
@@ -344,9 +432,26 @@ export class InvestmentService {
     error?: string;
   }> {
     try {
-      const response = await apiClient.get('/api/investor/portfolio/performance');
-      return response;
-    } catch (error) {
+      const response = await apiClient.get<{
+        totalROI: number;
+        bestPerforming: Investment;
+        worstPerforming: Investment;
+        diversification: {
+          byGenre: Record<string, number>;
+          byStage: Record<string, number>;
+        };
+        monthlyPerformance: Array<{
+          month: string;
+          value: number;
+          change: number;
+        }>;
+      }>('/api/investor/portfolio/performance');
+      return {
+        success: response.success,
+        data: response.data ?? undefined,
+        error: response.error?.message
+      };
+    } catch (error: unknown) {
       console.error('Error fetching portfolio analytics:', error);
       return {
         success: false,
@@ -378,9 +483,29 @@ export class InvestmentService {
     error?: string;
   }> {
     try {
-      const response = await apiClient.get('/api/investor/preferences');
-      return response;
-    } catch (error) {
+      const response = await apiClient.get<{
+        investmentCriteria: {
+          preferredGenres: string[];
+          budgetRange: {
+            min: number;
+            max: number;
+            label: string;
+          };
+          riskTolerance: 'Low' | 'Medium' | 'High';
+          minROI: number;
+        };
+        investmentHistory: {
+          totalInvestments: number;
+          averageInvestment: number;
+          successRate: number;
+        };
+      }>('/api/investor/preferences');
+      return {
+        success: response.success,
+        data: response.data ?? undefined,
+        error: response.error?.message
+      };
+    } catch (error: unknown) {
       console.error('Error fetching investment preferences:', error);
       return {
         success: false,

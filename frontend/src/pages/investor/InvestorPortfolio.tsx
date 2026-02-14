@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   TrendingUp, DollarSign, PieChart, Calendar,
   Film, Eye, Star, Clock, AlertCircle, CheckCircle,
@@ -33,7 +34,7 @@ interface PortfolioStats {
 }
 
 export default function InvestorPortfolio() {
-
+  const navigate = useNavigate();
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

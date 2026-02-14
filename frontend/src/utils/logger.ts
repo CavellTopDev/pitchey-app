@@ -87,8 +87,8 @@ class Logger {
         console.error(formatted, error);
         
         // Send to error tracking service in production
-        if (!this.isDevelopment && typeof window !== 'undefined' && window.Sentry) {
-          window.Sentry.captureException(error, {
+        if (!this.isDevelopment && typeof window !== 'undefined' && (window as any).Sentry) {
+          (window as any).Sentry.captureException(error, {
             extra: {
               message,
               timestamp: new Date().toISOString(),

@@ -87,20 +87,6 @@ export const EnhancedInvestorAnalytics: React.FC<InvestorAnalyticsProps> = ({
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
-  useEffect(() => {
-    fetchAnalyticsData();
-    
-    // Set up auto-refresh every 5 minutes if enabled
-    let interval: NodeJS.Timeout;
-    if (autoRefresh) {
-      interval = setInterval(fetchAnalyticsData, 5 * 60 * 1000);
-    }
-    
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [timeRange, autoRefresh, fetchAnalyticsData]);
-
   const fetchAnalyticsData = useCallback(async () => {
     try {
       setLoading(true);
@@ -251,6 +237,20 @@ export const EnhancedInvestorAnalytics: React.FC<InvestorAnalyticsProps> = ({
     });
   };
 
+  useEffect(() => {
+    fetchAnalyticsData();
+
+    // Set up auto-refresh every 5 minutes if enabled
+    let interval: NodeJS.Timeout;
+    if (autoRefresh) {
+      interval = setInterval(fetchAnalyticsData, 5 * 60 * 1000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [timeRange, autoRefresh, fetchAnalyticsData]);
+
   const getMockData = (range: string = '30d'): InvestorAnalyticsData => {
     const multiplier = range === '7d' ? 0.25 : range === '30d' ? 1 : range === '90d' ? 3 : 12;
 
@@ -359,8 +359,8 @@ export const EnhancedInvestorAnalytics: React.FC<InvestorAnalyticsProps> = ({
               defaultRange="30d"
             />
             
-            <AnalyticsExport 
-              data={analyticsData}
+            <AnalyticsExport
+              data={analyticsData as any}
               title="Investor Analytics"
             />
           </div>

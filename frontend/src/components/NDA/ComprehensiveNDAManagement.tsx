@@ -608,7 +608,7 @@ export default function ComprehensiveNDAManagement({
                         (activeTab === 'incoming' ? incomingNDAs : outgoingNDAs)
                           .every(nda => selectedNDAs.has(nda.id))
                       }
-                      onChange={() => selectAllNDAs(activeTab === 'incoming' ? incomingNDAs : outgoingNDAs)}
+                      onChange={() => selectAllNDAs(activeTab === 'incoming' ? incomingNDAs : outgoingNDAs as any)}
                       className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                     />
                     <span className="text-sm text-gray-600">Select all</span>
@@ -737,17 +737,17 @@ export default function ComprehensiveNDAManagement({
               id: nda.id,
               pitchId: nda.pitchId,
               pitchTitle: nda.pitch?.title || 'Untitled',
-              status: nda.status,
-              ndaType: 'basic',
+              status: nda.status as any,
+              ndaType: 'basic' as const,
               signedDate: nda.respondedAt,
               expiresAt: nda.expiresAt,
-              expiresIn: nda.expiresAt ? 
-                Math.ceil((new Date(nda.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) + ' days' : 
+              expiresIn: nda.expiresAt ?
+                Math.ceil((new Date(nda.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) + ' days' :
                 'No expiry',
-              signerName: userType === 'creator' ? nda.requester?.username : nda.owner?.username,
-              signerType: userType === 'creator' ? 'investor' : 'creator',
-              accessGranted: true
-            }))}
+              signerName: userType === 'creator' ? (nda.requester as any)?.username : (nda.owner as any)?.username,
+              signerType: userType === 'creator' ? ('investor' as const) : ('creator' as const),
+              accessGranted: true as const
+            })) as any}
             onViewPitch={(pitchId) => window.open(`/pitch/${pitchId}`, '_blank')}
             onDownloadNDA={(item) => ndaService.downloadNDA(item.id, true)}
             title="Active NDAs"

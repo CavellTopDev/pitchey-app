@@ -207,8 +207,8 @@ export class SearchService {
     if (filters.hasVideo !== undefined) params.append('hasVideo', filters.hasVideo.toString());
     if (filters.dateFrom !== undefined && filters.dateFrom !== '') params.append('dateFrom', filters.dateFrom);
     if (filters.dateTo !== undefined && filters.dateTo !== '') params.append('dateTo', filters.dateTo);
-    if (filters.sortBy !== undefined && filters.sortBy !== '') params.append('sortBy', filters.sortBy);
-    if (filters.sortOrder !== undefined && filters.sortOrder !== '') params.append('sortOrder', filters.sortOrder);
+    if (filters.sortBy && (filters.sortBy === 'relevance' || filters.sortBy === 'date' || filters.sortBy === 'views' || filters.sortBy === 'likes' || filters.sortBy === 'title')) params.append('sortBy', filters.sortBy);
+    if (filters.sortOrder && (filters.sortOrder === 'asc' || filters.sortOrder === 'desc')) params.append('sortOrder', filters.sortOrder);
     if (filters.page !== undefined && filters.page !== 0) params.append('page', filters.page.toString());
     if (filters.limit !== undefined && filters.limit !== 0) params.append('limit', filters.limit.toString());
 
@@ -234,8 +234,8 @@ export class SearchService {
     if (filters.location !== undefined && filters.location !== '') params.append('location', filters.location);
     if (filters.specialties !== undefined && filters.specialties.length > 0) params.append('specialties', filters.specialties.join(','));
     if (filters.minFollowers !== undefined && filters.minFollowers !== 0) params.append('minFollowers', filters.minFollowers.toString());
-    if (filters.sortBy !== undefined && filters.sortBy !== '') params.append('sortBy', filters.sortBy);
-    if (filters.sortOrder !== undefined && filters.sortOrder !== '') params.append('sortOrder', filters.sortOrder);
+    if (filters.sortBy && (filters.sortBy === 'relevance' || filters.sortBy === 'followers' || filters.sortBy === 'activity' || filters.sortBy === 'joined')) params.append('sortBy', filters.sortBy);
+    if (filters.sortOrder && (filters.sortOrder === 'asc' || filters.sortOrder === 'desc')) params.append('sortOrder', filters.sortOrder);
     if (filters.page !== undefined && filters.page !== 0) params.append('page', filters.page.toString());
     if (filters.limit !== undefined && filters.limit !== 0) params.append('limit', filters.limit.toString());
 

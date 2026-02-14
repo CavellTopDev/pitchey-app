@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { 
-  Activity, Clock, Users, Eye, Heart, MessageSquare, 
+import {
+  Activity, Clock, Users, Eye, Heart, MessageSquare,
   FileText, Film, Star, ArrowRight, Bell, Filter,
   RefreshCw, CheckCircle, AlertCircle, Info, Zap,
   User, Calendar, TrendingUp, Download, Share,
-  Bookmark, ThumbsUp, Play, Upload, Edit, Trash2
+  Bookmark, ThumbsUp, Play, Upload, Edit, Trash2, DollarSign
 } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { config, API_URL } from '../../config';

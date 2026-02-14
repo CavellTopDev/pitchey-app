@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { 
+import { useNavigate } from 'react-router-dom';
+import {
   DollarSign, TrendingUp, TrendingDown, Calendar, Filter,
   Search, Download, Eye, MoreVertical, ArrowUpDown,
   Building, Film, Users, Award, Clock, AlertCircle,
@@ -29,10 +30,26 @@ interface Investment {
   ownership_percentage?: number;
   distribution_received?: number;
   exit_date?: string;
+  // UI helper fields
+  company?: string;
+  creator?: string;
+  genre?: string;
+  investmentDate?: string;
+  initialAmount?: number;
+  roi?: number;
+  ownership?: number;
+  lastValuation?: string;
+  distributions?: number;
+  totalReturn?: number;
+  performance?: 'outperforming' | 'meeting-expectations' | 'underperforming';
+  nextMilestone?: string;
+  riskLevel?: 'low' | 'medium' | 'high';
+  exitDate?: string;
 }
 
 const AllInvestments = () => {
-    const { user, logout } = useBetterAuthStore();
+  const navigate = useNavigate();
+  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [filteredInvestments, setFilteredInvestments] = useState<Investment[]>([]);
@@ -58,7 +75,7 @@ const AllInvestments = () => {
       
       if (response.success && response.data) {
         // Transform API data to match component expectations
-        const transformedInvestments = (response.data.investments || []).map((investment: any) => {
+        const transformedInvestments = ((response.data as any).investments || []).map((investment: any) => {
           return {
             id: investment.id,
             pitch_id: investment.pitch_id,
@@ -126,10 +143,10 @@ const AllInvestments = () => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(inv =>
-        inv.pitchTitle.toLowerCase().includes(query) ||
-        inv.company.toLowerCase().includes(query) ||
-        inv.creator.toLowerCase().includes(query) ||
-        inv.genre.toLowerCase().includes(query)
+        (inv.pitchTitle || '').toLowerCase().includes(query) ||
+        (inv.company || '').toLowerCase().includes(query) ||
+        (inv.creator || '').toLowerCase().includes(query) ||
+        (inv.genre || '').toLowerCase().includes(query)
       );
     }
 
@@ -138,16 +155,16 @@ const AllInvestments = () => {
       let comparison = 0;
       switch (sortBy) {
         case 'date':
-          comparison = new Date(a.investmentDate).getTime() - new Date(b.investmentDate).getTime();
+          comparison = new Date(a.investmentDate || 0).getTime() - new Date(b.investmentDate || 0).getTime();
           break;
         case 'value':
-          comparison = a.currentValue - b.currentValue;
+          comparison = (a.currentValue || 0) - (b.currentValue || 0);
           break;
         case 'roi':
-          comparison = a.roi - b.roi;
+          comparison = (a.roi || 0) - (b.roi || 0);
           break;
         case 'name':
-          comparison = a.pitchTitle.localeCompare(b.pitchTitle);
+          comparison = (a.pitchTitle || '').localeCompare(b.pitchTitle || '');
           break;
       }
       return sortOrder === 'asc' ? comparison : -comparison;
@@ -212,14 +229,6 @@ const AllInvestments = () => {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login/investor');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
 
   if (loading) {
     return (
@@ -233,12 +242,12 @@ const AllInvestments = () => {
 
   // Calculate portfolio statistics
   const portfolioStats = {
-    totalInvested: investments.reduce((sum, inv) => sum + inv.initialAmount, 0),
-    currentValue: investments.reduce((sum, inv) => sum + inv.currentValue, 0),
-    totalReturns: investments.reduce((sum, inv) => sum + inv.totalReturn, 0),
+    totalInvested: investments.reduce((sum, inv) => sum + (inv.initialAmount || 0), 0),
+    currentValue: investments.reduce((sum, inv) => sum + (inv.currentValue || 0), 0),
+    totalReturns: investments.reduce((sum, inv) => sum + (inv.totalReturn || 0), 0),
     activeCount: investments.filter(inv => inv.status === 'active').length,
-    avgROI: investments.length > 0 
-      ? investments.reduce((sum, inv) => sum + (inv.roi || inv.roi_percentage || 0), 0) / investments.length 
+    avgROI: investments.length > 0
+      ? investments.reduce((sum, inv) => sum + (inv.roi || inv.roi_percentage || 0), 0) / investments.length
       : 0
   };
 
@@ -424,52 +433,52 @@ const AllInvestments = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <div className="text-sm font-medium text-gray-900">
-                            {investment.pitchTitle}
+                            {investment.pitchTitle || investment.pitch_title}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {investment.company}
+                            {investment.company || 'Unknown'}
                           </div>
                           <div className="text-xs text-gray-400">
-                            {investment.genre} • {investment.creator}
+                            {investment.genre || 'Unknown'} • {investment.creator || 'Unknown'}
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <div className="text-sm text-gray-900">
-                            {formatCurrency(investment.initialAmount)}
+                            {formatCurrency(investment.initialAmount || 0)}
                           </div>
                           <div className="text-xs text-gray-500">
-                            {new Date(investment.investmentDate).toLocaleDateString()}
+                            {investment.investmentDate ? new Date(investment.investmentDate).toLocaleDateString() : 'N/A'}
                           </div>
                           <div className="text-xs text-gray-400">
-                            {investment.ownership}% ownership
+                            {investment.ownership || 0}% ownership
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <div className="text-sm font-medium text-gray-900">
-                            {formatCurrency(investment.currentValue)}
+                            {formatCurrency(investment.currentValue || 0)}
                           </div>
                           <div className="text-xs text-gray-500">
-                            Last: {new Date(investment.lastValuation).toLocaleDateString()}
+                            Last: {investment.lastValuation ? new Date(investment.lastValuation).toLocaleDateString() : 'N/A'}
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className={`flex items-center text-sm font-medium ${
-                          investment.roi >= 0 ? 'text-green-600' : 'text-red-600'
+                          (investment.roi || 0) >= 0 ? 'text-green-600' : 'text-red-600'
                         }`}>
-                          {investment.roi >= 0 ? (
+                          {(investment.roi || 0) >= 0 ? (
                             <TrendingUp className="h-4 w-4 mr-1" />
                           ) : (
                             <TrendingDown className="h-4 w-4 mr-1" />
                           )}
-                          {Math.abs(investment.roi)}%
+                          {Math.abs(investment.roi || 0)}%
                         </div>
-                        <div className={`text-xs ${getPerformanceColor(investment.performance)}`}>
-                          {investment.performance.replace('-', ' ')}
+                        <div className={`text-xs ${getPerformanceColor(investment.performance || 'meeting-expectations')}`}>
+                          {(investment.performance || 'meeting-expectations').replace('-', ' ')}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -482,7 +491,7 @@ const AllInvestments = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {investment.stage.replace('-', ' ')}
+                          {(investment.stage || 'unknown').replace('-', ' ')}
                         </div>
                         {investment.nextMilestone && (
                           <div className="text-xs text-gray-500">

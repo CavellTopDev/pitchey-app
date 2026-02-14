@@ -208,14 +208,14 @@ function InvestorDashboard() {
       // Handle NDAs with defensive parsing
       if (ndaRes.status === 'fulfilled') {
         const ndaData = safeAccess(ndaRes, 'value.data.data', []);
-        const safeNDAs = safeMap(ndaData, (nda: any) => ({
+        const safeNDAs: NDARequest[] = safeMap(ndaData, (nda: any) => ({
           id: safeNumber(safeAccess(nda, 'id', Math.floor(Math.random() * 10000))),
           pitchTitle: safeString(safeAccess(nda, 'pitchTitle', 'Unknown Project')),
           status: safeString(safeAccess(nda, 'status', 'pending')),
           requestedAt: isValidDate(safeAccess(nda, 'requestedAt', null))
             ? safeAccess(nda, 'requestedAt', new Date().toISOString())
             : new Date().toISOString(),
-          signedAt: safeAccess(nda, 'signedAt', null)
+          signedAt: safeAccess(nda, 'signedAt', null) as unknown as string | undefined
         }));
         setNdaRequests(safeNDAs);
       }
@@ -550,7 +550,7 @@ function InvestorDashboard() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                safeAccess(investment, 'status', '') === 'active' 
+                                (safeAccess(investment, 'status', '') as string) === 'active'
                                   ? 'bg-green-100 text-green-800'
                                   : 'bg-gray-100 text-gray-800'
                               }`}>
@@ -688,13 +688,13 @@ function InvestorDashboard() {
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">Due Diligence & NDAs</h3>
                   <div className="flex gap-2">
-                    {safeArray(ndaRequests).filter((nda: NDARequest) => nda.status === 'pending').length > 0 && (
+                    {safeArray(ndaRequests).filter((nda: any) => nda.status === 'pending').length > 0 && (
                       <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-lg text-sm">
-                        Pending: {safeArray(ndaRequests).filter((nda: NDARequest) => nda.status === 'pending').length}
+                        Pending: {safeArray(ndaRequests).filter((nda: any) => nda.status === 'pending').length}
                       </span>
                     )}
                     <span className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm">
-                      Active: {safeArray(ndaRequests).filter((nda: NDARequest) => nda.status === 'signed' || nda.status === 'active').length}
+                      Active: {safeArray(ndaRequests).filter((nda: any) => nda.status === 'signed' || nda.status === 'active').length}
                     </span>
                   </div>
                 </div>
@@ -715,9 +715,9 @@ function InvestorDashboard() {
                             </div>
                             <div className="flex items-center gap-3">
                               <span className={`px-2 py-1 text-xs rounded-full ${
-                                safeAccess(nda, 'status', '') === 'signed' 
+                                (safeAccess(nda, 'status', '') as string) === 'signed'
                                   ? 'bg-green-100 text-green-700'
-                                  : safeAccess(nda, 'status', '') === 'pending'
+                                  : (safeAccess(nda, 'status', '') as string) === 'pending'
                                   ? 'bg-yellow-100 text-yellow-700'
                                   : 'bg-gray-100 text-gray-700'
                               }`}>

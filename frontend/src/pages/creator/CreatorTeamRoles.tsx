@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Shield, Crown, Users, Star, Globe, Edit, Trash2,
   Plus, Check, X, AlertCircle, Save,
-  ChevronDown, ChevronUp, Eye, Copy
+  ChevronDown, ChevronUp, Eye, Copy, Settings
 } from 'lucide-react';
 import { TeamService, type TeamRole } from '../../services/team.service';
 
@@ -37,6 +38,7 @@ interface RoleForm {
 }
 
 export default function CreatorTeamRoles() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [roles, setRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
@@ -524,7 +526,7 @@ export default function CreatorTeamRoles() {
                                         {permission.name}
                                       </span>
                                       {permission.isAdvanced && (
-                                        <AlertCircle className="w-3 h-3 text-orange-500" title="Advanced permission" />
+                                        <AlertCircle className="w-3 h-3 text-orange-500" />
                                       )}
                                     </div>
                                     <p className="text-xs text-gray-500">{permission.description}</p>

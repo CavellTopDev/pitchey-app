@@ -36,8 +36,8 @@ export class RouteErrorBoundary extends Component<Props, State> {
     console.error('Route error boundary caught:', error, errorInfo);
     
     // Log to error reporting service
-    if (window.Sentry) {
-      window.Sentry.captureException(error, {
+    if ((window as any).Sentry) {
+      (window as any).Sentry.captureException(error, {
         contexts: {
           react: {
             componentStack: errorInfo.componentStack

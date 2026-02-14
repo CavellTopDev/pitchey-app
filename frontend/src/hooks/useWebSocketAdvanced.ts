@@ -605,6 +605,7 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
       id: message.id || `msg_${Date.now()}_${Math.random()}`,
       queuedAt: Date.now(),
       attempts: 0,
+      priority: message.priority || 'normal',
     };
     
     // Remove oldest messages if queue is full

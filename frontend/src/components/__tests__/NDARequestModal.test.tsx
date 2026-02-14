@@ -55,16 +55,16 @@ describe('NDAModal', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    
+
     // Mock auth store
     const authStore = getMockAuthStore()
-    authStore.user = mockInvestorUser
+    authStore.user = mockInvestorUser as any
     authStore.isAuthenticated = true
 
     // Setup default service mocks
-    vi.mocked(ndaService.canRequestNDA).mockResolvedValue({ canRequest: true })
-    vi.mocked(ndaService.requestNDA).mockResolvedValue({ success: true, ndaId: '123' })
-    vi.mocked(ndaService.getNDAStatus).mockResolvedValue({ status: 'none' })
+    vi.mocked(ndaService.canRequestNDA).mockResolvedValue({ canRequest: true } as any)
+    vi.mocked(ndaService.requestNDA).mockResolvedValue({ success: true, ndaId: '123' } as any)
+    vi.mocked(ndaService.getNDAStatus).mockResolvedValue({ status: 'none', hasNDA: false, canAccess: false } as any)
   })
 
   describe('Rendering', () => {

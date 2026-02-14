@@ -60,8 +60,8 @@ vi.mock('../../constants/pitchConstants', () => ({
 // Mock constants/messages - include all non-existent properties that CreatePitch expects
 vi.mock('../../constants/messages', () => ({
   INFO_MESSAGES: {
-    CHARACTER_COUNT: (current, max) => `${current}/${max} characters`,
-    RECOMMENDED_LENGTH: (current, recommended) => `${current}/${recommended} characters recommended`,
+    CHARACTER_COUNT: (current: number, max: number) => `${current}/${max} characters`,
+    RECOMMENDED_LENGTH: (current: number, recommended: number) => `${current}/${recommended} characters recommended`,
     FILE_UPLOAD_INSTRUCTIONS: 'Upload your files here',
   },
   // Mock the MESSAGES object that CreatePitch is incorrectly expecting
@@ -344,15 +344,15 @@ describe('PitchForm (CreatePitch)', () => {
   beforeEach(() => {
     // Setup auth store
     const authStore = getMockAuthStore()
-    authStore.user = mockCreatorUser
+    authStore.user = mockCreatorUser as any
     authStore.isAuthenticated = true
 
     // Mock pitch service is already setup via vi.mock above
     vi.mocked(pitchService.create).mockResolvedValue({
-      id: '1',
+      id: 1,
       title: 'Test Pitch',
       status: 'draft',
-    })
+    } as any)
 
     // Clear all mocks
     vi.clearAllMocks()
@@ -740,8 +740,8 @@ describe('PitchForm (CreatePitch)', () => {
       
       // Try to find and interact with the radio button
       const standardNDALabel = standardNDATexts[0].closest('label')
-      const standardNDARadio = standardNDALabel?.querySelector('input[type="radio"]')
-      
+      const standardNDARadio = standardNDALabel?.querySelector('input[type="radio"]') as HTMLInputElement | null
+
       if (standardNDARadio && !standardNDARadio.checked) {
         await user.click(standardNDARadio)
         // Give it time to update, but don't require it to be checked

@@ -593,7 +593,7 @@ export const NotificationPreferences: React.FC<NotificationPreferencesProps> = (
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={preferences[categoryKey as keyof typeof preferences]?.email ?? false}
+                        checked={typeof preferences[categoryKey as keyof typeof preferences] === 'object' && preferences[categoryKey as keyof typeof preferences] !== null && 'email' in (preferences[categoryKey as keyof typeof preferences] as any) ? (preferences[categoryKey as keyof typeof preferences] as any).email : false}
                         onChange={(e) => updateCategorySetting(
                           categoryKey as any,
                           'email',
@@ -611,7 +611,7 @@ export const NotificationPreferences: React.FC<NotificationPreferencesProps> = (
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={preferences[categoryKey as keyof typeof preferences]?.push ?? false}
+                        checked={typeof preferences[categoryKey as keyof typeof preferences] === 'object' && preferences[categoryKey as keyof typeof preferences] !== null && 'push' in (preferences[categoryKey as keyof typeof preferences] as any) ? (preferences[categoryKey as keyof typeof preferences] as any).push : false}
                         onChange={(e) => updateCategorySetting(
                           categoryKey as any,
                           'push',
@@ -629,7 +629,7 @@ export const NotificationPreferences: React.FC<NotificationPreferencesProps> = (
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={preferences[categoryKey as keyof typeof preferences]?.in_app ?? false}
+                        checked={typeof preferences[categoryKey as keyof typeof preferences] === 'object' && preferences[categoryKey as keyof typeof preferences] !== null && 'in_app' in (preferences[categoryKey as keyof typeof preferences] as any) ? (preferences[categoryKey as keyof typeof preferences] as any).in_app : false}
                         onChange={(e) => updateCategorySetting(
                           categoryKey as any,
                           'in_app',
@@ -647,7 +647,7 @@ export const NotificationPreferences: React.FC<NotificationPreferencesProps> = (
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={preferences[categoryKey as keyof typeof preferences]?.sms ?? false}
+                        checked={typeof preferences[categoryKey as keyof typeof preferences] === 'object' && preferences[categoryKey as keyof typeof preferences] !== null && 'sms' in (preferences[categoryKey as keyof typeof preferences] as any) ? (preferences[categoryKey as keyof typeof preferences] as any).sms : false}
                         onChange={(e) => updateCategorySetting(
                           categoryKey as any,
                           'sms',

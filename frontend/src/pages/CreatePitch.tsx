@@ -41,8 +41,8 @@ export default function CreatePitch() {
   const { success, error } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState<'form' | 'creating' | 'uploading' | 'complete'>('form');
-  const [genres, setGenres] = useState<string[]>(getGenresSync() || []);
-  const [formats, setFormats] = useState<string[]>(getFormatsSync() || []);
+  const [genres, setGenres] = useState<string[]>([...(getGenresSync() || [])]);
+  const [formats, setFormats] = useState<string[]>([...(getFormatsSync() || [])]);
 
   // Upload manager for coordinating file uploads after pitch creation
   const uploadManager = usePitchUploadManager();
@@ -333,7 +333,7 @@ export default function CreatePitch() {
           productionTimeline: '6-12 months',
           themes: validatedData.themes,
           worldDescription: validatedData.worldDescription,
-          characters: serializeCharacters(validatedData.characters),
+          characters: serializeCharacters(validatedData.characters || []),
           aiUsed: false,
           // Enhanced fields
           toneAndStyle: validatedData.toneAndStyle,
@@ -377,10 +377,10 @@ export default function CreatePitch() {
 
             // Find image and video URLs from successful uploads
             const imageUpload = uploadResults.successful.find(r =>
-              r.category === 'image' || r.type?.includes('image') || r.filename?.match(/\.(jpg|jpeg|png|gif|webp)$/i)
+              (r as any).category === 'image' || (r as any).type?.includes('image') || (r as any).filename?.match(/\.(jpg|jpeg|png|gif|webp)$/i)
             );
             const videoUpload = uploadResults.successful.find(r =>
-              r.category === 'video' || r.type?.includes('video') || r.filename?.match(/\.(mp4|mov|avi|webm)$/i)
+              (r as any).category === 'video' || (r as any).type?.includes('video') || (r as any).filename?.match(/\.(mp4|mov|avi|webm)$/i)
             );
 
             if (imageUpload) {
@@ -527,7 +527,7 @@ export default function CreatePitch() {
                   data-testid="title-input"
                 />
                 {hasFieldError('title') && (
-                  <div {...a11y.formField.getErrorAttributes('title')}>
+                  <div {...(a11y.formField.getErrorAttributes('title') as React.HTMLAttributes<HTMLDivElement>)}>
                     <AlertCircle className="w-4 h-4 inline mr-1" aria-hidden="true" />
                     {getFieldError('title')[0]}
                   </div>
@@ -565,7 +565,7 @@ export default function CreatePitch() {
                   ))}
                 </select>
                 {hasFieldError('genre') && (
-                  <div {...a11y.formField.getErrorAttributes('genre')}>
+                  <div {...(a11y.formField.getErrorAttributes('genre') as React.HTMLAttributes<HTMLDivElement>)}>
                     <AlertCircle className="w-4 h-4 inline mr-1" aria-hidden="true" />
                     {getFieldError('genre')[0]}
                   </div>
@@ -600,7 +600,7 @@ export default function CreatePitch() {
                   ))}
                 </select>
                 {fieldErrors.formatCategory?.length > 0 && (
-                  <div {...a11y.formField.getErrorAttributes('formatCategory')}>
+                  <div {...(a11y.formField.getErrorAttributes('formatCategory') as React.HTMLAttributes<HTMLDivElement>)}>
                     <AlertCircle className="w-4 h-4 inline mr-1" aria-hidden="true" />
                     {fieldErrors.formatCategory[0]}
                   </div>
@@ -636,7 +636,7 @@ export default function CreatePitch() {
                     ))}
                   </select>
                   {fieldErrors.formatSubtype?.length > 0 && (
-                    <div {...a11y.formField.getErrorAttributes('formatSubtype')}>
+                    <div {...(a11y.formField.getErrorAttributes('formatSubtype') as React.HTMLAttributes<HTMLDivElement>)}>
                       <AlertCircle className="w-4 h-4 inline mr-1" aria-hidden="true" />
                       {fieldErrors.formatSubtype[0]}
                     </div>
@@ -671,7 +671,7 @@ export default function CreatePitch() {
                     placeholder="Please specify your custom format"
                   />
                   {fieldErrors.customFormat?.length > 0 && (
-                    <div {...a11y.formField.getErrorAttributes('customFormat')}>
+                    <div {...(a11y.formField.getErrorAttributes('customFormat') as React.HTMLAttributes<HTMLDivElement>)}>
                       <AlertCircle className="w-4 h-4 inline mr-1" aria-hidden="true" />
                       {fieldErrors.customFormat[0]}
                     </div>
@@ -708,7 +708,7 @@ export default function CreatePitch() {
                 data-testid="logline-textarea"
               />
               {fieldErrors.logline?.length > 0 && (
-                <div {...a11y.formField.getErrorAttributes('logline')}>
+                <div {...(a11y.formField.getErrorAttributes('logline') as React.HTMLAttributes<HTMLDivElement>)}>
                   <AlertCircle className="w-4 h-4 inline mr-1" aria-hidden="true" />
                   {fieldErrors.logline[0]}
                 </div>
@@ -745,7 +745,7 @@ export default function CreatePitch() {
                 placeholder="A brief overview of your story"
               />
               {fieldErrors.shortSynopsis?.length > 0 && (
-                <div {...a11y.formField.getErrorAttributes('shortSynopsis')}>
+                <div {...(a11y.formField.getErrorAttributes('shortSynopsis') as React.HTMLAttributes<HTMLDivElement>)}>
                   <AlertCircle className="w-4 h-4 inline mr-1" aria-hidden="true" />
                   {fieldErrors.shortSynopsis[0]}
                 </div>
@@ -790,7 +790,7 @@ export default function CreatePitch() {
                   </div>
                 )}
                 <p className="text-xs text-gray-500 mt-1">
-                  {formData.themes.length}/1000 characters | Recommended: 500-1000 characters
+                  {(formData.themes || '').length}/1000 characters | Recommended: 500-1000 characters
                 </p>
               </div>
 
@@ -823,7 +823,7 @@ export default function CreatePitch() {
                   </div>
                 )}
                 <p className="text-xs text-gray-500 mt-1">
-                  {formData.worldDescription.length}/2000 characters | Describe the world and setting in detail
+                  {(formData.worldDescription || '').length}/2000 characters | Describe the world and setting in detail
                 </p>
               </div>
             </div>
@@ -947,7 +947,7 @@ export default function CreatePitch() {
           {/* Characters Section */}
           <div className="bg-white rounded-xl shadow-sm p-6">
             <CharacterManagement
-              characters={formData.characters}
+              characters={(formData.characters || []) as Character[]}
               onChange={(characters) => setValue('characters', characters as any)}
               maxCharacters={10}
             />
@@ -955,7 +955,7 @@ export default function CreatePitch() {
 
           {/* NDA Configuration */}
           <NDAUploadSection
-            ndaDocument={ndaDocument}
+            ndaDocument={ndaDocument || undefined}
             onChange={handleNDADocumentChange}
             disabled={isSubmitting}
             className="mb-6"
@@ -973,13 +973,16 @@ export default function CreatePitch() {
               >
                 Cover Image
               </label>
-              <div 
+              <div
                 {...a11y.fileUpload.getDropZoneAttributes({
                   disabled: isSubmitting,
                   labelId: 'image-label'
                 })}
                 onClick={() => document.getElementById('image-upload')?.click()}
-                onKeyDown={a11y.keyboard.onActivate(() => document.getElementById('image-upload')?.click())}
+                onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => {
+                  const handler = a11y.keyboard.onActivate(() => document.getElementById('image-upload')?.click());
+                  handler(e as any);
+                }}
               >
                 {formData.image ? (
                   <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
@@ -1030,7 +1033,7 @@ export default function CreatePitch() {
                 {'Click to upload or drag and drop'}
               </div>
               {fieldErrors.image?.length > 0 && (
-                <div {...a11y.formField.getErrorAttributes('image')}>
+                <div {...(a11y.formField.getErrorAttributes('image') as React.HTMLAttributes<HTMLDivElement>)}>
                   <AlertCircle className="w-4 h-4 inline mr-1" aria-hidden="true" />
                   {fieldErrors.image[0]}
                 </div>
@@ -1049,13 +1052,16 @@ export default function CreatePitch() {
               >
                 Pitch Video (Optional)
               </label>
-              <div 
+              <div
                 {...a11y.fileUpload.getDropZoneAttributes({
                   disabled: isSubmitting,
                   labelId: 'video-label'
                 })}
                 onClick={() => document.getElementById('video-upload')?.click()}
-                onKeyDown={a11y.keyboard.onActivate(() => document.getElementById('video-upload')?.click())}
+                onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => {
+                  const handler = a11y.keyboard.onActivate(() => document.getElementById('video-upload')?.click());
+                  handler(e as any);
+                }}
               >
                 {formData.video ? (
                   <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
@@ -1106,7 +1112,7 @@ export default function CreatePitch() {
                 {'Click to upload or drag and drop'}
               </div>
               {fieldErrors.video?.length > 0 && (
-                <div {...a11y.formField.getErrorAttributes('video')}>
+                <div {...(a11y.formField.getErrorAttributes('video') as React.HTMLAttributes<HTMLDivElement>)}>
                   <AlertCircle className="w-4 h-4 inline mr-1" aria-hidden="true" />
                   {fieldErrors.video[0]}
                 </div>
@@ -1134,13 +1140,13 @@ export default function CreatePitch() {
               onUploadComplete={(results: EnhancedUploadResult[]) => {
                 // Store uploaded documents (for non-deferred mode)
                 const documentUrls = results.map(r => ({
-                  url: r.cdnUrl,
-                  filename: r.filename,
-                  size: r.size,
-                  type: r.type,
-                  r2Key: r.r2Key
+                  url: (r as any).cdnUrl || (r as any).url,
+                  filename: (r as any).filename,
+                  size: (r as any).size,
+                  type: (r as any).type,
+                  r2Key: (r as any).r2Key
                 }));
-                setValue('documents', documentUrls);
+                setValue('documents', documentUrls as any);
                 success('Documents uploaded successfully');
               }}
               onNDAChange={(nda: NDADocument | null) => {
@@ -1149,14 +1155,14 @@ export default function CreatePitch() {
                   setValue('ndaConfig', {
                     requireNDA: true,
                     ndaType: nda.ndaType,
-                    customNDA: nda.ndaType === 'custom' ? nda.documentFile : null
-                  });
+                    customNDA: nda.ndaType === 'custom' ? (nda as any).documentFile : null
+                  } as any);
                 } else {
                   setValue('ndaConfig', {
                     requireNDA: false,
                     ndaType: 'none',
                     customNDA: null
-                  });
+                  } as any);
                 }
               }}
               disabled={isSubmitting}

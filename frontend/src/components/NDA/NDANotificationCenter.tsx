@@ -8,7 +8,7 @@ import {
   AlertTriangle,
   Eye,
   Trash2,
-  MarkAsRead,
+  // MarkAsRead,
   Filter,
   Calendar,
   User,
@@ -323,7 +323,7 @@ export default function NDANotificationCenter({
               disabled={unreadCount === 0}
               className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
             >
-              <MarkAsRead className="w-4 h-4" />
+              <CheckCircle className="w-4 h-4" />
               Mark All Read
             </button>
           </div>
@@ -419,7 +419,7 @@ export default function NDANotificationCenter({
                           </h3>
                           
                           {notification.isUrgent && (
-                            <Zap className="w-4 h-4 text-yellow-500" title="Urgent" />
+                            <Zap className="w-4 h-4 text-yellow-500" />
                           )}
                           
                           {notification.actionRequired && (

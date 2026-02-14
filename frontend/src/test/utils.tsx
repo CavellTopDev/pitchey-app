@@ -79,6 +79,11 @@ const mockAuthStore = {
   updateUser: vi.fn(),
   checkSession: vi.fn(),
   refreshSession: vi.fn(),
+  loginCreator: vi.fn(),
+  loginInvestor: vi.fn(),
+  loginProduction: vi.fn(),
+  loading: false,
+  error: null,
 }
 
 const mockPitchStore = {
@@ -137,11 +142,15 @@ export const createMockPitch = (overrides = {}) => ({
   id: 'mock-pitch-uuid-' + Date.now(),
   title: 'Test Pitch',
   logline: 'A compelling test pitch logline',
+  tagline: 'A test tagline',
   synopsis: 'A detailed synopsis of the test pitch',
   genre: 'Drama',
   budget: '1000000',
   format: 'Feature Film',
   status: 'published',
+  thumbnail: '',
+  views: 0,
+  rating: 0,
   creator: {
     id: 'mock-creator-uuid-' + Date.now(),
     name: 'Test Creator',
@@ -187,26 +196,9 @@ export const createMockCharacter = (overrides = {}) => ({
   ...overrides,
 })
 
-// Mock WebSocket context
+// Mock WebSocket context - just pass through since we've mocked the module
 const MockWebSocketProvider = ({ children }: { children: React.ReactNode }) => {
-  const mockWebSocketValue = {
-    socket: null,
-    isConnected: false,
-    lastMessage: null,
-    connectionError: null,
-    reconnectAttempts: 0,
-    sendMessage: vi.fn(),
-    connect: vi.fn(),
-    disconnect: vi.fn(),
-    subscribe: vi.fn(),
-    unsubscribe: vi.fn(),
-  }
-
-  return (
-    <WebSocketProvider value={mockWebSocketValue}>
-      {children}
-    </WebSocketProvider>
-  )
+  return <>{children}</>
 }
 
 // Custom render function that includes providers
@@ -287,7 +279,9 @@ export const waitForLoadingToFinish = () =>
 
 // Custom assertions
 export const expectElementToBeVisible = (element: HTMLElement) => {
+  // @ts-expect-error - expect is globally available in vitest
   expect(element).toBeInTheDocument()
+  // @ts-expect-error - expect is globally available in vitest
   expect(element).toBeVisible()
 }
 
@@ -295,6 +289,7 @@ export const expectElementToHaveAccessibleName = (
   element: HTMLElement,
   name: string
 ) => {
+  // @ts-expect-error - expect is globally available in vitest
   expect(element).toHaveAccessibleName(name)
 }
 

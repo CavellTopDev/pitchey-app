@@ -36,7 +36,7 @@ export function useScheduleMeeting() {
       }
       
       return result;
-    } catch (err) {
+    } catch (err: any) {
       const message = err?.message || 'Failed to schedule meeting';
       setError(message);
       toast.error(message);
@@ -168,8 +168,9 @@ export function useExport() {
       
       if (result.success) {
         toast.success(result.message || 'Export completed');
-      } else {
-        toast.error(result.error || 'Export failed');
+      } else if ('error' in result) {
+        const errorMsg = typeof result.error === 'string' ? result.error : 'Export failed';
+        toast.error(errorMsg);
       }
       
       return result;
@@ -470,16 +471,17 @@ export function usePaymentMethods() {
         token,
         returnUrl: window.location.href,
       });
-      
-      if (result.success) {
-        if (result.requiresAction && result.clientSecret) {
+
+      if (result && result.success) {
+        if ((result as any).requiresAction && (result as any).clientSecret) {
           setRequiresAction(true);
-          setClientSecret(result.clientSecret);
+          setClientSecret((result as any).clientSecret);
         } else {
-          toast.success(result.message || 'Payment method added');
+          toast.success((result as any).message || 'Payment method added');
         }
-      } else {
-        toast.error(result.error || 'Failed to add payment method');
+      } else if (result) {
+        const errorMsg = typeof (result as any).error === 'string' ? (result as any).error : (result as any).error?.message || 'Failed to add payment method';
+        toast.error(errorMsg);
       }
       
       return result;

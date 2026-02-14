@@ -90,7 +90,7 @@ export default function InvestorActivity() {
       }>('/api/investor/activity/feed');
 
       if (response.success) {
-        const apiActivities = response.data?.activities || response.activities || [];
+        const apiActivities = response.data?.activities || (response as any).activities || [];
 
         // Transform API response to match component interface
         const transformedActivities: ActivityItem[] = apiActivities.map((activity: any, index: number) => ({

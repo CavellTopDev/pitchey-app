@@ -34,7 +34,7 @@ describe('CreatorDashboard', () => {
 
     // Mock auth store
     const authStore = getMockAuthStore()
-    authStore.user = mockCreatorUser
+    authStore.user = mockCreatorUser as any
     authStore.isAuthenticated = true
 
     // Mock localStorage

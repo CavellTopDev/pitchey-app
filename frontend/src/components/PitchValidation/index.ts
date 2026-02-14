@@ -188,17 +188,17 @@ export const ValidationUtils = {
     return 'Requires Attention';
   },
 
-  getOverallRating: (categories: ValidationCategories): string => {
-    const overallScore = Object.values(categories).reduce((sum, cat) => 
+  getOverallRating: (categories: any): string => {
+    const overallScore = Object.values(categories).reduce((sum: any, cat: any) =>
       sum + (cat.score * cat.weight / 100), 0
     );
-    return ValidationUtils.getScoreLabel(overallScore);
+    return ValidationUtils.getScoreLabel(overallScore as number);
   },
 
-  getTopRecommendations: (recommendations: ValidationRecommendation[], count: number = 3): ValidationRecommendation[] => {
+  getTopRecommendations: (recommendations: any[], count: number = 3): any[] => {
     return recommendations
-      .sort((a, b) => {
-        const priorityOrder = { high: 3, medium: 2, low: 1 };
+      .sort((a: any, b: any) => {
+        const priorityOrder: any = { high: 3, medium: 2, low: 1 };
         if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
           return priorityOrder[b.priority] - priorityOrder[a.priority];
         }
@@ -305,7 +305,7 @@ export const useValidation = (pitchId: string) => {
 export interface ValidationComponentProps {
   pitchId: string;
   config?: Partial<ValidationComponentConfig>;
-  onValidationComplete?: (data: ValidationScore) => void;
+  onValidationComplete?: (data: any) => void;
   onError?: (error: string) => void;
   className?: string;
 }
@@ -324,5 +324,5 @@ export interface DashboardProps {
   showCharts?: boolean;
   showRecommendations?: boolean;
   showComparisons?: boolean;
-  onRecommendationClick?: (recommendation: ValidationRecommendation) => void;
+  onRecommendationClick?: (recommendation: any) => void;
 }

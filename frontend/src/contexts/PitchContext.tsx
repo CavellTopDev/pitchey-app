@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { pitchService } from '../services/pitch.service';
-import type { Pitch } from '../types';
+import { pitchService, type Pitch } from '../services/pitch.service';
 
 interface PitchContextType {
   pitches: Pitch[];
@@ -41,7 +40,7 @@ export const PitchProvider: React.FC<PitchProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await pitchService.getAllPitches(params);
+      const data = await (pitchService as any).getMyPitches(params);
       setPitches(data);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch pitches');
@@ -55,7 +54,7 @@ export const PitchProvider: React.FC<PitchProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       setError(null);
-      const pitch = await pitchService.getPitchById(id);
+      const pitch = await (pitchService as any).getById(id);
       setCurrentPitch(pitch);
       return pitch;
     } catch (err: any) {
@@ -71,7 +70,7 @@ export const PitchProvider: React.FC<PitchProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       setError(null);
-      const newPitch = await pitchService.createPitch(data);
+      const newPitch = await pitchService.create(data as any);
       setPitches(prev => [...prev, newPitch]);
       return newPitch;
     } catch (err: any) {
@@ -87,13 +86,13 @@ export const PitchProvider: React.FC<PitchProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       setError(null);
-      const updatedPitch = await pitchService.updatePitch(id, data);
-      
+      const updatedPitch = await pitchService.update(Number(id), data as any);
+
       // Update in list
       setPitches(prev =>
         prev.map(p => (p.id.toString() === id ? updatedPitch : p))
       );
-      
+
       // Update current if it's the same
       if (currentPitch?.id.toString() === id) {
         setCurrentPitch(updatedPitch);
@@ -111,11 +110,11 @@ export const PitchProvider: React.FC<PitchProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       setError(null);
-      await pitchService.deletePitch(id);
-      
+      await pitchService.delete(Number(id));
+
       // Remove from list
       setPitches(prev => prev.filter(p => p.id.toString() !== id));
-      
+
       // Clear current if it's the deleted one
       if (currentPitch?.id.toString() === id) {
         setCurrentPitch(null);
@@ -133,8 +132,8 @@ export const PitchProvider: React.FC<PitchProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       setError(null);
-      const results = await pitchService.searchPitches(query);
-      setPitches(results);
+      const results = await pitchService.getPublicPitches({ search: query });
+      setPitches(results.pitches);
     } catch (err: any) {
       setError(err.message || 'Failed to search pitches');
       console.error('Error searching pitches:', err);
@@ -147,7 +146,7 @@ export const PitchProvider: React.FC<PitchProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       setError(null);
-      const results = await pitchService.getAllPitches(filters);
+      const results = await pitchService.getMyPitches();
       setPitches(results);
     } catch (err: any) {
       setError(err.message || 'Failed to filter pitches');

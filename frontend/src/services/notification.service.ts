@@ -2,21 +2,19 @@ import { BRAND } from '../constants/brand';
 
 const BRAND_LOGO = BRAND.logo;
 
-interface NotificationPermission {
+interface NotificationPermissionState {
   granted: boolean;
   permission: NotificationPermission;
 }
 
-interface NotificationOptions {
+interface CustomNotificationOptions {
   title: string;
   body: string;
   icon?: string;
   badge?: string;
-  image?: string;
   tag?: string;
   requireInteraction?: boolean;
   silent?: boolean;
-  actions?: NotificationAction[];
   data?: any;
 }
 
@@ -76,7 +74,7 @@ export class NotificationService {
     return permission;
   }
 
-  async showNotification(options: NotificationOptions): Promise<void> {
+  async showNotification(options: CustomNotificationOptions): Promise<void> {
     // Check if we have permission
     if (this.permission !== 'granted') {
       return;
@@ -95,7 +93,6 @@ export class NotificationService {
         body: options.body,
         icon: options.icon || BRAND_LOGO,
         badge: options.badge || BRAND_LOGO,
-        image: options.image,
         tag: options.tag,
         requireInteraction: options.requireInteraction || false,
         silent: options.silent || false,
@@ -124,7 +121,7 @@ export class NotificationService {
     }
   }
 
-  private showInAppNotification(options: NotificationOptions) {
+  private showInAppNotification(options: CustomNotificationOptions) {
     // Create in-app notification element securely
     const notification = document.createElement('div');
     notification.className = 'fixed top-4 right-4 bg-white shadow-lg rounded-lg p-4 border-l-4 border-purple-500 z-50 max-w-sm';
@@ -305,19 +302,19 @@ export class NotificationService {
       const limit = options?.limit || 20;
       const offset = options?.offset || 0;
       
-      const response = await apiClient.get(`/api/user/notifications?limit=${limit}&offset=${offset}`);
-      
-      if (response.success && response.data?.notifications) {
+      const response = await apiClient.get<any>(`/api/user/notifications?limit=${limit}&offset=${offset}`);
+
+      if (response.success && (response.data as any)?.notifications) {
         return response.data;
       }
-      
+
       return { notifications: [], unreadCount: 0, hasMore: false };
-    } catch (error) {
+    } catch (error: unknown) {
       // ✅ Smart error handling for auth issues
-      if (error?.response?.status === 401 || error?.status === 401 || error?.message?.includes('401')) {
+      if ((error as any)?.response?.status === 401 || (error as any)?.status === 401 || (error as any)?.message?.includes('401')) {
         return { notifications: [], unreadCount: 0, hasMore: false };
       }
-      
+
       console.error('Failed to fetch notifications:', error);
       return { notifications: [], unreadCount: 0, hasMore: false };
     }

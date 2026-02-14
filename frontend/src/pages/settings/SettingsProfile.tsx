@@ -109,7 +109,7 @@ export default function SettingsProfile() {
     <div className="min-h-screen bg-gray-50">
       <DashboardHeader
         user={user}
-        userType={user?.userType || 'creator'}
+        userType={(user?.userType || 'creator') as 'creator' | 'investor' | 'production'}
         title="Profile Settings"
         onLogout={logout}
       />

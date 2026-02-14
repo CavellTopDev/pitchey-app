@@ -220,7 +220,7 @@ export const EnhancedPitchForm: React.FC<EnhancedPitchFormProps> = ({
         </div>
 
         {/* Tab Navigation */}
-        <NavigationTabs activeTab={activeTab} onTabChange={setActiveTab} />
+        <NavigationTabs activeTab={activeTab} onTabChange={(tab: string) => setActiveTab(tab as any)} />
       </div>
 
       {/* Tab Content */}

@@ -4,12 +4,12 @@
  */
 
 // Permission management
-export { default as PermissionManager } from './PermissionManager';
+// export { default as PermissionManager } from './PermissionManager';
 
 // Component types
-export type {
-  Role,
-  Permission,
-  UserRole,
-  RolePermission
-} from './PermissionManager';
+// export type {
+//   Role,
+//   Permission,
+//   UserRole,
+//   RolePermission
+// } from './PermissionManager';

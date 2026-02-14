@@ -152,8 +152,9 @@ export class ConsoleErrorBoundary extends Component<Props, State> {
     );
 
     // Send to Sentry if available
-    if (Sentry) {
-      Sentry.withScope((scope: any) => {
+    const SentryGlobal = (window as any).Sentry;
+    if (SentryGlobal) {
+      SentryGlobal.withScope((scope: any) => {
         scope.setLevel('error');
         scope.setContext('errorBoundary', {
           level,
@@ -161,7 +162,7 @@ export class ConsoleErrorBoundary extends Component<Props, State> {
           route: window.location.pathname,
           timestamp: new Date().toISOString()
         });
-        
+
         // Add console errors as breadcrumbs
         this.state.consoleErrors.forEach(consoleError => {
           scope.addBreadcrumb({
@@ -171,8 +172,8 @@ export class ConsoleErrorBoundary extends Component<Props, State> {
             timestamp: consoleError.timestamp
           });
         });
-        
-        Sentry.captureException(error);
+
+        SentryGlobal.captureException(error);
       });
     }
 

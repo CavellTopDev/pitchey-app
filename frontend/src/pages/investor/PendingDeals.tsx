@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Clock, FileText, DollarSign, Calendar, AlertCircle,
   CheckCircle, XCircle, Info, ChevronRight, Filter,
@@ -54,7 +55,8 @@ interface PendingDeal {
 }
 
 const PendingDeals = () => {
-    const { user, logout } = useBetterAuthStore();
+  const navigate = useNavigate();
+  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [deals, setDeals] = useState<PendingDeal[]>([]);
   const [filteredDeals, setFilteredDeals] = useState<PendingDeal[]>([]);
@@ -77,7 +79,7 @@ const PendingDeals = () => {
       
       if (response.success && response.data) {
         // Transform API data to match component expectations
-        const transformedDeals = (response.data.deals || []).map((deal: any) => {
+        const transformedDeals = ((response.data as any).deals || []).map((deal: any) => {
           return {
             id: deal.id,
             pitch_id: deal.pitch_id,
@@ -420,16 +422,16 @@ const PendingDeals = () => {
                       <div className="mb-4">
                         <p className="text-xs text-gray-500 mb-1">Proposed Terms</p>
                         <div className="flex gap-4 text-sm">
-                          {deal.proposedTerms.equity && (
+                          {deal.proposedTerms?.equity && (
                             <span>{deal.proposedTerms.equity}% equity</span>
                           )}
-                          {deal.proposedTerms.revenueShare && (
+                          {deal.proposedTerms?.revenueShare && (
                             <span>{deal.proposedTerms.revenueShare}% revenue share</span>
                           )}
-                          {deal.proposedTerms.interestRate && (
+                          {deal.proposedTerms?.interestRate && (
                             <span>{deal.proposedTerms.interestRate}% interest</span>
                           )}
-                          {deal.proposedTerms.duration && (
+                          {deal.proposedTerms?.duration && (
                             <span>{deal.proposedTerms.duration}</span>
                           )}
                         </div>

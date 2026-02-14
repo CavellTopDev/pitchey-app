@@ -148,10 +148,16 @@ const BrowseTabsFixed: React.FC = () => {
       const page = currentPage;
 
       // Use the enhanced public endpoints that route per tab
-      const params: { page: number; limit: number; tab: string; search?: string; genre?: string } = {
+      const params: {
+        page: number;
+        limit: number;
+        search?: string;
+        genre?: string;
+        tab?: 'trending' | 'new' | 'featured' | 'topRated' | 'all';
+      } = {
         page,
         limit: 12,
-        tab
+        tab: tab as 'trending' | 'new' | 'featured' | 'topRated' | 'all'
       };
       if (currentSearch !== '') params.search = currentSearch;
       if (currentGenre !== 'all') params.genre = currentGenre;

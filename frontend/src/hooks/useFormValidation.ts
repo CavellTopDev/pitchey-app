@@ -222,7 +222,7 @@ export function useFormValidation<T extends Record<string, any>>(
       'aria-invalid': validationState.touchedFields.has(fieldName as string) &&
         validationState.errors[fieldName as string]?.length > 0,
       'aria-describedby': validationState.errors[fieldName as string]?.length > 0
-        ? `${fieldName}-error`
+        ? `${String(fieldName)}-error`
         : undefined,
     }),
     [data, handleFieldChange, handleFieldBlur, validationState]

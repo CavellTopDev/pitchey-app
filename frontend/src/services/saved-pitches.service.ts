@@ -49,9 +49,9 @@ export class SavedPitchesService {
     }
 
     // Handle different response structures
-    const data = response.data;
+    const data = response.data as any;
     if (data?.savedPitches !== undefined) {
-      return data;
+      return data as SavedPitchesResponse;
     } else if (Array.isArray(data)) {
       // If data is directly an array, wrap it in expected structure
       return {
@@ -92,7 +92,7 @@ export class SavedPitchesService {
     // Handle different response structures
     const data = response.data;
     if (data && typeof data === 'object' && 'id' in data) {
-      return data as SavedPitch;
+      return data as unknown as SavedPitch;
     } else {
       throw new Error('Invalid response format from server');
     }
@@ -138,9 +138,9 @@ export class SavedPitchesService {
       }
 
       return {
-        isSaved: response.data?.isSaved || false,
-        savedPitchId: response.data?.savedPitchId,
-        savedAt: response.data?.savedAt
+        isSaved: (response.data as any)?.isSaved || false,
+        savedPitchId: (response.data as any)?.savedPitchId,
+        savedAt: (response.data as any)?.savedAt
       };
     } catch (error) {
       console.error('Error checking if pitch is saved:', error);
@@ -169,7 +169,7 @@ export class SavedPitchesService {
       throw new Error(errorMessage);
     }
 
-    return response.data as SavedPitch;
+    return response.data as unknown as SavedPitch;
   }
 
   // Get saved pitch statistics
@@ -196,7 +196,7 @@ export class SavedPitchesService {
       };
     }
 
-    return response.data || {
+    return (response.data as any) || {
       totalSaved: 0,
       byGenre: {},
       byFormat: {},

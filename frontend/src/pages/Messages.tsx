@@ -20,9 +20,13 @@ import type {
 } from '../../../src/types/messaging.types';
 
 // Enhanced message and conversation interfaces
-interface EnhancedMessage extends MessageWithDetails {
+interface EnhancedMessage {
+  id: number;
+  conversationId: number;
+  senderId: number;
   senderName: string;
   senderType: 'investor' | 'production' | 'creator';
+  content: string;
   message: string; // Alias for content
   timestamp: string; // Alias for sentAt
   isRead: boolean; // Computed from readReceipts
@@ -34,13 +38,16 @@ interface EnhancedMessage extends MessageWithDetails {
   canDelete?: boolean;
 }
 
-interface EnhancedConversation extends ConversationWithDetails {
+interface EnhancedConversation {
+  id: number;
   participantName: string;
   participantType: 'investor' | 'production' | 'creator';
   lastMessageText?: string;
   timestamp: string;
   isOnline?: boolean;
   hasUnreadMessages?: boolean;
+  pitchTitle?: string;
+  unreadCount?: number;
 }
 
 export default function Messages() {
@@ -76,93 +83,62 @@ export default function Messages() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Enhanced messaging hook
+  // Enhanced messaging hook (simplified - useMessaging doesn't take params)
   const {
-    isConnected,
-    isConnecting,
-    connectionError,
     conversations: hookConversations,
-    selectedConversation: hookSelectedConversation,
-    setSelectedConversation: setHookSelectedConversation,
-    createConversation,
-    messages,
-    sendMessage: hookSendMessage,
-    editMessage,
-    deleteMessage,
-    markAsRead,
+    setConversations: setHookConversations,
+    currentMessages: hookMessages,
+    setCurrentMessages: setHookMessages,
     typingUsers,
     onlineUsers,
+    unreadCounts,
+    isConnected,
+    sendChatMessage,
+    markMessageAsRead,
     startTyping: hookStartTyping,
     stopTyping: hookStopTyping,
-    addReaction,
-    removeReaction,
-    uploadAttachment,
-    downloadAttachment,
-    searchMessages,
-    blockUser,
-    unblockUser,
-    updateConversationSettings,
-    updatePresence,
-    getUserPresence
-  } = useMessaging({ 
-    userId: parseInt(getUserId() || '0'), 
-    autoConnect: true,
-    reconnectOnError: true
-  });
+    joinConversation,
+    markConversationAsRead: hookMarkConversationAsRead
+  } = useMessaging();
 
   // Sync with hook conversations and messages
   useEffect(() => {
     if (hookConversations) {
-      const enhancedConvs = hookConversations.map(conv => ({
+      const enhancedConvs = hookConversations.map((conv: any) => ({
         ...conv,
-        participantName: conv.participants
-          .filter(p => p.userId !== parseInt(getUserId() || '0'))
-          .map(p => p.user.name || p.user.username)
-          .join(', ') || 'Unknown',
-        participantType: (conv.participants[0]?.user.userType || 'creator') as 'investor' | 'production' | 'creator',
-        lastMessageText: conv.lastMessage?.content || '',
-        timestamp: conv.lastMessage?.sentAt.toString() || conv.updatedAt.toString(),
-        isOnline: conv.participants.some(p => onlineUsers[p.userId]),
-        hasUnreadMessages: conv.unreadCount > 0
+        participantName: (conv as any).participantName || 'Unknown',
+        participantType: ((conv as any).participantType || 'creator') as 'investor' | 'production' | 'creator',
+        lastMessageText: (conv as any).lastMessage?.content || '',
+        timestamp: (conv as any).lastMessage?.timestamp || (conv as any).lastMessageAt || new Date().toISOString(),
+        isOnline: false, // Simplified for now
+        hasUnreadMessages: unreadCounts[conv.id] > 0,
+        pitchTitle: (conv as any).pitchTitle
       }));
       setConversations(enhancedConvs);
       setLoading(false);
     }
-  }, [hookConversations, onlineUsers]);
+  }, [hookConversations, onlineUsers, unreadCounts]);
 
-  // Sync selected conversation
+  // Sync messages for selected conversation from hook
   useEffect(() => {
-    if (selectedConversation !== hookSelectedConversation) {
-      setSelectedConversation(hookSelectedConversation);
-    }
-  }, [hookSelectedConversation]);
-
-  // Sync messages for selected conversation
-  useEffect(() => {
-    if (selectedConversation && messages[selectedConversation]) {
-      const enhancedMessages = messages[selectedConversation].map(msg => ({
+    if (hookMessages) {
+      const enhancedMessages = hookMessages.map((msg: any) => ({
         ...msg,
-        senderName: msg.sender.name || msg.sender.username,
-        senderType: msg.sender.userType as 'investor' | 'production' | 'creator',
+        senderName: (msg as any).senderName || 'Unknown',
+        senderType: ((msg as any).senderType || 'creator') as 'investor' | 'production' | 'creator',
         message: msg.content,
-        timestamp: msg.sentAt.toString(),
-        isRead: msg.isReadByCurrentUser,
-        hasAttachment: msg.attachments.length > 0,
-        delivered: true,
-        reactions: Object.entries(msg.reactionCounts).map(([type, count]) => ({
-          type,
-          users: msg.reactions.filter(r => r.reactionType === type).map(r => r.user.name),
-          count
-        })),
-        isEncrypted: !!msg.encryptedContent,
-        canEdit: msg.senderId === parseInt(getUserId() || '0') && !msg.isDeleted,
-        canDelete: msg.senderId === parseInt(getUserId() || '0') && !msg.isDeleted
+        timestamp: msg.timestamp,
+        isRead: (msg as any).isRead || false,
+        hasAttachment: false,
+        delivered: (msg as any).delivered || true,
+        reactions: [],
+        isEncrypted: false,
+        canEdit: msg.senderId === parseInt(getUserId() || '0'),
+        canDelete: msg.senderId === parseInt(getUserId() || '0')
       }));
       setCurrentMessages(enhancedMessages);
-    } else if (selectedConversation) {
-      setCurrentMessages([]);
     }
-  }, [selectedConversation, messages]);
+  }, [hookMessages]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -231,37 +207,27 @@ export default function Messages() {
     setSendingMessage(true);
 
     try {
-      const messageRequest: SendMessageRequest = {
-        conversationId: selectedConversation,
-        content: newMessage.trim() || '[File attachment]',
-        messageType: 'text',
-        contentType: selectedFiles.length > 0 ? 'file' : 'text',
-        priority: 'normal',
-        parentMessageId: replyToMessage?.id,
-        attachments: selectedFiles,
-        isEncrypted: isEncryptionEnabled,
-        metadata: replyToMessage ? { replyTo: replyToMessage.id } : undefined
-      };
+      // Use simplified sendChatMessage from hook
+      sendChatMessage(selectedConversation, newMessage.trim() || '[File attachment]');
 
-      const sentMessage = await hookSendMessage(messageRequest);
-      
       // Clear input and reset state
       setNewMessage('');
       setSelectedFiles([]);
       setReplyToMessage(null);
       setShowEmojiPicker(false);
-      
+
       // Focus back to input
       messageInputRef.current?.focus();
-      
+
       addNotification('Message sent successfully', 'success');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to send message:', error);
-      addNotification(error.message || 'Failed to send message', 'error');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to send message';
+      addNotification(errorMessage, 'error');
     } finally {
       setSendingMessage(false);
     }
-  }, [newMessage, selectedFiles, selectedConversation, sendingMessage, replyToMessage, isEncryptionEnabled, hookSendMessage, addNotification]);
+  }, [newMessage, selectedFiles, selectedConversation, sendingMessage, replyToMessage, isEncryptionEnabled, sendChatMessage, addNotification]);
 
   const handleKeyPress = useCallback((event: React.KeyboardEvent) => {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -279,19 +245,10 @@ export default function Messages() {
 
   // Enhanced message interaction handlers
   const handleSelectConversation = useCallback((conversationId: number) => {
-    setHookSelectedConversation(conversationId);
-    
-    // Mark messages as read when conversation is opened
-    if (messages[conversationId]) {
-      const unreadMessageIds = messages[conversationId]
-        .filter(msg => !msg.isReadByCurrentUser && msg.senderId !== parseInt(getUserId() || '0'))
-        .map(msg => msg.id);
-      
-      if (unreadMessageIds.length > 0) {
-        markAsRead(unreadMessageIds, conversationId);
-      }
-    }
-  }, [setHookSelectedConversation, messages, markAsRead]);
+    setSelectedConversation(conversationId);
+    joinConversation(conversationId);
+    hookMarkConversationAsRead(conversationId);
+  }, [joinConversation, hookMarkConversationAsRead]);
 
   const handleReplyToMessage = useCallback((message: EnhancedMessage) => {
     setReplyToMessage(message);
@@ -300,39 +257,36 @@ export default function Messages() {
 
   const handleEditMessage = useCallback(async (messageId: number, newContent: string) => {
     try {
-      await editMessage(messageId, newContent);
+      // Simplified - not implemented in hook yet
       setEditingMessage(null);
-      addNotification('Message edited successfully', 'success');
-    } catch (error: any) {
-      addNotification(error.message || 'Failed to edit message', 'error');
+      addNotification('Message editing not implemented yet', 'error');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to edit message';
+      addNotification(errorMessage, 'error');
     }
-  }, [editMessage, addNotification]);
+  }, [addNotification]);
 
   const handleDeleteMessage = useCallback(async (messageId: number) => {
     if (!confirm('Are you sure you want to delete this message?')) return;
-    
+
     try {
-      await deleteMessage(messageId);
-      addNotification('Message deleted successfully', 'success');
-    } catch (error: any) {
-      addNotification(error.message || 'Failed to delete message', 'error');
+      // Simplified - not implemented in hook yet
+      addNotification('Message deletion not implemented yet', 'error');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete message';
+      addNotification(errorMessage, 'error');
     }
-  }, [deleteMessage, addNotification]);
+  }, [addNotification]);
 
   const handleReaction = useCallback(async (messageId: number, reaction: string) => {
     try {
-      const message = currentMessages.find(m => m.id === messageId);
-      const hasReacted = message?.reactions?.some(r => r.type === reaction && r.users.includes(user?.username || ''));
-      
-      if (hasReacted) {
-        await removeReaction(messageId, reaction);
-      } else {
-        await addReaction(messageId, reaction);
-      }
-    } catch (error: any) {
-      addNotification(error.message || 'Failed to add reaction', 'error');
+      // Simplified - not implemented in hook yet
+      addNotification('Reactions not implemented yet', 'error');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add reaction';
+      addNotification(errorMessage, 'error');
     }
-  }, [currentMessages, user, addReaction, removeReaction, addNotification]);
+  }, [currentMessages, user, addNotification]);
 
   // UI helper functions
   const getFileIcon = useCallback((mimeType: string) => {
@@ -343,20 +297,22 @@ export default function Messages() {
   }, []);
 
   const getPresenceIndicator = useCallback((userId: number) => {
-    const presence = getUserPresence(userId);
-    if (!presence) return null;
-    
-    const colors = {
+    const isOnline = onlineUsers[userId];
+    if (!isOnline) return null;
+
+    const colors: Record<string, string> = {
       online: 'bg-green-500',
       away: 'bg-yellow-500',
       offline: 'bg-gray-400'
     };
-    
+
+    const status: any = isOnline ? 'online' : 'offline';
+
     return (
-      <div className={`w-2 h-2 rounded-full ${colors[presence.status]}`} 
-           title={`${presence.status} - Last seen ${presence.lastSeen.toLocaleString()}`} />
+      <div className={`w-2 h-2 rounded-full ${colors[status]}`}
+           title={`${status}`} />
     );
-  }, [getUserPresence]);
+  }, [onlineUsers]);
 
   const formatMessageTime = useCallback((timestamp: string | Date) => {
     const date = new Date(timestamp);
@@ -379,15 +335,15 @@ export default function Messages() {
       const matchesSearch = !searchTerm || (
         conv.participantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (conv.lastMessageText && conv.lastMessageText.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (conv.pitch?.title && conv.pitch.title.toLowerCase().includes(searchTerm.toLowerCase()))
+        ((conv as any).pitch?.title && (conv as any).pitch.title.toLowerCase().includes(searchTerm.toLowerCase()))
       );
-      
+
       if (filter === 'all') return matchesSearch;
-      if (filter === 'unread') return matchesSearch && conv.unreadCount > 0;
+      if (filter === 'unread') return matchesSearch && (conv.unreadCount || 0) > 0;
       if (filter === 'investors') return matchesSearch && conv.participantType === 'investor';
       if (filter === 'production') return matchesSearch && conv.participantType === 'production';
       if (filter === 'online') return matchesSearch && conv.isOnline;
-      
+
       return matchesSearch;
     });
   }, [conversations, searchTerm, filter]);
@@ -403,11 +359,9 @@ export default function Messages() {
 
   // Connection status indicator
   const connectionStatus = useCallback(() => {
-    if (isConnecting) return { color: 'yellow', text: 'Connecting...' };
-    if (connectionError) return { color: 'red', text: 'Connection error' };
     if (isConnected) return { color: 'green', text: 'Connected' };
     return { color: 'gray', text: 'Disconnected' };
-  }, [isConnected, isConnecting, connectionError]);
+  }, [isConnected]);
 
   const getParticipantBadgeColor = useCallback((type: string) => {
     switch (type) {
@@ -496,9 +450,6 @@ export default function Messages() {
                 'bg-gray-400'
               }`}></div>
               <span>{connectionStatus().text}</span>
-              {connectionError && (
-                <AlertCircle className="w-3 h-3 text-red-500" title={connectionError} />
-              )}
             </div>
             
             <div className="flex items-center gap-2">
@@ -608,7 +559,7 @@ export default function Messages() {
                   </div>
                 ) : (
                   displayConversations.map((conversation) => {
-                    const participant = conversation.participants?.find(p => p.userId !== parseInt(getUserId() || '0'));
+                    const participant = (conversation as any).participants?.find((p: any) => p.userId !== parseInt(getUserId() || '0'));
                     const isParticipantOnline = participant && onlineUsers[participant.userId];
                     
                     return (
@@ -628,37 +579,37 @@ export default function Messages() {
                               {isParticipantOnline && (
                                 <Circle className="w-2 h-2 fill-green-500 text-green-500" />
                               )}
-                              {conversation.isEncrypted && (
-                                <Lock className="w-3 h-3 text-green-600" title="End-to-end encrypted" />
+                              {(conversation as any).isEncrypted && (
+                                <Lock className="w-3 h-3 text-green-600" />
                               )}
                             </div>
                             <span className={`px-2 py-1 text-xs rounded-full ${getParticipantBadgeColor(conversation.participantType)}`}>
                               {conversation.participantType}
                             </span>
                           </div>
-                          
+
                           <div className="flex items-center gap-2">
-                            {conversation.muted && (
+                            {(conversation as any).muted && (
                               <div className="w-3 h-3 text-gray-400" title="Muted">🔇</div>
                             )}
-                            {conversation.unreadCount > 0 && (
+                            {(conversation.unreadCount || 0) > 0 && (
                               <span className="bg-purple-600 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
-                                {conversation.unreadCount}
+                                {conversation.unreadCount || 0}
                               </span>
                             )}
                           </div>
                         </div>
-                        
-                        {conversation.pitch && (
-                          <p className="text-xs text-purple-600 mb-1">Re: {conversation.pitch.title}</p>
+
+                        {(conversation as any).pitch && (
+                          <p className="text-xs text-purple-600 mb-1">Re: {(conversation as any).pitch.title}</p>
                         )}
-                        
+
                         <div className="flex items-center gap-2 mb-1">
-                          {conversation.lastMessage?.contentType !== 'text' && (
-                            getFileIcon(conversation.lastMessage?.attachments?.[0]?.mimeType || '')
+                          {(conversation as any).lastMessage?.contentType !== 'text' && (
+                            getFileIcon((conversation as any).lastMessage?.attachments?.[0]?.mimeType || '')
                           )}
                           <p className="text-sm text-gray-600 truncate flex-1">
-                            {conversation.lastMessage?.content || 'No messages yet'}
+                            {(conversation as any).lastMessage?.content || 'No messages yet'}
                           </p>
                         </div>
                         
@@ -742,14 +693,14 @@ export default function Messages() {
                         return (
                           <div key={message.id} className="group">
                             {/* Reply context */}
-                            {message.parentMessage && (
+                            {(message as any).parentMessage && (
                               <div className={`mb-2 ml-4 ${isCurrentUser ? 'text-right mr-4' : ''}`}>
                                 <div className="text-xs text-gray-500 flex items-center gap-2">
                                   <div className="w-6 h-px bg-gray-300"></div>
-                                  <span>Replying to {message.parentMessage.senderName}</span>
+                                  <span>Replying to {(message as any).parentMessage.senderName}</span>
                                 </div>
                                 <div className="text-sm text-gray-600 italic truncate max-w-md">
-                                  {message.parentMessage.content}
+                                  {(message as any).parentMessage.content}
                                 </div>
                               </div>
                             )}
@@ -815,10 +766,10 @@ export default function Messages() {
                                       <span>End-to-end encrypted</span>
                                     </div>
                                   )}
-                                  
+
                                   {/* Subject */}
-                                  {message.subject && (
-                                    <p className="font-medium text-sm mb-1">{message.subject}</p>
+                                  {(message as any).subject && (
+                                    <p className="font-medium text-sm mb-1">{(message as any).subject}</p>
                                   )}
                                   
                                   {/* Content */}
@@ -858,17 +809,20 @@ export default function Messages() {
                                   ) : (
                                     <p className="text-sm whitespace-pre-wrap">{message.content || message.message}</p>
                                   )}
-                                  
+
                                   {/* Attachments */}
-                                  {message.attachments && message.attachments.length > 0 && (
+                                  {(message as any).attachments && (message as any).attachments.length > 0 && (
                                     <div className="mt-2 space-y-1">
-                                      {message.attachments.map((attachment, idx) => (
+                                      {(message as any).attachments.map((attachment: any, idx: number) => (
                                         <div key={idx} className="flex items-center gap-2 text-xs opacity-90 bg-black bg-opacity-20 rounded p-2">
                                           {getFileIcon(attachment.mimeType)}
                                           <span className="flex-1 truncate">{attachment.originalName}</span>
                                           <span>{formatFileSize(attachment.fileSize)}</span>
                                           <button
-                                            onClick={() => downloadAttachment(attachment.id)}
+                                            onClick={() => {
+                                              // Download attachment handler - not implemented
+                                              console.log('Download attachment', attachment.id);
+                                            }}
                                             className="hover:bg-black hover:bg-opacity-20 p-1 rounded"
                                             title="Download"
                                           >
@@ -887,20 +841,20 @@ export default function Messages() {
                                       isCurrentUser ? 'text-purple-200' : 'text-gray-500'
                                     }`}>
                                       <span>{formatMessageTime(message.timestamp)}</span>
-                                      {message.isEdited && (
+                                      {(message as any).isEdited && (
                                         <span className="opacity-75">(edited)</span>
                                       )}
                                     </div>
-                                    
+
                                     {/* Read receipts */}
                                     {isCurrentUser && (
                                       <div className={`flex items-center gap-1 ${
                                         isCurrentUser ? 'text-purple-200' : 'text-gray-500'
                                       }`}>
-                                        {message.readReceipts && message.readReceipts.length > 0 ? (
+                                        {(message as any).readReceipts && (message as any).readReceipts.length > 0 ? (
                                           <>
                                             <CheckCheck className="w-3 h-3" />
-                                            <span>Read by {message.readReceipts.length}</span>
+                                            <span>Read by {(message as any).readReceipts.length}</span>
                                           </>
                                         ) : message.delivered ? (
                                           <>

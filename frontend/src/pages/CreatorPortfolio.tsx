@@ -108,13 +108,13 @@ const CreatorPortfolio: React.FC = () => {
         throw new Error(response.error?.message || 'Failed to fetch portfolio');
       }
 
-      const data = response.data;
-      
+      const data = response.data as any;
+
       if (!data || !data.success) {
         throw new Error('Portfolio data indicates failure');
       }
-      
-      setPortfolio(data);
+
+      setPortfolio(data as PortfolioData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load portfolio');
     } finally {

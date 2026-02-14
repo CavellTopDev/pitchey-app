@@ -77,9 +77,9 @@ export default function Billing() {
 
       setSubscription(subscriptionData);
       setCredits(creditsData);
-      setPaymentHistory(historyData.payments || []);
-      setInvoices(invoicesData.invoices || []);
-      setPaymentMethods(paymentMethodsData.paymentMethods || []);
+      setPaymentHistory((historyData as any)?.payments || []);
+      setInvoices((invoicesData as any)?.invoices || []);
+      setPaymentMethods((paymentMethodsData as any)?.paymentMethods || []);
 
     } catch (err: any) {
       console.error('Failed to fetch billing data:', err);

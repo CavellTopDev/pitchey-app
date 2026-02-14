@@ -32,7 +32,8 @@ const statusConfig = {
 };
 
 export default function ProductionSubmissions() {
-    const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);

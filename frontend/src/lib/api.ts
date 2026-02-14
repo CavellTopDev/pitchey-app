@@ -346,6 +346,28 @@ export const authAPI = {
     );
     return response.data;
   },
+
+  // Password reset methods (stub implementations)
+  async requestPasswordReset(email: string) {
+    const response = await api.post('/api/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  async resetPassword(token: string, newPassword: string) {
+    const response = await api.post('/api/auth/reset-password', { token, newPassword });
+    return response.data;
+  },
+
+  // Email verification methods (stub implementations)
+  async verifyEmail(token: string) {
+    const response = await api.post('/api/auth/verify-email', { token });
+    return response.data;
+  },
+
+  async resendVerificationEmail(email: string) {
+    const response = await api.post('/api/auth/resend-verification', { email });
+    return response.data;
+  },
 };
 
 // Pitch API
@@ -450,14 +472,15 @@ export const pitchAPI = {
 
   async getTrending() {
     try {
-      const response = await api.get<Pitch[]>('/api/trending');
+      const response = await api.get<any>('/api/trending');
+      const data = response.data;
       // Handle various response formats
-      if (Array.isArray(response.data)) {
-        return response.data;
-      } else if (response.data?.data && Array.isArray(response.data.data)) {
-        return response.data.data;
-      } else if (response.data?.items && Array.isArray(response.data.items)) {
-        return response.data.items;
+      if (Array.isArray(data)) {
+        return data as Pitch[];
+      } else if (data?.data && Array.isArray(data.data)) {
+        return data.data as Pitch[];
+      } else if (data?.items && Array.isArray(data.items)) {
+        return data.items as Pitch[];
       }
       return [];
     } catch (error) {

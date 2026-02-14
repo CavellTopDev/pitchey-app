@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { 
+import { useNavigate } from 'react-router-dom';
+import {
   PieChart, DollarSign, Target, Settings, Plus,
   BarChart3, TrendingUp, Calculator
 } from 'lucide-react';
@@ -9,7 +10,8 @@ import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { investorApi } from '@/services/investor.service';
 
 const BudgetAllocation = () => {
-    const { user, logout } = useBetterAuthStore();
+  const navigate = useNavigate();
+  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [allocations, setAllocations] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +27,7 @@ const BudgetAllocation = () => {
       const response = await investorApi.getBudgetAllocations();
       
       if (response.success && response.data) {
-        setAllocations(response.data.allocations || []);
+        setAllocations((response.data as any).allocations || []);
       } else {
         setError('Failed to load budget allocations');
         // Keep mock data as fallback
@@ -53,14 +55,6 @@ const BudgetAllocation = () => {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login/investor');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
 
   if (loading) {
     return (

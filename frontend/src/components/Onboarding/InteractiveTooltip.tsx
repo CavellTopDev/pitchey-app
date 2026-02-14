@@ -342,9 +342,9 @@ export const InteractiveTooltip: React.FC<InteractiveTooltipProps> = ({
       onMouseLeave={interactive ? handleTooltipMouseLeave : undefined}
     >
       {/* Arrow */}
-      <div 
+      <div
         className={arrow.className}
-        style={arrow.style ? { cssText: arrow.style } : undefined}
+        style={arrow.style as React.CSSProperties | undefined}
       />
 
       <div className="p-4">

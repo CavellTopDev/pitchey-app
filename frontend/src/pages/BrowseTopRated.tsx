@@ -669,7 +669,7 @@ export default function BrowseTopRated() {
                     <div className="flex items-center gap-1 mb-2">
                       {renderRatingStars(Math.round(pitch.rating || 0))}
                       <span className="text-sm text-gray-600 ml-1">
-                        ({pitch.reviewCount || 0} reviews)
+                        ({(pitch as any).reviewCount || pitch.viewCount || 0} reviews)
                       </span>
                     </div>
                     

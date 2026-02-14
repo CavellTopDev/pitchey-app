@@ -64,8 +64,8 @@ export default function PitchDetailWithNDA() {
   const fetchPitch = async () => {
     try {
       const response = await apiClient.get(`/api/pitches/${pitchId}`);
-      if (response.success) {
-        setPitch(response.pitch);
+      if (response.success && (response.data as any)?.pitch) {
+        setPitch((response.data as any).pitch);
       }
     } catch (error) {
       console.error('Failed to fetch pitch:', error);

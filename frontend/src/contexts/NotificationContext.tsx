@@ -54,11 +54,11 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const fetchNotifications = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await notificationService.getNotifications();
-      const data = response.notifications || [];
-      
+      const response = await notificationService.getNotifications() as any;
+      const data = (response as any).notifications || [];
+
       // Transform API notifications to context format
-      const formattedNotifications: Notification[] = data.map(n => ({
+      const formattedNotifications: Notification[] = data.map((n: any) => ({
         id: n.id.toString(),
         type: n.type as Notification['type'],
         title: n.title,
@@ -89,18 +89,18 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     setNotifications(prev =>
       prev.map(n => (n.id === id ? { ...n, read: true } : n))
     );
-    
+
     // Mark as read on server
-    notificationService.markAsRead(parseInt(id)).catch(console.error);
+    (notificationService as any).markAsRead?.(parseInt(id)).catch(console.error);
   }, []);
 
   const markAllAsRead = useCallback(() => {
     setNotifications(prev =>
       prev.map(n => ({ ...n, read: true }))
     );
-    
+
     // Mark all as read on server
-    notificationService.markAllAsRead().catch(console.error);
+    (notificationService as any).markAllAsRead?.().catch(console.error);
   }, []);
 
   const removeNotification = useCallback((id: string) => {

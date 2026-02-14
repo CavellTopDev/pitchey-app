@@ -52,8 +52,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     const loadSearchHistory = async () => {
       try {
         const response = await apiClient.get('/api/search/history?limit=10');
-        if (response.success) {
-          setSearchHistory(response.searchHistory);
+        if (response.success && (response.data as any)?.searchHistory) {
+          setSearchHistory((response.data as any).searchHistory);
         }
       } catch (error) {
         console.error('Failed to load search history:', error);
@@ -75,8 +75,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     setLoading(true);
     try {
       const response = await apiClient.get(`/api/search/suggestions?q=${encodeURIComponent(query)}&limit=8`);
-      if (response.success) {
-        setSuggestions(response.suggestions);
+      if (response.success && (response.data as any)?.suggestions) {
+        setSuggestions((response.data as any).suggestions);
       }
     } catch (error) {
       console.error('Failed to fetch suggestions:', error);

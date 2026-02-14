@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   ShieldAlert, AlertTriangle, CheckCircle, Info,
   TrendingUp, TrendingDown, Activity, BarChart3
@@ -9,7 +10,8 @@ import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { investorApi } from '@/services/investor.service';
 
 const RiskAssessment = () => {
-    const { user, logout } = useBetterAuthStore();
+  const navigate = useNavigate();
+  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [riskData, setRiskData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -52,14 +54,6 @@ const RiskAssessment = () => {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login/investor');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
 
   if (loading) {
     return (

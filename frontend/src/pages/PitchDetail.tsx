@@ -24,7 +24,7 @@ export default function PitchDetail() {
   // Check if current user owns this pitch
   // First check the isOwner flag from backend, then fallback to comparing IDs
   // Handle both direct user object and nested user.data structure
-  const getUserId = () => {
+  const getUserId = (): number | null => {
     if (!user) return null;
     // Check if user has an id directly
     if (user.id !== undefined) return user.id;
@@ -78,7 +78,7 @@ export default function PitchDetail() {
   }, [id, isAuthenticated]);
 
   const hasValidSession = (): boolean => {
-    const validAuth = isAuthenticated && user && (user.id || user.data?.id || user.user?.id);
+    const validAuth = isAuthenticated && user && (user.id || (user as any).data?.id || (user as any).user?.id);
     return !!validAuth;
   };
 
@@ -596,7 +596,7 @@ export default function PitchDetail() {
                           <div>
                             <p className="text-sm font-semibold">Agent</p>
                             <p className="text-sm text-gray-600">{pitch.protectedContent.contactDetails.agent.name}</p>
-                            <p className="text-sm text-gray-600">{pitch.protectedContent.contactDetails.agent.agency}</p>
+                            <p className="text-sm text-gray-600">{(pitch.protectedContent.contactDetails.agent as any).agency}</p>
                           </div>
                         )}
                       </div>
@@ -833,8 +833,8 @@ export default function PitchDetail() {
           onClose={() => setShowEnhancedNDARequest(false)}
           pitchId={pitch.id}
           pitchTitle={pitch.title}
-          creatorName={pitch.creator?.username || pitch.creator?.companyName || 'Creator'}
-          creatorType={pitch.creator?.userType || 'creator'}
+          creatorName={pitch.creator?.username || (pitch.creator as any)?.companyName || 'Creator'}
+          creatorType={(pitch.creator?.userType as 'creator' | 'investor' | 'production') || 'creator'}
           onSuccess={handleNDASigned}
         />
       )}

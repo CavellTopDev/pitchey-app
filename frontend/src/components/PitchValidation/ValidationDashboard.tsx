@@ -140,9 +140,9 @@ export const ValidationDashboard: React.FC<ValidationDashboardProps> = ({
       />
 
       {/* Navigation Tabs */}
-      <NavigationTabs 
-        activeTab={activeTab} 
-        onTabChange={setActiveTab}
+      <NavigationTabs
+        activeTab={activeTab}
+        onTabChange={(tab: string) => setActiveTab(tab as any)}
       />
 
       {/* Tab Content */}

@@ -90,7 +90,7 @@ export default function NDARequests() {
 
       if (response.success && response.data) {
         // Transform API data to match component interface
-        const ndas = response.data.ndas || response.data || [];
+        const ndas = (response.data as any).ndas || response.data || [];
         const transformedNDAs: NDARequest[] = ndas.map((nda: any) => ({
           id: nda.id,
           pitchTitle: nda.pitchTitle || nda.pitch_title || 'Unknown Pitch',

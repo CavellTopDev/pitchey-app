@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Handshake, Star, Clock, CheckCircle, XCircle,
   AlertCircle, Search, Calendar,
   DollarSign, MessageSquare, Eye, FileText,
-  Building, Users, Award, TrendingUp,
-  Globe, Lock, Plus, Download, Share2
+  Building, Users as UsersIcon, Award, TrendingUp,
+  Globe, Lock, Plus, Download, Share2, User
 } from 'lucide-react';
 import { CollaborationService, type Collaboration as ApiCollaboration } from '../../services/collaboration.service';
 
@@ -54,6 +55,7 @@ interface CollaborationFilters {
 }
 
 export default function CreatorCollaborations() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [collaborations, setCollaborations] = useState<Collaboration[]>([]);
   const [filteredCollaborations, setFilteredCollaborations] = useState<Collaboration[]>([]);
@@ -420,9 +422,9 @@ export default function CreatorCollaborations() {
                           </span>
                           
                           {collaboration.isPublic ? (
-                            <Globe className="w-4 h-4 text-green-600" title="Public collaboration" />
+                            <Globe className="w-4 h-4 text-green-600" />
                           ) : (
-                            <Lock className="w-4 h-4 text-gray-400" title="Private collaboration" />
+                            <Lock className="w-4 h-4 text-gray-400" />
                           )}
                         </div>
                         
@@ -440,7 +442,7 @@ export default function CreatorCollaborations() {
                           <div className="flex items-center gap-2">
                             <p className="font-medium text-gray-900">{collaboration.partner.name}</p>
                             {collaboration.partner.verified && (
-                              <CheckCircle className="w-4 h-4 text-blue-600" title="Verified partner" />
+                              <CheckCircle className="w-4 h-4 text-blue-600" />
                             )}
                           </div>
                           <p className="text-sm text-gray-500">

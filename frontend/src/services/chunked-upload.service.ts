@@ -109,11 +109,12 @@ class ChunkedUploadService {
     // Validate file
     const validation = this.validateFile(file, category);
     if (!validation.valid) {
-      throw new UploadError({
+      const error: UploadError = {
         code: UploadErrorCode.VALIDATION_ERROR,
         message: validation.error!,
         recoverable: false
-      });
+      };
+      throw error;
     }
 
     // Determine optimal chunk size
@@ -198,26 +199,28 @@ class ChunkedUploadService {
    */
   async resumeUpload(sessionId: string): Promise<CompletedUploadResult> {
     const session = this.activeSessions.get(sessionId);
-    
+
     if (!session) {
-      throw new UploadError({
+      const uploadError: UploadError = {
         sessionId,
         code: UploadErrorCode.SESSION_EXPIRED,
         message: 'Upload session not found or expired',
         recoverable: false
-      });
+      };
+      throw uploadError;
     }
 
     // Get resume information from server
     const resumeInfo = await this.getResumeInfo(sessionId);
-    
+
     if (!resumeInfo.canResume) {
-      throw new UploadError({
+      const uploadError: UploadError = {
         sessionId,
         code: UploadErrorCode.SESSION_EXPIRED,
         message: resumeInfo.reason || 'Cannot resume upload session',
         recoverable: false
-      });
+      };
+      throw uploadError;
     }
 
     // Update session with resume info
@@ -385,21 +388,23 @@ class ChunkedUploadService {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new UploadError({
+      const uploadError: UploadError = {
         code: UploadErrorCode.SERVER_ERROR,
         message: errorData.error || `Server error: ${response.status}`,
         recoverable: response.status >= 500
-      });
+      };
+      throw uploadError;
     }
 
     const result: InitChunkedUploadResponse = await response.json();
 
     if (!result.success || !result.data) {
-      throw new UploadError({
+      const uploadError: UploadError = {
         code: UploadErrorCode.SERVER_ERROR,
         message: result.error || 'Failed to initialize upload session',
         recoverable: false
-      });
+      };
+      throw uploadError;
     }
 
     const session: ChunkedUploadSession = {
@@ -505,16 +510,16 @@ class ChunkedUploadService {
         
         resolve(result);
 
-      } catch (error) {
+      } catch (error: unknown) {
         session.status = 'failed';
-        const uploadError = error instanceof UploadError 
-          ? error 
-          : new UploadError({
+        const uploadError: UploadError = (error as any)?.code && (error as any)?.message
+          ? error as UploadError
+          : {
               sessionId: session.sessionId,
               code: UploadErrorCode.NETWORK_ERROR,
-              message: error.message || 'Upload failed',
+              message: (error as any)?.message || 'Upload failed',
               recoverable: true
-            });
+            };
 
         this.emit('session:failed', { sessionId: session.sessionId, error: uploadError });
         reject(uploadError);
@@ -566,7 +571,7 @@ class ChunkedUploadService {
           chunkIndex: chunk.chunkIndex,
           etag: result.data.etag,
           checksum: result.data.checksum,
-          uploadedAt: result.data.uploadedAt || new Date().toISOString(),
+          uploadedAt: (result.data as any).uploadedAt || new Date().toISOString(),
           success: true,
           retryCount
         };
@@ -679,7 +684,7 @@ class ChunkedUploadService {
 
   private validateFile(file: File, category: string): { valid: boolean; error?: string } {
     // Check file size
-    const maxSize = this.config.maxFileSize[category];
+    const maxSize = (this.config.maxFileSize as any)[category] as number;
     if (file.size > maxSize) {
       return {
         valid: false,
@@ -688,7 +693,7 @@ class ChunkedUploadService {
     }
 
     // Check MIME type
-    const allowedTypes = this.config.supportedMimeTypes[category];
+    const allowedTypes = (this.config.supportedMimeTypes as any)[category] as string[];
     if (!allowedTypes.includes(file.type)) {
       return {
         valid: false,

@@ -22,9 +22,9 @@ export function useRealTimeNotifications() {
   const lastNotificationId = useRef<number>(0);
   const pollingInterval = useRef<NodeJS.Timer | null>(null);
 
-  // Mock WebSocket functions for compatibility
-  const subscribeToMessages = () => {};
-  const sendMessage = () => {};
+  // Mock WebSocket functions for compatibility - not used, just for interface compatibility
+  // const subscribeToMessages = () => {};
+  // const sendMessage = () => {};
 
   // Handle incoming real-time notifications
   const handleNotificationMessage = useCallback((message: any) => {
@@ -228,28 +228,21 @@ export function useRealTimeNotifications() {
 
     return () => {
       if (pollingInterval.current) {
-        clearInterval(pollingInterval.current);
+        clearInterval(pollingInterval.current as unknown as number);
       }
     };
   }, [isAuthenticated, handleNotificationMessage]);
 
   // Methods to send real-time notifications (for admin/system use)
   const sendNotification = useCallback((notification: NotificationData) => {
-    sendMessage({
-      type: 'broadcast_notification',
-      data: notification
-    });
-  }, [sendMessage]);
+    // This functionality is not currently implemented - requires WebSocket context
+    console.warn('sendNotification not implemented - requires WebSocket connection');
+  }, []);
 
   const sendTargetedNotification = useCallback((userId: number, notification: NotificationData) => {
-    sendMessage({
-      type: 'send_notification',
-      data: {
-        ...notification,
-        targetUserId: userId
-      }
-    });
-  }, [sendMessage]);
+    // This functionality is not currently implemented - requires WebSocket context
+    console.warn('sendTargetedNotification not implemented - requires WebSocket connection');
+  }, []);
 
   // Request browser notification permission
   const requestNotificationPermission = useCallback(async () => {

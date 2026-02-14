@@ -146,7 +146,7 @@ export default function ProductionSettingsBilling() {
       setBillingInfo(prev => ({
         ...prev,
         [parent]: {
-          ...prev[parent as keyof BillingInfo],
+          ...(prev[parent as keyof BillingInfo] as object),
           [child]: value
         }
       }));

@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { 
   DollarSign, TrendingUp, Wallet, PiggyBank,
   CreditCard, Coins, BarChart3, Download, RefreshCw
@@ -25,7 +27,8 @@ interface Transaction {
 }
 
 const FinancialOverview = () => {
-    
+  const navigate = useNavigate();
+  const { user, logout } = useBetterAuthStore();
   const [financialData, setFinancialData] = useState<FinancialSummaryData | null>(null);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,11 +45,11 @@ const FinancialOverview = () => {
       
       // Fetch financial summary
       const summaryResponse = await investorApi.getFinancialSummary();
-      setFinancialData(summaryResponse.data);
-      
+      setFinancialData(summaryResponse.data as any);
+
       // Fetch recent transactions
       const transactionsResponse = await investorApi.getRecentTransactions(5);
-      setRecentTransactions(transactionsResponse.data.transactions || []);
+      setRecentTransactions((transactionsResponse.data as any)?.transactions || []);
     } catch (err) {
       console.error('Error fetching financial data:', err);
       setError('Failed to load financial data');
@@ -55,14 +58,6 @@ const FinancialOverview = () => {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login/investor');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {

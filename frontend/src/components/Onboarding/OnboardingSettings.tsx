@@ -76,19 +76,19 @@ export const OnboardingSettings: React.FC = () => {
             </div>
             
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
-                onClick={restartOnboarding}
+                onClick={() => restartOnboarding()}
               >
                 Restart Onboarding
               </Button>
-              
+
               {isCompleted && (
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
-                  onClick={startOnboarding}
+                  onClick={() => startOnboarding()}
                 >
                   Review Steps
                 </Button>
@@ -103,7 +103,7 @@ export const OnboardingSettings: React.FC = () => {
                 : "Get started with our interactive onboarding experience."
               }
             </p>
-            <Button onClick={startOnboarding}>
+            <Button onClick={() => startOnboarding()}>
               {isCompleted ? "Review Onboarding" : "Start Onboarding"}
             </Button>
           </div>

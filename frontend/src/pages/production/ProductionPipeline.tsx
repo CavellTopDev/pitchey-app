@@ -119,7 +119,8 @@ export default function ProductionPipeline() {
           risk: 'high',
           daysInStage: 30,
           nextMilestone: 'Financing approval',
-          blockers: ['Pending investor decision', 'Script revisions needed']
+          blockers: ['Pending investor decision', 'Script revisions needed'],
+          estimatedCompletion: '2026-12-31'
         },
         {
           id: '3',

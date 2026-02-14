@@ -27,10 +27,10 @@ const InvestorWallet = () => {
     monthlyStatements: true,
     realTimeUpdates: true
   });
-  const wsRef = useRef(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
   // Real-time transaction notifications state
-  const [realtimeTransactions, setRealtimeTransactions] = useState([]);
+  const [realtimeTransactions, setRealtimeTransactions] = useState<any[]>([]);
   const [transactionStats, setTransactionStats] = useState({
     todayVolume: 0,
     weeklyVolume: 0,
@@ -163,16 +163,16 @@ const InvestorWallet = () => {
       if (financialSummary.success) {
         setWallet(prev => ({
           ...prev,
-          balance: financialSummary.data.balance || prev.balance
+          balance: (financialSummary.data as any)?.balance || prev.balance
         }));
       }
-      
+
       if (recentTransactions.success) {
-        setRealtimeTransactions(recentTransactions.data.transactions || []);
+        setRealtimeTransactions((recentTransactions.data as any)?.transactions || []);
       }
-      
+
       if (transactionStats.success) {
-        setTransactionStats(transactionStats.data || transactionStats);
+        setTransactionStats((transactionStats as any).data || (transactionStats.data as any) || transactionStats);
       }
     } catch (error) {
       console.error('Error loading wallet data:', error);
@@ -217,7 +217,7 @@ const InvestorWallet = () => {
     }
   };
 
-  const handleRealtimeUpdate = (data) => {
+  const handleRealtimeUpdate = (data: any) => {
     switch (data.type) {
       case 'transaction_update':
         handleTransactionUpdate(data);
@@ -235,7 +235,7 @@ const InvestorWallet = () => {
     }
   };
 
-  const handleTransactionUpdate = (data) => {
+  const handleTransactionUpdate = (data: any) => {
     const { transaction, status, previousStatus } = data;
     
     // Update transaction in the list
@@ -256,7 +256,7 @@ const InvestorWallet = () => {
     }
   };
 
-  const handleBalanceUpdate = (data) => {
+  const handleBalanceUpdate = (data: any) => {
     setWallet(prev => ({
       ...prev,
       balance: {
@@ -270,9 +270,9 @@ const InvestorWallet = () => {
     }
   };
 
-  const handleSecurityAlert = (data) => {
+  const handleSecurityAlert = (data: any) => {
     const { alert } = data;
-    setNotifications(prev => [alert, ...prev.slice(0, 9)]);
+    setNotifications((prev) => [alert, ...prev.slice(0, 9)] as any);
     
     if (alert.severity === 'high' || alert.severity === 'critical') {
       toast.error(`Security Alert: ${alert.message}`);
@@ -280,7 +280,7 @@ const InvestorWallet = () => {
     }
   };
 
-  const handleROIDistribution = (data) => {
+  const handleROIDistribution = (data: any) => {
     const { distribution } = data;
     
     // Add to transactions
@@ -308,7 +308,7 @@ const InvestorWallet = () => {
     showNotificationToast('success', 'ROI Distribution', `Received $${distribution.amount.toLocaleString()}`);
   };
 
-  const showNotificationToast = (type, title, message) => {
+  const showNotificationToast = (type: any, title: any, message: any) => {
     const notification = {
       id: Date.now(),
       type,
@@ -318,7 +318,7 @@ const InvestorWallet = () => {
       read: false
     };
     
-    setNotifications(prev => [notification, ...prev.slice(0, 9)]);
+    setNotifications((prev) => [notification, ...prev.slice(0, 9)] as any);
   };
 
   const loadNotificationPreferences = async () => {
@@ -330,7 +330,7 @@ const InvestorWallet = () => {
     }
   };
 
-  const updateNotificationPreference = async (key, value) => {
+  const updateNotificationPreference = async (key: any, value: any) => {
     setNotificationPreferences(prev => ({
       ...prev,
       [key]: value
@@ -413,7 +413,7 @@ const InvestorWallet = () => {
     }
   };
 
-  const formatTimeAgo = (timestamp) => {
+  const formatTimeAgo = (timestamp: any) => {
     const now = new Date();
     const time = new Date(timestamp);
     const diffInMinutes = Math.floor((now.getTime() - time.getTime()) / (1000 * 60));
@@ -539,9 +539,9 @@ const InvestorWallet = () => {
               }`}
             >
               Notifications
-              {notifications.filter(n => !n.read).length > 0 && (
+              {notifications.filter((n: any) => !n.read).length > 0 && (
                 <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 text-xs">
-                  {notifications.filter(n => !n.read).length}
+                  {notifications.filter((n: any) => !n.read).length}
                 </Badge>
               )}
             </button>

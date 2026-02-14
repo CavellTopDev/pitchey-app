@@ -21,7 +21,7 @@ export const PortalGuard: React.FC<PortalGuardProps> = ({ children, requiredPort
     }
 
     const userType = user?.userType;
-    const validation = validatePortalAccess(userType, location.pathname);
+    const validation = validatePortalAccess(userType as string | null, location.pathname);
 
     if (!validation.isValidPortal && userType && userType !== requiredPortal) {
       console.warn(`🚨 Portal mismatch detected: ${userType} user on ${requiredPortal} portal`);

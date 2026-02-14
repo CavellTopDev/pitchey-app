@@ -16,6 +16,8 @@ interface Pitch {
   logline: string;
   genre: string;
   format: string;
+  formatCategory?: string;
+  formatSubtype?: string;
   pages?: number;
   shortSynopsis: string;
   longSynopsis?: string;
@@ -114,7 +116,7 @@ const CreatorPitchView: React.FC = () => {
         }
         
         try {
-          const ndaData = await pitchAPI.getNDARequests(parseInt(id!));
+          const ndaData = await (pitchAPI as any).getNDARequests(parseInt(id!));
           setNdaRequests(ndaData);
         } catch (err) {
         }
@@ -152,7 +154,7 @@ const CreatorPitchView: React.FC = () => {
     
     const newVisibility = pitch.visibility === 'public' ? 'private' : 'public';
     try {
-      await pitchAPI.updateVisibility(parseInt(id!), newVisibility);
+      await (pitchAPI as any).updateVisibility(parseInt(id!), newVisibility);
       setPitch({ ...pitch, visibility: newVisibility });
     } catch (error) {
       console.error('Failed to update visibility:', error);
@@ -161,7 +163,7 @@ const CreatorPitchView: React.FC = () => {
 
   const handleNDAAction = async (requestId: string, action: 'approve' | 'reject') => {
     try {
-      await pitchAPI.handleNDARequest(parseInt(id!), requestId, action);
+      await (pitchAPI as any).handleNDARequest(parseInt(id!), requestId, action);
       setNdaRequests(prev => 
         prev.map(req => 
           req.id === requestId 

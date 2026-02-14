@@ -101,14 +101,13 @@ export default function Analytics() {
         
         
         // Combine the data from both endpoints
-        const combinedData = {
+        const combinedData: AnalyticsData = {
           overview: dashboardResult.data?.overview || dashboardResult.overview || {},
           pitchPerformance: dashboardResult.data?.pitchPerformance || dashboardResult.pitchPerformance || [],
-          audienceInsights: userResult.data?.audienceInsights || userResult.audienceInsights || {},
-          engagementMetrics: userResult.data?.engagementMetrics || userResult.engagementMetrics || {},
-          timeRange: preset
+          viewsOverTime: [],
+          audienceInsights: userResult.data?.audienceInsights || userResult.audienceInsights || {}
         };
-        
+
         setAnalyticsData(combinedData);
       } else {
         console.error('Analytics request failed:', dashboardResponse.status, userResponse.status);

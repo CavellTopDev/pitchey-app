@@ -19,7 +19,7 @@ export function MinimalHeader({ onMenuToggle, isSidebarOpen = true, userType }: 
   const [creditBalance, setCreditBalance] = useState<number>(0);
 
   useEffect(() => {
-    paymentsAPI.getCreditBalance().then((data) => {
+    paymentsAPI.getCreditBalance().then((data: any) => {
       if (data) {
         setCreditBalance(data.balance?.credits ?? data.credits ?? 0);
       }

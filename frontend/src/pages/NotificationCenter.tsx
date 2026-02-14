@@ -415,11 +415,11 @@ export default function NotificationCenter() {
                                     handleMarkAsRead(notification.id);
                                   }}
                                   className={`px-3 py-1 text-xs rounded transition-colors ${
-                                    action.type === 'primary'
+                                    (action.type as string) === 'primary'
                                       ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                      : action.type === 'success'
+                                      : (action.type as string) === 'success'
                                       ? 'bg-green-600 text-white hover:bg-green-700'
-                                      : action.type === 'danger'
+                                      : (action.type as string) === 'danger'
                                       ? 'bg-red-600 text-white hover:bg-red-700'
                                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                                   }`}

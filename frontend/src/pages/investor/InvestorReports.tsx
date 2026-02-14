@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download, FileText, Calendar, TrendingUp, DollarSign, BarChart3, PieChart, FileSpreadsheet } from 'lucide-react';
@@ -16,18 +18,10 @@ interface Report {
 }
 
 const InvestorReports = () => {
-    
+  const navigate = useNavigate();
+  const { user, logout } = useBetterAuthStore();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedPeriod, setSelectedPeriod] = useState<string>('all');
-  
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login/investor');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
 
   const reports: Report[] = [
     {

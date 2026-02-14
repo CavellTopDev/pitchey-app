@@ -236,11 +236,11 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
     } catch (error) {
       console.error('Upload error:', error);
-      setFiles(prev => prev.map(f => 
-        f === file ? { 
-          ...f, 
-          status: 'error' as const, 
-          error: error.message 
+      setFiles(prev => prev.map(f =>
+        f === file ? {
+          ...f,
+          status: 'error' as const,
+          error: error instanceof Error ? error.message : 'Upload failed'
         } : f
       ));
     }
@@ -309,11 +309,11 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
     } catch (error) {
       console.error('Chunked upload error:', error);
-      setFiles(prev => prev.map(f => 
-        f === file ? { 
-          ...f, 
-          status: 'error' as const, 
-          error: error.message || 'Chunked upload failed'
+      setFiles(prev => prev.map(f =>
+        f === file ? {
+          ...f,
+          status: 'error' as const,
+          error: error instanceof Error ? error.message : 'Chunked upload failed'
         } : f
       ));
     }
@@ -409,11 +409,11 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
     } catch (error) {
       console.error('Multipart upload error:', error);
-      setFiles(prev => prev.map(f => 
-        f === file ? { 
-          ...f, 
-          status: 'error' as const, 
-          error: error.message 
+      setFiles(prev => prev.map(f =>
+        f === file ? {
+          ...f,
+          status: 'error' as const,
+          error: error instanceof Error ? error.message : 'Multipart upload failed'
         } : f
       ));
     }

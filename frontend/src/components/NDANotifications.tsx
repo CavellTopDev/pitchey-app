@@ -45,7 +45,7 @@ export default function NDANotifications({ className = '', compact = false }: ND
   
   // WebSocket for real-time notifications (using polling fallback as per requirements)
   const { isConnected } = useWebSocket({
-    onMessage: useCallback((message) => {
+    onMessage: useCallback((message: any) => {
       if (message.type === 'nda_request' || message.type === 'nda_update') {
         fetchNDANotifications();
         info('New NDA notification received');
@@ -99,14 +99,11 @@ export default function NDANotifications({ className = '', compact = false }: ND
       
       // Send notification to requester via notification service
       try {
-        await notificationService.sendNotification({
-          userId: approvedNDA.requesterId,
+        await notificationService.showNotification({
           type: 'nda_approved',
           title: 'NDA Request Approved',
           message: `Your NDA request for "${approvedNDA.pitch?.title || 'the pitch'}" has been approved. You can now sign the NDA to access protected content.`,
-          relatedId: ndaId,
-          relatedType: 'nda'
-        });
+        } as any);
       } catch (notifError) {
         console.warn('Failed to send notification:', notifError);
       }
@@ -139,14 +136,11 @@ export default function NDANotifications({ className = '', compact = false }: ND
       
       // Send notification to requester
       try {
-        await notificationService.sendNotification({
-          userId: rejectedNDA.requesterId,
+        await notificationService.showNotification({
           type: 'nda_rejected',
           title: 'NDA Request Declined',
           message: `Your NDA request for "${rejectedNDA.pitch?.title || 'the pitch'}" has been declined. Reason: ${rejectionReason}`,
-          relatedId: ndaId,
-          relatedType: 'nda'
-        });
+        } as any);
       } catch (notifError) {
         console.warn('Failed to send notification:', notifError);
       }

@@ -4,12 +4,27 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { debounce } from 'lodash';
 import {
-  CheckCircle, AlertTriangle, Info, Lightbulb, 
-  Target, TrendingUp, Clock, Zap, Eye, 
+  CheckCircle, AlertTriangle, Info, Lightbulb,
+  Target, TrendingUp, Clock, Zap, Eye,
   BarChart3, DollarSign, Users, BookOpen
 } from 'lucide-react';
+
+// Inline debounce function to avoid lodash import issues
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): ((...args: Parameters<T>) => void) & { cancel: () => void } {
+  let timeout: NodeJS.Timeout | null = null;
+  const debounced = function(this: any, ...args: Parameters<T>) {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
+  debounced.cancel = function() {
+    if (timeout) clearTimeout(timeout);
+  };
+  return debounced as any;
+}
 
 import type { RealTimeValidation } from '../../types/pitch-validation.types';
 

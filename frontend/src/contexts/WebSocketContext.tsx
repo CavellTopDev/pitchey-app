@@ -200,7 +200,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   
   // CRITICAL: Enhanced connection control - only connect when auth is completely stable
   // This prevents the "WebSocket is closed before connection is established" error
-  const shouldAutoConnect = authStabilized && isAuthenticated && user && !isWebSocketDisabled && config.WEBSOCKET_ENABLED;
+  const shouldAutoConnect = !!(authStabilized && isAuthenticated && user && !isWebSocketDisabled && config.WEBSOCKET_ENABLED);
   
   // Enhanced WebSocket connection with comprehensive error handling
   const {
@@ -227,7 +227,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     onConnectionQualityChange: handleConnectionQualityChange,
     autoConnect: shouldAutoConnect,
     reconnection: {
-      enabled: shouldAutoConnect, // Only enable reconnection if we should connect
+      enabled: !!shouldAutoConnect, // Only enable reconnection if we should connect
       maxAttempts: 10,
       initialDelay: 1000,
       maxDelay: 30000,
@@ -235,7 +235,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       jitter: true,
     },
     heartbeat: {
-      enabled: shouldAutoConnect, // Only enable heartbeat if we should connect
+      enabled: !!shouldAutoConnect, // Only enable heartbeat if we should connect
       interval: 30000,
       timeout: 10000,
       maxMissed: 3,
@@ -603,7 +603,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   
   function handleChatMessage(message: WebSocketMessage) {
     // Handle real-time chat messages
-    const chatData = message.payload || message.data;
+    const chatData = (message as any).payload || message.data;
     
     if (chatData?.conversationId && chatData?.senderId && chatData?.content) {
       // Create a notification for the chat message
@@ -698,9 +698,9 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   }
   
   function handleDisconnect() {
-    
+
     // Update local state to reflect disconnection
-    setOnlineUsers(prev => prev.filter(user => user.userId !== user?.id));
+    setOnlineUsers(prev => prev.filter(u => u.userId !== user?.id));
     
     // Enhanced circuit breaker for bundling-induced loops
     const recentAttempts = connectionStatus.reconnectAttempts;
@@ -1143,14 +1143,13 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
 }
 
 // Safe default values for when WebSocket provider is not yet available
-const safeWebSocketDefaults: WebSocketContextValue = {
+const safeWebSocketDefaults: WebSocketContextType = {
   isConnected: false,
-  connectionStatus: 'disconnected' as ConnectionStatus,
-  messageQueueStatus: { pending: 0, failed: 0, sent: 0 } as MessageQueueStatus,
+  connectionStatus: { status: 'disconnected', reconnectAttempts: 0 } as unknown as ConnectionStatus,
+  queueStatus: { pending: 0, failed: 0, sent: 0 } as unknown as MessageQueueStatus,
   isReconnecting: false,
-  isConnecting: false,
   isDisconnecting: false,
-  connectionQuality: 'unknown' as ConnectionQuality,
+  connectionQuality: { strength: 'unknown', latency: 0, consecutiveFailures: 0 } as unknown as ConnectionQuality,
   retryCount: 0,
   isHealthy: false,
   notifications: [],
@@ -1184,6 +1183,8 @@ const safeWebSocketDefaults: WebSocketContextValue = {
   subscribeToUploads: () => () => {},
   subscribeToPitchViews: () => () => {},
   subscribeToMessages: () => () => {},
+  requestNotificationPermission: async () => 'denied' as NotificationPermission,
+  getConnectionStats: () => ({}),
 };
 
 export function useWebSocket() {

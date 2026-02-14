@@ -21,15 +21,7 @@ export function initSentry() {
     // Performance Monitoring
     integrations: [
       // Browser tracing for performance monitoring
-      Sentry.browserTracingIntegration({
-        // Set sampling rate for performance monitoring
-        tracePropagationTargets: [
-          'localhost',
-          'pitchey-5o8.pages.dev',
-          'pitchey-api-prod.ndlovucavelle.workers.dev',
-          /^\//
-        ]
-      }),
+      Sentry.browserTracingIntegration(),
 
       // Session replay for debugging
       Sentry.replayIntegration({
@@ -38,8 +30,7 @@ export function initSentry() {
         blockAllMedia: false,
 
         // Sampling rates
-        sessionSampleRate: REPLAY_SAMPLE_RATE,
-        errorSampleRate: 1.0, // Always record on errors
+        ...(({ replaysSessionSampleRate: REPLAY_SAMPLE_RATE, replaysOnErrorSampleRate: 1.0 }) as any),
 
         // Privacy settings
         maskTextSelector: '[data-sentry-mask]',
@@ -107,7 +98,7 @@ export function initSentry() {
     beforeSend(event: Sentry.ErrorEvent, hint: Sentry.EventHint) {
       // Add custom context
       if (event.exception) {
-        const error = hint.originalException
+        const error = hint.originalException as any;
 
         // Add custom error tags
         event.tags = {
@@ -231,10 +222,8 @@ export const SentryPerformance = {
 
   // Track custom metrics
   trackMetric(name: string, value: number, unit: string = 'ms') {
-    const transaction = Sentry.getCurrentHub().getScope()?.getTransaction()
-    if (transaction) {
-      transaction.setMeasurement(name, value, unit)
-    }
+    // Sentry v8: Use measurements API instead of transactions
+    Sentry.setMeasurement(name, value, unit);
   }
 }
 

@@ -22,15 +22,15 @@ const Breadcrumb: React.FC<BreadcrumbProps> = ({
 }) => {
   const navigate = useNavigate();
 
-  const handleItemClick = (item: BreadcrumbItem) => {
-    if (item.onClick) {
+  const handleItemClick = (item: BreadcrumbItem | { label: string; href: string; icon: any }) => {
+    if ('onClick' in item && item.onClick) {
       item.onClick();
     } else if (item.href) {
       navigate(item.href);
     }
   };
 
-  const allItems = showHome 
+  const allItems = showHome
     ? [{ label: 'Home', href: '/', icon: Home }, ...items]
     : items;
 
@@ -56,7 +56,7 @@ const Breadcrumb: React.FC<BreadcrumbProps> = ({
                 <button
                   onClick={() => handleItemClick(item)}
                   className="flex items-center space-x-1 text-gray-600 hover:text-purple-600 transition-colors"
-                  disabled={!item.href && !item.onClick}
+                  disabled={!item.href && !('onClick' in item && item.onClick)}
                 >
                   {Icon && <Icon className="h-4 w-4" />}
                   <span>{item.label}</span>
