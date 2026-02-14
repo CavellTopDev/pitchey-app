@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { pitchService } from '../services/pitch.service';
 import type { Pitch } from '../services/pitch.service';
@@ -60,7 +60,17 @@ export default function BrowseGenres() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
   const itemsPerPage = 24;
-  
+
+  // AbortController for cancelling stale genre pitch requests
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
   // Get selected genre from URL params
   const selectedGenre = searchParams.get('genre') || '';
   
@@ -147,11 +157,16 @@ export default function BrowseGenres() {
   // Fetch pitches for selected genre
   const fetchGenrePitches = useCallback(async () => {
     if (!selectedGenre) return;
-    
+
+    // Abort any in-flight request to prevent stale data
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       setLoading(true);
       const token = localStorage.getItem('authToken');
-      
+
       const params = new URLSearchParams({
         genre: selectedGenre,
         sort: 'date',
@@ -159,40 +174,46 @@ export default function BrowseGenres() {
         limit: itemsPerPage.toString(),
         offset: ((currentPage - 1) * itemsPerPage).toString()
       });
-      
+
       const response = await fetch(`${getApiUrl()}/api/pitches/browse/enhanced?${params.toString()}`, {
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        }
+        },
+        signal: controller.signal
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         const resultPitches = data.items || data.data || [];
-        
+
         setPitches(resultPitches);
         setTotalPages(data.totalPages || Math.ceil(resultPitches.length / itemsPerPage));
         setTotalResults(data.total || resultPitches.length);
       } else {
         // Fallback to client-side filtering
         const { pitches: allPitches } = await pitchService.getPublicPitches();
-        const filtered = allPitches?.filter(p => 
+        if (controller.signal.aborted) return;
+
+        const filtered = allPitches?.filter(p =>
           p.genre?.toLowerCase() === selectedGenre.toLowerCase()
         ) || [];
-        
+
         const start = (currentPage - 1) * itemsPerPage;
         const paginatedPitches = filtered.slice(start, start + itemsPerPage);
-        
+
         setPitches(paginatedPitches);
         setTotalPages(Math.ceil(filtered.length / itemsPerPage));
         setTotalResults(filtered.length);
       }
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
       console.error('Failed to fetch genre pitches:', error);
       toast.error('Failed to load pitches for this genre');
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [selectedGenre, currentPage, toast]);
 

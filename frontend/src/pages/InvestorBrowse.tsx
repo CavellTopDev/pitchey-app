@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search, Filter, Eye, Heart, DollarSign, Calendar, Shield, Star, Film, TrendingUp, Building2, User } from 'lucide-react';
 import { pitchAPI } from '../lib/api';
 import { API_URL } from '../config';
 import { configService } from '../services/config.service';
 import FormatDisplay from '../components/FormatDisplay';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface Pitch {
   id: number;
@@ -34,12 +35,18 @@ interface Pitch {
   similarProjects?: string[];
 }
 
+type InvestorTabType = 'trending' | 'new' | 'popular';
+
+interface TabState {
+  pitches: Pitch[];
+  loading: boolean;
+  error: string | null;
+}
+
 export default function InvestorBrowse() {
   const navigate = useNavigate();
-  const [pitches, setPitches] = useState<Pitch[]>([]);
-  const [filteredPitches, setFilteredPitches] = useState<Pitch[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearch = useDebounce(searchTerm, 300);
   const [filters, setFilters] = useState({
     genre: '',
     format: '',
@@ -50,37 +57,44 @@ export default function InvestorBrowse() {
   const [sortBy, setSortBy] = useState<'latest' | 'popular' | 'budget' | 'roi'>('latest');
   const [showFilters, setShowFilters] = useState(false);
   const [config, setConfig] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'trending' | 'new' | 'popular'>('trending');
+  const [activeTab, setActiveTab] = useState<InvestorTabType>('trending');
 
+  // Request ID tracking — stale responses are silently discarded
+  const fetchRequestIdRef = useRef<Record<InvestorTabType, number>>({
+    trending: 0, new: 0, popular: 0
+  });
+
+  // Per-tab state prevents content mixing between tabs
+  const [tabStates, setTabStates] = useState<Record<InvestorTabType, TabState>>({
+    trending: { pitches: [], loading: true, error: null },
+    new: { pitches: [], loading: false, error: null },
+    popular: { pitches: [], loading: false, error: null },
+  });
+
+  const currentTabState = tabStates[activeTab];
+
+  // Load config on mount
   useEffect(() => {
-    // Load configuration and pitches in parallel
-    const loadData = async () => {
+    const loadConfig = async () => {
       try {
-        const [configData] = await Promise.all([
-          configService.getConfiguration(),
-          fetchPitches(activeTab)
-        ]);
+        const configData = await configService.getConfiguration();
         setConfig(configData);
       } catch (error) {
-        console.error('Error loading data:', error);
+        console.error('Error loading config:', error);
       }
     };
-    loadData();
+    loadConfig();
   }, []);
 
-  useEffect(() => {
-    filterAndSortPitches();
-  }, [pitches, searchTerm, sortBy]);
+  const fetchPitches = useCallback(async (tab: InvestorTabType) => {
+    const requestId = ++fetchRequestIdRef.current[tab];
 
-  useEffect(() => {
-    fetchPitches(activeTab);
-  }, [activeTab, filters]);
+    setTabStates(prev => ({
+      ...prev,
+      [tab]: { ...prev[tab], loading: true, error: null }
+    }));
 
-  const fetchPitches = async (tab: string = 'trending') => {
     try {
-      setLoading(true);
-      const token = localStorage.getItem('authToken');
-      
       // Build query parameters
       const params = new URLSearchParams({
         tab,
@@ -96,69 +110,89 @@ export default function InvestorBrowse() {
         }
       });
 
-    // Use the correct browse endpoint with query parameters
-    const response = await fetch(`${API_URL}/api/browse?${params.toString()}`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include' // Send cookies for Better Auth session
-    });
-      
+      // Use the correct browse endpoint with query parameters
+      const response = await fetch(`${API_URL}/api/browse?${params.toString()}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include' // Send cookies for Better Auth session
+      });
+
+      // Stale response guard — another tab switch happened, discard this result
+      if (requestId !== fetchRequestIdRef.current[tab]) return;
+
       if (response.ok) {
         const data = await response.json();
-        if (data.success && data.items) {
-          setPitches(data.items);
-        } else {
-          setPitches([]);
-        }
+        setTabStates(prev => ({
+          ...prev,
+          [tab]: {
+            pitches: data.success && data.items ? data.items : [],
+            loading: false,
+            error: null
+          }
+        }));
       } else {
         // Fallback to old endpoint
         try {
           const fallbackResponse = await fetch(`${API_URL}/api/pitches/public`);
+          if (requestId !== fetchRequestIdRef.current[tab]) return;
+
           if (fallbackResponse.ok) {
             const fallbackData = await fallbackResponse.json();
+            let items: Pitch[] = [];
             if (Array.isArray(fallbackData)) {
-              setPitches(fallbackData);
+              items = fallbackData;
             } else if (fallbackData && fallbackData.pitches) {
-              setPitches(fallbackData.pitches);
-            } else {
-              setPitches([]);
+              items = fallbackData.pitches;
             }
+            setTabStates(prev => ({
+              ...prev,
+              [tab]: { pitches: items, loading: false, error: null }
+            }));
           } else {
-            setPitches([]);
+            setTabStates(prev => ({
+              ...prev,
+              [tab]: { pitches: [], loading: false, error: null }
+            }));
           }
         } catch (fallbackError) {
+          if (requestId !== fetchRequestIdRef.current[tab]) return;
           console.error('Failed to fetch public pitches:', fallbackError);
-          setPitches([]);
+          setTabStates(prev => ({
+            ...prev,
+            [tab]: { pitches: [], loading: false, error: 'Failed to load pitches' }
+          }));
         }
       }
     } catch (error) {
+      if (requestId !== fetchRequestIdRef.current[tab]) return;
       console.error('Failed to fetch pitches:', error);
-    } finally {
-      setLoading(false);
+      setTabStates(prev => ({
+        ...prev,
+        [tab]: { ...prev[tab], loading: false, error: 'Failed to load pitches' }
+      }));
     }
-  };
+  }, [filters]);
 
-  const handleTabChange = (tab: 'trending' | 'new' | 'popular') => {
-    setActiveTab(tab);
-    setLoading(true);
-    setPitches([]); // Clear existing pitches when switching tabs
-    setFilteredPitches([]); // Clear filtered results too
-  };
+  // Fetch when tab or filters change
+  useEffect(() => {
+    fetchPitches(activeTab);
+  }, [activeTab, filters, fetchPitches]);
 
-  const filterAndSortPitches = () => {
-    // Ensure pitches is always an array
-    const pitchArray = Array.isArray(pitches) ? pitches : [];
-    
+  // Derive filtered + sorted pitches from current tab's data using debounced search
+  const displayedPitches = useMemo(() => {
+    const pitchArray = Array.isArray(currentTabState.pitches) ? currentTabState.pitches : [];
+
     const filtered = pitchArray.filter(pitch => {
-      const matchesSearch = pitch.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           pitch.logline.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           pitch.genre.toLowerCase().includes(searchTerm.toLowerCase());
-      
+      const matchesSearch = !debouncedSearch ||
+        pitch.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        pitch.logline.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        pitch.genre.toLowerCase().includes(debouncedSearch.toLowerCase());
+
       const matchesGenre = !filters.genre || pitch.genre === filters.genre;
       const matchesFormat = !filters.format || pitch.format === filters.format;
       const matchesRisk = !filters.riskLevel || pitch.riskLevel === filters.riskLevel;
       const matchesStage = !filters.productionStage || pitch.productionStage === filters.productionStage;
-      
+
       let matchesBudget = true;
       if (filters.budgetRange) {
         const budgetNum = parseInt(pitch.budget.replace(/[^\d]/g, ''));
@@ -177,12 +211,13 @@ export default function InvestorBrowse() {
             break;
         }
       }
-      
+
       return matchesSearch && matchesGenre && matchesFormat && matchesRisk && matchesStage && matchesBudget;
     });
 
     // Sort the filtered results
-    filtered.sort((a, b) => {
+    const sorted = [...filtered];
+    sorted.sort((a, b) => {
       switch (sortBy) {
         case 'popular':
           return b.viewCount - a.viewCount;
@@ -198,7 +233,11 @@ export default function InvestorBrowse() {
       }
     });
 
-    setFilteredPitches(filtered);
+    return sorted;
+  }, [currentTabState.pitches, debouncedSearch, sortBy, filters]);
+
+  const handleTabChange = (tab: InvestorTabType) => {
+    setActiveTab(tab);
   };
 
   const getRiskColor = (risk?: string) => {
@@ -238,7 +277,7 @@ export default function InvestorBrowse() {
     alert(`Coming Soon: Investment offer system for "${pitch.title}". This will allow you to submit formal investment proposals.`);
   };
 
-  if (loading) {
+  if (currentTabState.loading && currentTabState.pitches.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -264,7 +303,7 @@ export default function InvestorBrowse() {
                 <p className="text-sm text-gray-500">Discover and invest in the next big entertainment projects</p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-4">
               <select
                 value={sortBy}
@@ -276,7 +315,7 @@ export default function InvestorBrowse() {
                 <option value="budget">Highest Budget</option>
                 <option value="roi">Best ROI</option>
               </select>
-              
+
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition ${
@@ -301,8 +340,8 @@ export default function InvestorBrowse() {
                 onClick={() => handleTabChange('trending')}
                 className={`
                   flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200
-                  ${activeTab === 'trending' 
-                    ? 'bg-white text-blue-700 shadow-sm' 
+                  ${activeTab === 'trending'
+                    ? 'bg-white text-blue-700 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
                   }
                 `}
@@ -314,8 +353,8 @@ export default function InvestorBrowse() {
                 onClick={() => handleTabChange('new')}
                 className={`
                   flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200
-                  ${activeTab === 'new' 
-                    ? 'bg-white text-blue-700 shadow-sm' 
+                  ${activeTab === 'new'
+                    ? 'bg-white text-blue-700 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
                   }
                 `}
@@ -327,8 +366,8 @@ export default function InvestorBrowse() {
                 onClick={() => handleTabChange('popular')}
                 className={`
                   flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200
-                  ${activeTab === 'popular' 
-                    ? 'bg-white text-blue-700 shadow-sm' 
+                  ${activeTab === 'popular'
+                    ? 'bg-white text-blue-700 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
                   }
                 `}
@@ -339,7 +378,7 @@ export default function InvestorBrowse() {
             </div>
 
             <div className="text-sm text-gray-500">
-              Showing {filteredPitches.length} investment opportunities
+              Showing {displayedPitches.length} investment opportunities
             </div>
           </div>
 
@@ -354,7 +393,7 @@ export default function InvestorBrowse() {
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           {showFilters && (
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 pt-4 border-t">
               <div>
@@ -378,7 +417,7 @@ export default function InvestorBrowse() {
                   ]}
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Format</label>
                 <select
@@ -397,7 +436,7 @@ export default function InvestorBrowse() {
                   ]}
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Budget Range</label>
                 <select
@@ -416,7 +455,7 @@ export default function InvestorBrowse() {
                   ]}
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Risk Level</label>
                 <select
@@ -434,7 +473,7 @@ export default function InvestorBrowse() {
                   ]}
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Stage</label>
                 <select
@@ -460,7 +499,7 @@ export default function InvestorBrowse() {
         {/* Results */}
         <div className="flex items-center justify-between mb-6">
           <p className="text-gray-600">
-            Showing {filteredPitches.length} of {pitches.length} opportunities
+            Showing {displayedPitches.length} of {currentTabState.pitches.length} opportunities
           </p>
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <TrendingUp className="w-4 h-4" />
@@ -468,7 +507,7 @@ export default function InvestorBrowse() {
           </div>
         </div>
 
-        {filteredPitches.length === 0 ? (
+        {displayedPitches.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm p-12 text-center">
             <Film className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No opportunities found</h3>
@@ -493,7 +532,7 @@ export default function InvestorBrowse() {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {filteredPitches.map((pitch) => (
+            {displayedPitches.map((pitch) => (
               <div key={pitch.id} className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="aspect-video bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center relative">
                   <Film className="w-12 h-12 text-white" />
@@ -508,7 +547,7 @@ export default function InvestorBrowse() {
                     </span>
                   </div>
                 </div>
-                
+
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-3">
                     <div>
@@ -531,11 +570,11 @@ export default function InvestorBrowse() {
                       <Heart className="w-5 h-5" />
                     </button>
                   </div>
-                  
+
                   <p className="text-sm text-gray-600 mb-4 line-clamp-2">{pitch.logline}</p>
-                  
+
                   <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                    <span>{pitch.genre} • <FormatDisplay 
+                    <span>{pitch.genre} • <FormatDisplay
                       formatCategory={pitch.formatCategory}
                       formatSubtype={pitch.formatSubtype}
                       format={pitch.format}
@@ -596,7 +635,7 @@ export default function InvestorBrowse() {
                       <p className="text-sm text-gray-600">{pitch.similarProjects.join(', ')}</p>
                     </div>
                   )}
-                  
+
                   <div className="flex space-x-2">
                     <button
                       onClick={() => navigate(`/pitch/${pitch.id}`)}
@@ -611,7 +650,7 @@ export default function InvestorBrowse() {
                       Request Pitch
                     </button>
                   </div>
-                  
+
                   <div className="flex space-x-2 mt-2">
                     <button
                       onClick={() => handleScheduleMeeting(pitch)}

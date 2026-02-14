@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { pitchService } from '../services/pitch.service';
 import type { Pitch } from '../services/pitch.service';
@@ -71,7 +71,17 @@ export default function BrowseTopRated() {
   
   // UI state
   const [showFilters, setShowFilters] = useState(false);
-  
+
+  // AbortController for cancelling stale top-rated pitch requests
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
   // Load configuration on mount
   useEffect(() => {
     const loadConfig = async () => {
@@ -131,51 +141,59 @@ export default function BrowseTopRated() {
 
   // Fetch top rated pitches
   const fetchTopRatedPitches = useCallback(async () => {
+    // Abort any in-flight request to prevent stale data
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       setLoading(true);
       const token = localStorage.getItem('authToken');
-      
+
       const params = new URLSearchParams({
-        sort: sortBy === 'rating' ? 'rating' : 
+        sort: sortBy === 'rating' ? 'rating' :
               sortBy === 'views' ? 'views' :
               sortBy === 'recent' ? 'date' : 'likes',
         order: 'desc',
         limit: itemsPerPage.toString(),
         offset: ((currentPage - 1) * itemsPerPage).toString()
       });
-      
+
       if (minRating > 0) {
         params.set('minRating', minRating.toString());
       }
-      
+
       if (timeFilter !== 'all') {
         params.set('timeFilter', timeFilter);
       }
-      
+
       const response = await fetch(`${getApiUrl()}/api/browse/top-rated?${params.toString()}`, {
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        }
+        },
+        signal: controller.signal
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         const resultPitches = data.items || data.data || [];
-        
+
         setPitches(resultPitches);
         setTotalPages(data.totalPages || Math.ceil(resultPitches.length / itemsPerPage));
         setTotalResults(data.total || resultPitches.length);
       } else {
         // Fallback to client-side sorting
         const { pitches: allPitches } = await pitchService.getPublicPitches();
+        if (controller.signal.aborted) return;
+
         let filtered = allPitches?.filter(p => (p.rating || 0) >= minRating) || [];
-        
+
         // Apply time filter
         if (timeFilter !== 'all') {
           const now = new Date();
           const cutoffDate = new Date();
-          
+
           switch (timeFilter) {
             case 'week':
               cutoffDate.setDate(now.getDate() - 7);
@@ -187,10 +205,10 @@ export default function BrowseTopRated() {
               cutoffDate.setFullYear(now.getFullYear() - 1);
               break;
           }
-          
+
           filtered = filtered.filter(p => new Date(p.createdAt) >= cutoffDate);
         }
-        
+
         // Sort
         filtered.sort((a, b) => {
           switch (sortBy) {
@@ -206,20 +224,23 @@ export default function BrowseTopRated() {
               return 0;
           }
         });
-        
+
         // Paginate client-side
         const start = (currentPage - 1) * itemsPerPage;
         const paginatedPitches = filtered.slice(start, start + itemsPerPage);
-        
+
         setPitches(paginatedPitches);
         setTotalPages(Math.ceil(filtered.length / itemsPerPage));
         setTotalResults(filtered.length);
       }
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
       console.error('Failed to fetch top rated pitches:', error);
       toast.error('Failed to load top rated pitches');
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [sortBy, timeFilter, minRating, currentPage, toast]);
 
