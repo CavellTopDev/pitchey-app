@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Bell,
   Shield,
@@ -8,7 +8,6 @@ import {
   AlertTriangle,
   Eye,
   Trash2,
-  // MarkAsRead,
   Filter,
   Calendar,
   User,
@@ -17,6 +16,8 @@ import {
   Zap
 } from 'lucide-react';
 import { useToast } from '../Toast/ToastProvider';
+import { NDAService } from '../../services/nda.service';
+import type { NDA } from '../../types/api';
 import { formatDistanceToNow } from 'date-fns';
 
 export interface NDANotification {
@@ -62,6 +63,119 @@ const NOTIFICATION_COLORS = {
   nda_reminder: 'text-purple-600 bg-purple-50 border-purple-200'
 };
 
+const STORAGE_KEY_READ = 'pitchey:nda-read-notifications';
+const STORAGE_KEY_DELETED = 'pitchey:nda-deleted-notifications';
+
+function getStoredIds(key: string): Set<number> {
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      return new Set(JSON.parse(stored) as number[]);
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return new Set();
+}
+
+function storeIds(key: string, ids: Set<number>): void {
+  localStorage.setItem(key, JSON.stringify([...ids]));
+}
+
+function ndaToNotification(nda: NDA, userId: number): NDANotification | null {
+  const pitchTitle = nda.pitch?.title || nda.pitchTitle || 'Unknown Pitch';
+  const requesterName = nda.requester?.firstName
+    ? `${nda.requester.firstName} ${nda.requester.lastName || ''}`.trim()
+    : nda.requesterName || 'Someone';
+  const createdAt = nda.createdAt || new Date().toISOString();
+  const hoursSinceCreated = (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60);
+
+  // Determine notification type based on NDA status and user's role
+  const isOwner = nda.userId === userId;
+  const isRequester = nda.requesterId === userId || nda.signerId === userId;
+
+  if (nda.status === 'expired') {
+    return {
+      id: nda.id * 10 + 5,
+      type: 'nda_expired',
+      title: 'NDA Expired',
+      message: `Your NDA for "${pitchTitle}" has expired.`,
+      data: { requestId: nda.id, pitchId: nda.pitchId, pitchTitle, expiresAt: nda.expiresAt },
+      isRead: false,
+      isUrgent: false,
+      createdAt: nda.expiresAt || createdAt,
+      actionRequired: false
+    };
+  }
+
+  // Check if approved NDA is expiring within 14 days
+  if ((nda.status === 'approved' || nda.status === 'signed') && nda.expiresAt) {
+    const daysUntilExpiry = (new Date(nda.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+    if (daysUntilExpiry > 0 && daysUntilExpiry <= 14) {
+      return {
+        id: nda.id * 10 + 4,
+        type: 'nda_expiring',
+        title: 'NDA Expiring Soon',
+        message: `Your NDA for "${pitchTitle}" will expire in ${Math.ceil(daysUntilExpiry)} days.`,
+        data: { requestId: nda.id, pitchId: nda.pitchId, pitchTitle, expiresAt: nda.expiresAt },
+        isRead: false,
+        isUrgent: daysUntilExpiry <= 3,
+        createdAt,
+        actionRequired: false
+      };
+    }
+  }
+
+  if (nda.status === 'pending' && isOwner) {
+    return {
+      id: nda.id * 10 + 1,
+      type: 'nda_request',
+      title: 'New NDA Request',
+      message: `${requesterName} has requested NDA access to "${pitchTitle}".`,
+      data: { requestId: nda.id, pitchId: nda.pitchId, pitchTitle, requesterName },
+      isRead: false,
+      isUrgent: hoursSinceCreated > 72,
+      createdAt,
+      actionRequired: true
+    };
+  }
+
+  if (nda.status === 'approved' && isRequester) {
+    return {
+      id: nda.id * 10 + 2,
+      type: 'nda_approved',
+      title: 'NDA Approved',
+      message: `Your NDA request for "${pitchTitle}" has been approved.`,
+      data: { requestId: nda.id, pitchId: nda.pitchId, pitchTitle, expiresAt: nda.expiresAt },
+      isRead: false,
+      isUrgent: false,
+      createdAt: nda.respondedAt || createdAt,
+      actionRequired: false
+    };
+  }
+
+  if (nda.status === 'rejected' && isRequester) {
+    return {
+      id: nda.id * 10 + 3,
+      type: 'nda_rejected',
+      title: 'NDA Request Declined',
+      message: `Your NDA request for "${pitchTitle}" has been declined.`,
+      data: {
+        requestId: nda.id,
+        pitchId: nda.pitchId,
+        pitchTitle,
+        reason: nda.rejectionReason || nda.notes
+      },
+      isRead: false,
+      isUrgent: false,
+      createdAt: nda.respondedAt || createdAt,
+      actionRequired: false
+    };
+  }
+
+  return null;
+}
+
 export default function NDANotificationCenter({
   userId,
   onNotificationAction,
@@ -73,105 +187,54 @@ export default function NDANotificationCenter({
   const [filterType, setFilterType] = useState<string>('all');
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [sortBy, setSortBy] = useState<'date' | 'priority'>('date');
-  
+  const [readIds, setReadIds] = useState<Set<number>>(() => getStoredIds(STORAGE_KEY_READ));
+  const [deletedIds, setDeletedIds] = useState<Set<number>>(() => getStoredIds(STORAGE_KEY_DELETED));
+
   const { success, error } = useToast();
 
-  useEffect(() => {
-    loadNotifications();
-    
-    // Set up real-time notification updates
-    const interval = setInterval(loadNotifications, 30000); // Check every 30 seconds
-    
-    return () => clearInterval(interval);
-  }, [userId]);
-
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
     try {
       setLoading(true);
-      
-      // Mock data - replace with actual API call
-      const mockNotifications: NDANotification[] = [
-        {
-          id: 1,
-          type: 'nda_request',
-          title: 'New NDA Request',
-          message: 'Sarah Chen from Stellar Productions has requested NDA access to "The Last Symphony"',
-          data: {
-            requestId: 101,
-            pitchId: 42,
-            pitchTitle: 'The Last Symphony',
-            requesterName: 'Sarah Chen'
-          },
-          isRead: false,
-          isUrgent: true,
-          createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-          actionRequired: true
-        },
-        {
-          id: 2,
-          type: 'nda_approved',
-          title: 'NDA Approved',
-          message: 'Your NDA request for "Quantum Dreams" has been approved by Alex Rodriguez',
-          data: {
-            requestId: 98,
-            pitchId: 38,
-            pitchTitle: 'Quantum Dreams',
-            expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString() // 90 days
-          },
-          isRead: false,
-          isUrgent: false,
-          createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), // 4 hours ago
-          actionRequired: false
-        },
-        {
-          id: 3,
-          type: 'nda_expiring',
-          title: 'NDA Expiring Soon',
-          message: 'Your NDA for "Midnight in Tokyo" will expire in 7 days',
-          data: {
-            requestId: 85,
-            pitchId: 35,
-            pitchTitle: 'Midnight in Tokyo',
-            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
-          },
-          isRead: true,
-          isUrgent: true,
-          createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-          actionRequired: false
-        },
-        {
-          id: 4,
-          type: 'nda_rejected',
-          title: 'NDA Request Declined',
-          message: 'Your NDA request for "City of Lights" has been declined',
-          data: {
-            requestId: 92,
-            pitchId: 29,
-            pitchTitle: 'City of Lights',
-            reason: 'Project is currently under exclusive review'
-          },
-          isRead: true,
-          isUrgent: false,
-          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
-          actionRequired: false
+
+      const data = await NDAService.getNDAs({ limit: 20 });
+      const ndas = data.ndas || [];
+
+      const currentDeletedIds = getStoredIds(STORAGE_KEY_DELETED);
+      const currentReadIds = getStoredIds(STORAGE_KEY_READ);
+
+      const derived: NDANotification[] = [];
+      for (const nda of ndas) {
+        const notification = ndaToNotification(nda, userId);
+        if (notification && !currentDeletedIds.has(notification.id)) {
+          notification.isRead = currentReadIds.has(notification.id);
+          derived.push(notification);
         }
-      ];
-      
-      setNotifications(mockNotifications);
-      
+      }
+
+      setNotifications(derived);
+
     } catch (err) {
       console.error('Failed to load notifications:', err);
       error('Loading Failed', 'Unable to load notifications. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId, error]);
+
+  useEffect(() => {
+    loadNotifications();
+
+    // Refresh every 30 seconds
+    const interval = setInterval(loadNotifications, 30000);
+
+    return () => clearInterval(interval);
+  }, [loadNotifications]);
 
   const filteredAndSortedNotifications = useMemo(() => {
     const filtered = notifications.filter(notification => {
       const typeMatch = filterType === 'all' || notification.type === filterType;
       const readMatch = !showUnreadOnly || !notification.isRead;
-      
+
       return typeMatch && readMatch;
     });
 
@@ -182,7 +245,7 @@ export default function NDANotificationCenter({
         if (a.isUrgent !== b.isUrgent) return a.isUrgent ? -1 : 1;
         if (a.isRead !== b.isRead) return a.isRead ? 1 : -1;
       }
-      
+
       // Then by date (newest first)
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
@@ -192,18 +255,22 @@ export default function NDANotificationCenter({
 
   const handleMarkAsRead = async (notificationIds: number[]) => {
     try {
-      // API call to mark as read
-      setNotifications(prev => 
-        prev.map(n => 
-          notificationIds.includes(n.id) 
+      const newReadIds = new Set(readIds);
+      notificationIds.forEach(id => newReadIds.add(id));
+      setReadIds(newReadIds);
+      storeIds(STORAGE_KEY_READ, newReadIds);
+
+      setNotifications(prev =>
+        prev.map(n =>
+          notificationIds.includes(n.id)
             ? { ...n, isRead: true }
             : n
         )
       );
-      
+
       notificationIds.forEach(id => onNotificationAction?.(id, 'read'));
       success('Marked as Read', `${notificationIds.length} notification(s) marked as read.`);
-      
+
     } catch (err) {
       error('Update Failed', 'Unable to mark notifications as read.');
     }
@@ -211,12 +278,16 @@ export default function NDANotificationCenter({
 
   const handleDelete = async (notificationIds: number[]) => {
     try {
-      // API call to delete
+      const newDeletedIds = new Set(deletedIds);
+      notificationIds.forEach(id => newDeletedIds.add(id));
+      setDeletedIds(newDeletedIds);
+      storeIds(STORAGE_KEY_DELETED, newDeletedIds);
+
       setNotifications(prev => prev.filter(n => !notificationIds.includes(n.id)));
-      
+
       notificationIds.forEach(id => onNotificationAction?.(id, 'delete'));
       success('Deleted', `${notificationIds.length} notification(s) deleted.`);
-      
+
     } catch (err) {
       error('Delete Failed', 'Unable to delete notifications.');
     }
@@ -227,24 +298,24 @@ export default function NDANotificationCenter({
     if (!notification.isRead) {
       handleMarkAsRead([notification.id]);
     }
-    
+
     // Handle notification-specific actions
     if (notification.data?.requestId && notification.actionRequired) {
       onNDAAction?.(notification.data.requestId, 'view');
     }
-    
+
     onNotificationAction?.(notification.id, 'view');
   };
 
   const handleBulkAction = (action: 'read' | 'delete') => {
     const selectedNotifications = Array.from(selectedIds);
-    
+
     if (action === 'read') {
       handleMarkAsRead(selectedNotifications);
     } else {
       handleDelete(selectedNotifications);
     }
-    
+
     setSelectedIds(new Set());
   };
 
@@ -268,7 +339,7 @@ export default function NDANotificationCenter({
             <Bell className="w-6 h-6 text-blue-600" />
             <h2 className="text-xl font-semibold text-gray-900">NDA Notifications</h2>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">{unreadCount}</div>
@@ -297,7 +368,7 @@ export default function NDANotificationCenter({
             <option value="nda_expiring">Expiring</option>
             <option value="nda_expired">Expired</option>
           </select>
-          
+
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -307,7 +378,7 @@ export default function NDANotificationCenter({
             />
             <span className="text-sm text-gray-700">Unread only</span>
           </label>
-          
+
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as 'date' | 'priority')}
@@ -316,7 +387,7 @@ export default function NDANotificationCenter({
             <option value="date">Sort by Date</option>
             <option value="priority">Sort by Priority</option>
           </select>
-          
+
           <div className="flex items-center gap-2 ml-auto">
             <button
               onClick={() => handleMarkAsRead(notifications.filter(n => !n.isRead).map(n => n.id))}
@@ -337,7 +408,7 @@ export default function NDANotificationCenter({
             <span className="text-sm font-medium text-blue-900">
               {selectedIds.size} notification(s) selected
             </span>
-            
+
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handleBulkAction('read')}
@@ -369,7 +440,7 @@ export default function NDANotificationCenter({
             <Bell className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Notifications</h3>
             <p className="text-gray-500">
-              {notifications.length === 0 
+              {notifications.length === 0
                 ? "You're all caught up! No new notifications."
                 : "No notifications match your current filters."}
             </p>
@@ -378,9 +449,9 @@ export default function NDANotificationCenter({
           filteredAndSortedNotifications.map((notification) => {
             const IconComponent = NOTIFICATION_ICONS[notification.type];
             const colorClasses = NOTIFICATION_COLORS[notification.type];
-            
+
             return (
-              <div 
+              <div
                 key={notification.id}
                 className={`bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer ${
                   !notification.isRead ? 'border-l-4 border-l-blue-500' : ''
@@ -405,11 +476,11 @@ export default function NDANotificationCenter({
                     }}
                     className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
-                  
+
                   <div className={`p-2 rounded-lg border ${colorClasses}`}>
                     <IconComponent className="w-5 h-5" />
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
@@ -417,26 +488,26 @@ export default function NDANotificationCenter({
                           <h3 className={`text-sm font-semibold ${!notification.isRead ? 'text-gray-900' : 'text-gray-700'}`}>
                             {notification.title}
                           </h3>
-                          
+
                           {notification.isUrgent && (
                             <Zap className="w-4 h-4 text-yellow-500" />
                           )}
-                          
+
                           {notification.actionRequired && (
                             <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded">
                               Action Required
                             </span>
                           )}
-                          
+
                           {!notification.isRead && (
                             <span className="w-2 h-2 bg-blue-600 rounded-full" />
                           )}
                         </div>
-                        
+
                         <p className={`text-sm ${!notification.isRead ? 'text-gray-800' : 'text-gray-600'}`}>
                           {notification.message}
                         </p>
-                        
+
                         {/* Additional context based on notification type */}
                         {notification.data?.expiresAt && (
                           <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
@@ -446,19 +517,19 @@ export default function NDANotificationCenter({
                             </span>
                           </div>
                         )}
-                        
+
                         {notification.data?.reason && (
                           <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600">
                             <strong>Reason:</strong> {notification.data.reason}
                           </div>
                         )}
                       </div>
-                      
+
                       <div className="flex flex-col items-end gap-2">
                         <span className="text-xs text-gray-500">
                           {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                         </span>
-                        
+
                         <div className="flex items-center gap-1">
                           {notification.actionRequired && (
                             <button
@@ -474,7 +545,7 @@ export default function NDANotificationCenter({
                               <ExternalLink className="w-4 h-4" />
                             </button>
                           )}
-                          
+
                           <button
                             onClick={(e) => {
                               e.stopPropagation();

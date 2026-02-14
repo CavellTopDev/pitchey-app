@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   FileSignature, FileClock, FileCheck, FileX, FileSearch,
@@ -30,7 +30,8 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import apiClient from '../../lib/api-client';
+import { NDAService } from '../../services/nda.service';
+import { useToast } from '../../components/Toast/ToastProvider';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
 
 interface NDARequest {
@@ -59,6 +60,9 @@ export default function NDARequests() {
   const [error, setError] = useState<string | null>(null);
   const { user, isAuthenticated, checkSession } = useBetterAuthStore();
   const [sessionChecked, setSessionChecked] = useState(false);
+  const [signingId, setSigningId] = useState<number | null>(null);
+  const [archivedIds, setArchivedIds] = useState<Set<number>>(new Set());
+  const toast = useToast();
 
   // Check session on mount
   useEffect(() => {
@@ -80,36 +84,32 @@ export default function NDARequests() {
     }
   }, [sessionChecked, isAuthenticated, navigate]);
 
-  // Fetch NDA requests from API
-  const fetchNDARequests = async () => {
+  // Fetch NDA requests from API using NDAService
+  const fetchNDARequests = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await apiClient.get('/api/ndas');
+      const data = await NDAService.getNDAs({ limit: 50 });
+      const ndas = data.ndas || [];
 
-      if (response.success && response.data) {
-        // Transform API data to match component interface
-        const ndas = (response.data as any).ndas || response.data || [];
-        const transformedNDAs: NDARequest[] = ndas.map((nda: any) => ({
-          id: nda.id,
-          pitchTitle: nda.pitchTitle || nda.pitch_title || 'Unknown Pitch',
-          creator: nda.creatorName || nda.creator_name || nda.creator || 'Unknown Creator',
-          company: nda.companyName || nda.company_name || nda.company || 'Independent',
-          requestDate: nda.requestedAt || nda.requested_at || nda.createdAt || nda.created_at,
-          status: nda.status || 'pending',
-          expiryDate: nda.expiresAt || nda.expires_at,
-          documentUrl: nda.documentUrl || nda.document_url,
-          notes: nda.notes || nda.rejectionReason || nda.rejection_reason,
-          genre: nda.genre || 'Unknown',
-          budget: nda.budget || 'TBD',
-          pitchId: nda.pitchId || nda.pitch_id
-        }));
-        setNdaRequests(transformedNDAs);
-      } else {
-        // If no data, show empty state (not an error)
-        setNdaRequests([]);
-      }
+      const transformedNDAs: NDARequest[] = ndas.map((nda: any) => ({
+        id: nda.id,
+        pitchTitle: nda.pitch?.title || nda.pitchTitle || nda.pitch_title || 'Unknown Pitch',
+        creator: nda.requester?.firstName
+          ? `${nda.requester.firstName} ${nda.requester.lastName || ''}`.trim()
+          : nda.creatorName || nda.creator_name || 'Unknown Creator',
+        company: nda.requester?.companyName || nda.companyName || nda.company_name || 'Independent',
+        requestDate: nda.requestedAt || nda.requested_at || nda.createdAt || nda.created_at,
+        status: nda.status || 'pending',
+        expiryDate: nda.expiresAt || nda.expires_at,
+        documentUrl: nda.documentUrl || nda.document_url,
+        notes: nda.notes || nda.rejectionReason || nda.rejection_reason,
+        genre: nda.pitch?.genre || nda.genre || 'Unknown',
+        budget: nda.pitch?.budgetBracket || nda.budget || 'TBD',
+        pitchId: nda.pitchId || nda.pitch_id || nda.pitch?.id
+      }));
+      setNdaRequests(transformedNDAs);
     } catch (err) {
       console.error('Failed to fetch NDA requests:', err);
       setError('Failed to load NDA requests. Please try again.');
@@ -117,21 +117,14 @@ export default function NDARequests() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Fetch data when session is confirmed
   useEffect(() => {
     if (sessionChecked && isAuthenticated) {
       fetchNDARequests();
     }
-  }, [sessionChecked, isAuthenticated]);
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    navigate('/login/investor');
-  };
-
-  const [signingId, setSigningId] = useState<number | null>(null);
+  }, [sessionChecked, isAuthenticated, fetchNDARequests]);
 
   // Sign an approved NDA
   const handleSignNDA = async (ndaId: number) => {
@@ -139,36 +132,100 @@ export default function NDARequests() {
       setSigningId(ndaId);
       setError(null);
 
-      const response = await apiClient.post(`/api/ndas/${ndaId}/sign`, {
-        acceptTerms: true,
-        signedAt: new Date().toISOString()
+      await NDAService.signNDA({
+        ndaId,
+        signature: '',
+        fullName: user?.name || '',
+        acceptTerms: true
       });
 
-      if (response.success) {
-        // Update local state to reflect signed status
-        setNdaRequests(prev => prev.map(nda =>
-          nda.id === ndaId ? { ...nda, status: 'signed' as const } : nda
-        ));
-      } else {
-        setError(response.error?.message || 'Failed to sign NDA');
-      }
+      setNdaRequests(prev => prev.map(nda =>
+        nda.id === ndaId ? { ...nda, status: 'signed' as const } : nda
+      ));
+      toast.success('NDA Signed', 'You have successfully signed the NDA.');
     } catch (err) {
       console.error('Failed to sign NDA:', err);
-      setError('Failed to sign NDA. Please try again.');
+      const message = err instanceof Error ? err.message : 'Failed to sign NDA. Please try again.';
+      setError(message);
     } finally {
       setSigningId(null);
     }
   };
 
-  const filteredRequests = ndaRequests.filter(request => {
-    const matchesSearch = request.pitchTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         request.creator.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         request.company.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = selectedTab === 'all' || request.status === selectedTab;
-    
-    return matchesSearch && matchesStatus;
-  });
+  // View NDA — navigate to pitch detail
+  const handleViewNDA = (request: NDARequest) => {
+    const targetId = request.pitchId || request.id;
+    navigate(`/investor/pitch/${targetId}`);
+  };
+
+  // Download NDA document
+  const handleDownloadNDA = async (request: NDARequest) => {
+    try {
+      const blob = await NDAService.downloadNDA(request.id, true);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `NDA-${request.pitchTitle.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Download Started', 'NDA document is downloading.');
+    } catch (err) {
+      console.error('Failed to download NDA:', err);
+      toast.error('Download Unavailable', 'NDA document download is not available yet.');
+    }
+  };
+
+  // Follow up on pending NDA
+  const handleFollowUp = async (request: NDARequest) => {
+    try {
+      await NDAService.sendReminder(request.id);
+      toast.success('Reminder Sent', `A follow-up reminder has been sent for "${request.pitchTitle}".`);
+    } catch (err) {
+      console.error('Failed to send reminder:', err);
+      toast.error('Reminder Failed', 'Unable to send follow-up reminder. Please try again.');
+    }
+  };
+
+  // Archive NDA (local only)
+  const handleArchive = (request: NDARequest) => {
+    setArchivedIds(prev => new Set([...prev, request.id]));
+    toast.success('Archived', `NDA for "${request.pitchTitle}" has been archived.`);
+  };
+
+  // Delete NDA (revoke via API)
+  const handleDelete = async (request: NDARequest) => {
+    if (!window.confirm(`Are you sure you want to delete the NDA for "${request.pitchTitle}"? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      await NDAService.revokeNDA(request.id, 'Deleted by investor');
+      setNdaRequests(prev => prev.filter(nda => nda.id !== request.id));
+      toast.success('Deleted', `NDA for "${request.pitchTitle}" has been deleted.`);
+    } catch (err) {
+      console.error('Failed to delete NDA:', err);
+      toast.error('Delete Failed', 'Unable to delete the NDA. Please try again.');
+    }
+  };
+
+  // Access protected content — navigate to pitch
+  const handleAccessContent = (request: NDARequest) => {
+    const targetId = request.pitchId || request.id;
+    navigate(`/investor/pitch/${targetId}`);
+  };
+
+  const filteredRequests = ndaRequests
+    .filter(request => !archivedIds.has(request.id))
+    .filter(request => {
+      const matchesSearch = request.pitchTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           request.creator.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           request.company.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesStatus = selectedTab === 'all' || request.status === selectedTab;
+
+      return matchesSearch && matchesStatus;
+    });
 
   const getStatusIcon = (status: string) => {
     switch(status) {
@@ -193,12 +250,12 @@ export default function NDARequests() {
   };
 
   const stats = {
-    total: ndaRequests.length,
-    pending: ndaRequests.filter(r => r.status === 'pending').length,
-    approved: ndaRequests.filter(r => r.status === 'approved').length,
-    signed: ndaRequests.filter(r => r.status === 'signed').length,
-    rejected: ndaRequests.filter(r => r.status === 'rejected').length,
-    expired: ndaRequests.filter(r => r.status === 'expired').length,
+    total: ndaRequests.filter(r => !archivedIds.has(r.id)).length,
+    pending: ndaRequests.filter(r => !archivedIds.has(r.id) && r.status === 'pending').length,
+    approved: ndaRequests.filter(r => !archivedIds.has(r.id) && r.status === 'approved').length,
+    signed: ndaRequests.filter(r => !archivedIds.has(r.id) && r.status === 'signed').length,
+    rejected: ndaRequests.filter(r => !archivedIds.has(r.id) && r.status === 'rejected').length,
+    expired: ndaRequests.filter(r => !archivedIds.has(r.id) && r.status === 'expired').length,
   };
 
   useEffect(() => {
@@ -422,18 +479,33 @@ export default function NDARequests() {
                           )}
                           {request.status === 'signed' && request.documentUrl && (
                             <>
-                              <Button variant="outline" size="sm" className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex items-center gap-2"
+                                onClick={() => handleViewNDA(request)}
+                              >
                                 <Eye className="w-4 h-4" />
                                 View NDA
                               </Button>
-                              <Button variant="outline" size="sm" className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex items-center gap-2"
+                                onClick={() => handleDownloadNDA(request)}
+                              >
                                 <Download className="w-4 h-4" />
                                 Download
                               </Button>
                             </>
                           )}
                           {request.status === 'pending' && (
-                            <Button variant="outline" size="sm" className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex items-center gap-2"
+                              onClick={() => handleFollowUp(request)}
+                            >
                               <Send className="w-4 h-4" />
                               Follow Up
                             </Button>
@@ -445,7 +517,7 @@ export default function NDARequests() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => navigate(`/investor/pitch/${request.id}`)}>
+                              <DropdownMenuItem onClick={() => navigate(`/investor/pitch/${request.pitchId || request.id}`)}>
                                 View Pitch Details
                               </DropdownMenuItem>
                               {request.status === 'approved' && (
@@ -457,16 +529,16 @@ export default function NDARequests() {
                                 </>
                               )}
                               {request.status === 'signed' && (
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleAccessContent(request)}>
                                   Access Protected Content
                                 </DropdownMenuItem>
                               )}
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleArchive(request)}>
                                 <Archive className="w-4 h-4 mr-2" />
                                 Archive
                               </DropdownMenuItem>
                               {request.status !== 'pending' && (
-                                <DropdownMenuItem className="text-red-600">
+                                <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(request)}>
                                   <Trash2 className="w-4 h-4 mr-2" />
                                   Delete
                                 </DropdownMenuItem>
