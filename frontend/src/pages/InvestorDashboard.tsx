@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { 
-  DollarSign, 
-  LogOut, 
-  TrendingUp, 
-  FileText, 
-  Bell, 
+import {
+  DollarSign,
+  LogOut,
+  TrendingUp,
+  FileText,
+  Bell,
   Search,
   Star,
   Clock,
@@ -27,7 +27,11 @@ import {
   Wallet,
   PieChart,
   TrendingDown,
-  History
+  History,
+  Wifi,
+  WifiOff,
+  AlertTriangle,
+  RefreshCw
 } from 'lucide-react';
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import api from '../lib/api';
@@ -44,7 +48,9 @@ import {
   isValidDate,
   safeExecute
 } from '../utils/defensive';
-import { PageErrorBoundary } from '../components/ConsoleErrorBoundary';
+import { useWebSocket } from '../contexts/WebSocketContext';
+import { useSentryPortal } from '../hooks/useSentryPortal';
+import { withPortalErrorBoundary } from '../components/ErrorBoundary/PortalErrorBoundary';
 
 interface PortfolioSummary {
   totalInvested: number;
@@ -84,7 +90,13 @@ interface NDARequest {
 function InvestorDashboard() {
   const navigate = useNavigate();
   const { logout, user, isAuthenticated, checkSession } = useBetterAuthStore();
-  const [loading, setLoading] = useState(true);
+  const { reportError, trackEvent, trackApiError } = useSentryPortal({
+    portalType: 'investor',
+    componentName: 'InvestorDashboard',
+    trackPerformance: true
+  });
+  const { isConnected, connectionQuality, isReconnecting } = useWebSocket();
+
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sessionChecked, setSessionChecked] = useState(false);
 
@@ -101,6 +113,27 @@ function InvestorDashboard() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [recommendations, setRecommendations] = useState<any[]>([]);
 
+  // Per-section status tracking
+  interface SectionStatus { loaded: boolean; error: string | null; }
+  const [sectionStatus, setSectionStatus] = useState<{
+    portfolio: SectionStatus;
+    investments: SectionStatus;
+    saved: SectionStatus;
+    ndas: SectionStatus;
+    notifications: SectionStatus;
+    recommendations: SectionStatus;
+  }>({
+    portfolio:       { loaded: false, error: null },
+    investments:     { loaded: false, error: null },
+    saved:           { loaded: false, error: null },
+    ndas:            { loaded: false, error: null },
+    notifications:   { loaded: false, error: null },
+    recommendations: { loaded: false, error: null },
+  });
+
+  const initialLoading = !sectionStatus.portfolio.loaded && !sectionStatus.portfolio.error;
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
   // Check session on mount and redirect if not authenticated
   useEffect(() => {
     const validateSession = async () => {
@@ -113,6 +146,18 @@ function InvestorDashboard() {
     };
     validateSession();
   }, [checkSession]);
+
+  // Track online/offline status
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
 
   // Redirect to login if not authenticated after session check
   useEffect(() => {
@@ -130,121 +175,161 @@ function InvestorDashboard() {
   }, [sessionChecked, isAuthenticated]);
 
   const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      
-      // Only fetch data if authenticated
-      if (!isAuthenticated || !user?.id) {
-        console.log('User not authenticated, skipping dashboard data fetch');
-        setLoading(false);
-        return;
-      }
-      
-      // Fetch all dashboard data in parallel with defensive error handling
-      const promises = [
-        api.get('/api/investor/portfolio/summary'),
-        api.get('/api/investor/investments'),
-        api.get('/api/saved-pitches'),
-        api.get('/api/nda/active'),
-        api.get('/api/notifications'),
-        api.get('/api/investment/recommendations')
-      ];
-      
-      const [
-        portfolioRes,
-        investmentsRes,
-        savedRes,
-        ndaRes,
-        notificationsRes,
-        recommendationsRes
-      ] = await Promise.allSettled(promises);
+    // Only fetch data if authenticated
+    if (!isAuthenticated || !user?.id) {
+      console.log('User not authenticated, skipping dashboard data fetch');
+      return;
+    }
 
-      // Handle portfolio summary with comprehensive defensive parsing
-      if (portfolioRes.status === 'fulfilled') {
-        const responseData = safeAccess(portfolioRes, 'value.data.data', {});
-        const validatedPortfolio = {
-          totalInvested: safeNumber(safeAccess(responseData, 'totalInvested', 0)),
-          activeInvestments: safeNumber(safeAccess(responseData, 'activeInvestments', 0)),
-          averageROI: safeNumber(safeAccess(responseData, 'averageROI', 0)),
-          topPerformer: safeString(safeAccess(responseData, 'topPerformer', 'None yet'))
-        };
-        setPortfolio(validatedPortfolio);
-      }
+    // Reset all section statuses
+    setSectionStatus({
+      portfolio:       { loaded: false, error: null },
+      investments:     { loaded: false, error: null },
+      saved:           { loaded: false, error: null },
+      ndas:            { loaded: false, error: null },
+      notifications:   { loaded: false, error: null },
+      recommendations: { loaded: false, error: null },
+    });
 
-      // Handle investments with comprehensive defensive parsing
-      if (investmentsRes.status === 'fulfilled') {
-        const investmentsData = safeAccess(investmentsRes, 'value.data.data', []);
-        const safeInvestments = safeMap(investmentsData, (investment: any) => ({
-          id: safeNumber(safeAccess(investment, 'id', Math.floor(Math.random() * 10000))),
-          pitchTitle: safeString(safeAccess(investment, 'pitchTitle', 'Unknown Project')),
-          amount: safeNumber(safeAccess(investment, 'amount', 0)),
-          status: safeString(safeAccess(investment, 'status', 'unknown')),
-          roi: safeNumber(safeAccess(investment, 'roi', 0)),
-          dateInvested: isValidDate(safeAccess(investment, 'dateInvested', null)) 
-            ? safeAccess(investment, 'dateInvested', new Date().toISOString())
-            : new Date().toISOString(),
-          pitchId: safeNumber(safeAccess(investment, 'pitchId', 0), 0)
-        }));
-        setInvestments(safeInvestments);
-      }
+    // Fetch all dashboard data in parallel with defensive error handling
+    const [
+      portfolioRes,
+      investmentsRes,
+      savedRes,
+      ndaRes,
+      notificationsRes,
+      recommendationsRes
+    ] = await Promise.allSettled([
+      api.get('/api/investor/portfolio/summary'),
+      api.get('/api/investor/investments'),
+      api.get('/api/saved-pitches'),
+      api.get('/api/nda/active'),
+      api.get('/api/notifications'),
+      api.get('/api/investment/recommendations')
+    ]);
 
-      // Handle saved pitches with defensive parsing
-      if (savedRes.status === 'fulfilled') {
-        const savedData = safeAccess(savedRes, 'value.data.data', []);
-        const safePitches = safeMap(savedData, (pitch: any) => ({
-          id: safeNumber(safeAccess(pitch, 'id', Math.floor(Math.random() * 10000))),
-          title: safeString(safeAccess(pitch, 'title', 'Unknown Title')),
-          creator: safeString(safeAccess(pitch, 'creator', 'Unknown Creator')),
-          genre: safeString(safeAccess(pitch, 'genre', 'Unknown')),
-          budget: safeString(safeAccess(pitch, 'budget', 'TBD')),
-          status: safeString(safeAccess(pitch, 'status', 'Unknown')),
-          savedAt: isValidDate(safeAccess(pitch, 'savedAt', null))
-            ? safeAccess(pitch, 'savedAt', new Date().toISOString())
-            : new Date().toISOString()
-        }));
-        setSavedPitches(safePitches);
-      }
+    // --- Portfolio (primary section) ---
+    if (portfolioRes.status === 'fulfilled') {
+      const responseData = safeAccess(portfolioRes, 'value.data.data', {});
+      const validatedPortfolio = {
+        totalInvested: safeNumber(safeAccess(responseData, 'totalInvested', 0)),
+        activeInvestments: safeNumber(safeAccess(responseData, 'activeInvestments', 0)),
+        averageROI: safeNumber(safeAccess(responseData, 'averageROI', 0)),
+        topPerformer: safeString(safeAccess(responseData, 'topPerformer', 'None yet'))
+      };
+      setPortfolio(validatedPortfolio);
+      setSectionStatus(prev => ({ ...prev, portfolio: { loaded: true, error: null } }));
+    } else {
+      const reason = portfolioRes.reason;
+      const portfolioErr = reason instanceof Error ? reason : new Error(String(reason));
+      trackApiError('/api/investor/portfolio/summary', portfolioErr);
+      reportError(portfolioErr, { context: 'fetchDashboardData.portfolio' });
+      setSectionStatus(prev => ({ ...prev, portfolio: { loaded: true, error: 'Failed to load portfolio data. Please try again.' } }));
+    }
 
-      // Handle NDAs with defensive parsing
-      if (ndaRes.status === 'fulfilled') {
-        const ndaData = safeAccess(ndaRes, 'value.data.data', []);
-        const safeNDAs: NDARequest[] = safeMap(ndaData, (nda: any) => ({
-          id: safeNumber(safeAccess(nda, 'id', Math.floor(Math.random() * 10000))),
-          pitchTitle: safeString(safeAccess(nda, 'pitchTitle', 'Unknown Project')),
-          status: safeString(safeAccess(nda, 'status', 'pending')),
-          requestedAt: isValidDate(safeAccess(nda, 'requestedAt', null))
-            ? safeAccess(nda, 'requestedAt', new Date().toISOString())
-            : new Date().toISOString(),
-          signedAt: safeAccess(nda, 'signedAt', null) as unknown as string | undefined
-        }));
-        setNdaRequests(safeNDAs);
-      }
+    // --- Investments ---
+    if (investmentsRes.status === 'fulfilled') {
+      const investmentsData = safeAccess(investmentsRes, 'value.data.data', []);
+      const safeInvestments = safeMap(investmentsData, (investment: any) => ({
+        id: safeNumber(safeAccess(investment, 'id', Math.floor(Math.random() * 10000))),
+        pitchTitle: safeString(safeAccess(investment, 'pitchTitle', 'Unknown Project')),
+        amount: safeNumber(safeAccess(investment, 'amount', 0)),
+        status: safeString(safeAccess(investment, 'status', 'unknown')),
+        roi: safeNumber(safeAccess(investment, 'roi', 0)),
+        dateInvested: isValidDate(safeAccess(investment, 'dateInvested', null))
+          ? safeAccess(investment, 'dateInvested', new Date().toISOString())
+          : new Date().toISOString(),
+        pitchId: safeNumber(safeAccess(investment, 'pitchId', 0), 0)
+      }));
+      setInvestments(safeInvestments);
+      setSectionStatus(prev => ({ ...prev, investments: { loaded: true, error: null } }));
+    } else {
+      const reason = investmentsRes.reason;
+      const investErr = reason instanceof Error ? reason : new Error(String(reason));
+      trackApiError('/api/investor/investments', investErr);
+      setSectionStatus(prev => ({ ...prev, investments: { loaded: true, error: 'Failed to load investments' } }));
+    }
 
-      // Handle notifications with defensive parsing
-      if (notificationsRes.status === 'fulfilled') {
-        const notificationData = safeAccess(notificationsRes, 'value.data.data', []);
-        setNotifications(safeArray(notificationData));
-      }
+    // --- Saved pitches ---
+    if (savedRes.status === 'fulfilled') {
+      const savedData = safeAccess(savedRes, 'value.data.data', []);
+      const safePitches = safeMap(savedData, (pitch: any) => ({
+        id: safeNumber(safeAccess(pitch, 'id', Math.floor(Math.random() * 10000))),
+        title: safeString(safeAccess(pitch, 'title', 'Unknown Title')),
+        creator: safeString(safeAccess(pitch, 'creator', 'Unknown Creator')),
+        genre: safeString(safeAccess(pitch, 'genre', 'Unknown')),
+        budget: safeString(safeAccess(pitch, 'budget', 'TBD')),
+        status: safeString(safeAccess(pitch, 'status', 'Unknown')),
+        savedAt: isValidDate(safeAccess(pitch, 'savedAt', null))
+          ? safeAccess(pitch, 'savedAt', new Date().toISOString())
+          : new Date().toISOString()
+      }));
+      setSavedPitches(safePitches);
+      setSectionStatus(prev => ({ ...prev, saved: { loaded: true, error: null } }));
+    } else {
+      const reason = savedRes.reason;
+      const savedErr = reason instanceof Error ? reason : new Error(String(reason));
+      trackApiError('/api/saved-pitches', savedErr);
+      setSectionStatus(prev => ({ ...prev, saved: { loaded: true, error: 'Failed to load saved pitches' } }));
+    }
 
-      // Handle recommendations with defensive parsing
-      if (recommendationsRes.status === 'fulfilled') {
-        const recommendationData = safeAccess(recommendationsRes, 'value.data.data', []);
-        const safeRecommendations = safeMap(recommendationData, (rec: any) => ({
-          id: safeNumber(safeAccess(rec, 'id', Math.floor(Math.random() * 10000))),
-          title: safeString(safeAccess(rec, 'title', 'Unknown Title')),
-          genre: safeString(safeAccess(rec, 'genre', 'Unknown')),
-          tagline: safeString(safeAccess(rec, 'tagline', 'No description available')),
-          budget: safeString(safeAccess(rec, 'budget', 'TBD'))
-        }));
-        setRecommendations(safeRecommendations);
-      }
+    // --- NDAs ---
+    if (ndaRes.status === 'fulfilled') {
+      const ndaData = safeAccess(ndaRes, 'value.data.data', []);
+      const safeNDAs: NDARequest[] = safeMap(ndaData, (nda: any) => ({
+        id: safeNumber(safeAccess(nda, 'id', Math.floor(Math.random() * 10000))),
+        pitchTitle: safeString(safeAccess(nda, 'pitchTitle', 'Unknown Project')),
+        status: safeString(safeAccess(nda, 'status', 'pending')),
+        requestedAt: isValidDate(safeAccess(nda, 'requestedAt', null))
+          ? safeAccess(nda, 'requestedAt', new Date().toISOString())
+          : new Date().toISOString(),
+        signedAt: safeAccess(nda, 'signedAt', null) as unknown as string | undefined
+      }));
+      setNdaRequests(safeNDAs);
+      setSectionStatus(prev => ({ ...prev, ndas: { loaded: true, error: null } }));
+    } else {
+      const reason = ndaRes.reason;
+      const ndaErr = reason instanceof Error ? reason : new Error(String(reason));
+      trackApiError('/api/nda/active', ndaErr);
+      setSectionStatus(prev => ({ ...prev, ndas: { loaded: true, error: 'Failed to load NDAs' } }));
+    }
 
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-    } finally {
-      setLoading(false);
+    // --- Notifications ---
+    if (notificationsRes.status === 'fulfilled') {
+      const notificationData = safeAccess(notificationsRes, 'value.data.data', []);
+      setNotifications(safeArray(notificationData));
+      setSectionStatus(prev => ({ ...prev, notifications: { loaded: true, error: null } }));
+    } else {
+      const reason = notificationsRes.reason;
+      const notifErr = reason instanceof Error ? reason : new Error(String(reason));
+      trackApiError('/api/notifications', notifErr);
+      setSectionStatus(prev => ({ ...prev, notifications: { loaded: true, error: 'Failed to load notifications' } }));
+    }
+
+    // --- Recommendations ---
+    if (recommendationsRes.status === 'fulfilled') {
+      const recommendationData = safeAccess(recommendationsRes, 'value.data.data', []);
+      const safeRecommendations = safeMap(recommendationData, (rec: any) => ({
+        id: safeNumber(safeAccess(rec, 'id', Math.floor(Math.random() * 10000))),
+        title: safeString(safeAccess(rec, 'title', 'Unknown Title')),
+        genre: safeString(safeAccess(rec, 'genre', 'Unknown')),
+        tagline: safeString(safeAccess(rec, 'tagline', 'No description available')),
+        budget: safeString(safeAccess(rec, 'budget', 'TBD'))
+      }));
+      setRecommendations(safeRecommendations);
+      setSectionStatus(prev => ({ ...prev, recommendations: { loaded: true, error: null } }));
+    } else {
+      const reason = recommendationsRes.reason;
+      const recErr = reason instanceof Error ? reason : new Error(String(reason));
+      trackApiError('/api/investment/recommendations', recErr);
+      setSectionStatus(prev => ({ ...prev, recommendations: { loaded: true, error: 'Failed to load recommendations' } }));
     }
   };
+
+  const handleRetrySection = useCallback((section: string) => {
+    trackEvent('dashboard.retry', { section });
+    fetchDashboardData();
+  }, [isAuthenticated, user?.id]);
 
   const handleLogout = () => {
     logout();
@@ -252,10 +337,21 @@ function InvestorDashboard() {
 
   // formatCurrency function moved to utils/formatters.ts for safe number handling
 
-  if (loading) {
+  if (initialLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="w-full animate-pulse">
+        {/* Skeleton title */}
+        <div className="mb-6 h-7 w-52 bg-gray-200 rounded" />
+        {/* Skeleton portfolio cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-xl shadow-sm p-6 h-28 border border-gray-100" />
+          ))}
+        </div>
+        {/* Skeleton tab bar */}
+        <div className="bg-white rounded-t-xl shadow-sm h-12 mb-0 border-b border-gray-200" />
+        {/* Skeleton content area */}
+        <div className="bg-white rounded-b-xl shadow-sm p-6 h-64" />
       </div>
     );
   }
@@ -266,6 +362,46 @@ function InvestorDashboard() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Investor Dashboard</h1>
       </div>
+
+      {/* Connectivity Banners */}
+      {!isOnline && (
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+          <WifiOff className="w-4 h-4 text-red-600 shrink-0" />
+          <p className="text-red-700 text-sm">You are offline. Dashboard data may be outdated.</p>
+        </div>
+      )}
+      {isOnline && !isConnected && !isReconnecting && (
+        <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+          <Wifi className="w-4 h-4 text-yellow-600 shrink-0" />
+          <p className="text-yellow-700 text-sm">Real-time updates are unavailable.</p>
+        </div>
+      )}
+      {isReconnecting && (
+        <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+          <RefreshCw className="w-4 h-4 text-yellow-600 shrink-0 animate-spin" />
+          <p className="text-yellow-700 text-sm">Reconnecting to real-time services...</p>
+        </div>
+      )}
+      {isOnline && isConnected && connectionQuality?.strength === 'poor' && (
+        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+          <Wifi className="w-4 h-4 text-amber-600 shrink-0" />
+          <p className="text-amber-700 text-sm">Connection quality is poor. Some updates may be delayed.</p>
+        </div>
+      )}
+
+      {/* Portfolio Error */}
+      {sectionStatus.portfolio.error && (
+        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+          <p className="text-red-700 text-sm flex-1">{sectionStatus.portfolio.error}</p>
+          <button
+            onClick={() => handleRetrySection('portfolio')}
+            className="flex items-center gap-1 text-sm font-medium text-red-700 hover:text-red-800 bg-red-100 hover:bg-red-200 px-3 py-1 rounded transition"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Retry
+          </button>
+        </div>
+      )}
 
       <div className="space-y-6">
         {/* Portfolio Summary Cards */}
@@ -450,6 +586,18 @@ function InvestorDashboard() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">
                     Recommended Opportunities
                   </h3>
+                  {sectionStatus.recommendations.error ? (
+                    <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-lg p-4">
+                      <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+                      <p className="text-red-700 text-sm flex-1">{sectionStatus.recommendations.error}</p>
+                      <button
+                        onClick={() => handleRetrySection('recommendations')}
+                        className="flex items-center gap-1 text-sm font-medium text-red-700 hover:text-red-800 bg-red-100 hover:bg-red-200 px-3 py-1 rounded transition"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" /> Retry
+                      </button>
+                    </div>
+                  ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {safeArray(recommendations).slice(0, 3).map((pitch: any) => (
                       <div key={safeAccess(pitch, 'id', Math.random())} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
@@ -469,6 +617,7 @@ function InvestorDashboard() {
                       </div>
                     ))}
                   </div>
+                  )}
                 </div>
 
                 {/* Recent Activity */}
@@ -511,8 +660,21 @@ function InvestorDashboard() {
                     New Investment
                   </button>
                 </div>
-                
-                {safeArray(investments).length > 0 ? (
+
+                {sectionStatus.investments.error && (
+                  <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                    <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+                    <p className="text-red-700 text-sm flex-1">{sectionStatus.investments.error}</p>
+                    <button
+                      onClick={() => handleRetrySection('investments')}
+                      className="flex items-center gap-1 text-sm font-medium text-red-700 hover:text-red-800 bg-red-100 hover:bg-red-200 px-3 py-1 rounded transition"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" /> Retry
+                    </button>
+                  </div>
+                )}
+
+                {!sectionStatus.investments.error && safeArray(investments).length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
@@ -575,18 +737,18 @@ function InvestorDashboard() {
                       </tbody>
                     </table>
                   </div>
-                ) : (
+                ) : !sectionStatus.investments.error ? (
                   <div className="text-center py-12">
                     <DollarSign className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-500">No investments yet</p>
-                    <button 
+                    <button
                       onClick={() => navigate('/marketplace')}
                       className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                     >
                       Browse Opportunities
                     </button>
                   </div>
-                )}
+                ) : null}
               </div>
             )}
 
@@ -638,7 +800,18 @@ function InvestorDashboard() {
                 {/* Saved Pitches Section */}
                 <div className="mt-8">
                   <h4 className="text-md font-semibold text-gray-900 mb-3">Your Saved Pitches</h4>
-                  {safeArray(savedPitches).length > 0 ? (
+                  {sectionStatus.saved.error ? (
+                    <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-lg p-4">
+                      <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+                      <p className="text-red-700 text-sm flex-1">{sectionStatus.saved.error}</p>
+                      <button
+                        onClick={() => handleRetrySection('saved')}
+                        className="flex items-center gap-1 text-sm font-medium text-red-700 hover:text-red-800 bg-red-100 hover:bg-red-200 px-3 py-1 rounded transition"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" /> Retry
+                      </button>
+                    </div>
+                  ) : safeArray(savedPitches).length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {safeArray(savedPitches).slice(0, 4).map((pitch) => (
                         <div key={safeAccess(pitch, 'id', Math.random())} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
@@ -702,7 +875,18 @@ function InvestorDashboard() {
                 {/* NDA Management Section */}
                 <div className="mb-8">
                   <h4 className="text-md font-semibold text-gray-900 mb-3">Active NDAs</h4>
-                  {safeArray(ndaRequests).length > 0 ? (
+                  {sectionStatus.ndas.error ? (
+                    <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-lg p-4">
+                      <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+                      <p className="text-red-700 text-sm flex-1">{sectionStatus.ndas.error}</p>
+                      <button
+                        onClick={() => handleRetrySection('ndas')}
+                        className="flex items-center gap-1 text-sm font-medium text-red-700 hover:text-red-800 bg-red-100 hover:bg-red-200 px-3 py-1 rounded transition"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" /> Retry
+                      </button>
+                    </div>
+                  ) : safeArray(ndaRequests).length > 0 ? (
                     <div className="space-y-3">
                       {safeArray(ndaRequests).slice(0, 5).map((nda) => (
                         <div key={safeAccess(nda, 'id', Math.random())} className="border rounded-lg p-4">
@@ -1113,10 +1297,4 @@ function InvestorDashboard() {
   );
 }
 
-export default function WrappedInvestorDashboard() {
-  return (
-    <PageErrorBoundary>
-      <InvestorDashboard />
-    </PageErrorBoundary>
-  );
-}
+export default withPortalErrorBoundary(InvestorDashboard, 'investor');
