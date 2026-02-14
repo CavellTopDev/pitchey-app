@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Users, UserPlus, Shield, Clock, Award, 
+import {
+  Users, UserPlus, Shield, Clock, Award,
   TrendingUp, Activity, Calendar, MessageSquare,
   BarChart3, CheckCircle, AlertTriangle, Eye,
   FileText, Star, Briefcase, Plus
 } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { TeamService } from '../../services/team.service';
+import { useCurrentTeam } from '../../hooks/useCurrentTeam';
 
 interface TeamStats {
   totalMembers: number;
@@ -46,7 +48,8 @@ export default function TeamOverview() {
   const navigate = useNavigate();
   const { user, logout } = useBetterAuthStore();
   const userType = user?.userType || 'production';
-  
+  const { team, teamId } = useCurrentTeam();
+
   const [stats, setStats] = useState<TeamStats>({
     totalMembers: 0,
     activeMembers: 0,
@@ -62,100 +65,56 @@ export default function TeamOverview() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchTeamData();
-  }, []);
+    if (teamId) fetchTeamData();
+  }, [teamId]);
 
   const fetchTeamData = async () => {
+    if (!teamId) return;
     try {
       setLoading(true);
-      
-      // Mock data for development - replace with actual API calls
-      setTimeout(() => {
-        setStats({
-          totalMembers: 12,
-          activeMembers: 10,
-          pendingInvites: 3,
-          departments: 5,
-          averageRating: 4.7,
-          totalProjects: 28,
-          completedProjects: 18,
-          activeProjects: 10
-        });
 
-        setRecentActivity([
-          {
-            id: '1',
-            type: 'member_joined',
-            user: 'Sarah Johnson',
-            description: 'joined the Production team',
-            timestamp: '2024-01-15T14:30:00Z',
-            metadata: { department: 'Production', role: 'Senior Producer' }
-          },
-          {
-            id: '2',
-            type: 'project_completed',
-            user: 'Michael Chen',
-            description: 'completed project "Midnight Chronicles"',
-            timestamp: '2024-01-15T11:20:00Z',
-            metadata: { projectName: 'Midnight Chronicles' }
-          },
-          {
-            id: '3',
-            type: 'invite_sent',
-            user: 'Emily Rodriguez',
-            description: 'sent invitation to Alex Martinez',
-            timestamp: '2024-01-15T09:15:00Z',
-            metadata: { role: 'VFX Artist', department: 'Technical' }
-          },
-          {
-            id: '4',
-            type: 'role_updated',
-            user: 'James Wilson',
-            description: 'was promoted to Lead Writer',
-            timestamp: '2024-01-14T16:45:00Z',
-            metadata: { role: 'Lead Writer', department: 'Creative' }
-          },
-          {
-            id: '5',
-            type: 'project_started',
-            user: 'Lisa Park',
-            description: 'started new project "Urban Legends"',
-            timestamp: '2024-01-14T13:00:00Z',
-            metadata: { projectName: 'Urban Legends' }
-          }
-        ]);
+      const [teamDetail, invitations] = await Promise.all([
+        TeamService.getTeamById(teamId),
+        TeamService.getInvitations(),
+      ]);
 
-        setUpcomingEvents([
-          {
-            id: '1',
-            title: 'Weekly Team Standup',
-            type: 'meeting',
-            date: '2024-01-16T10:00:00Z',
-            participants: ['Sarah Johnson', 'Michael Chen', 'Emily Rodriguez'],
-            priority: 'medium'
-          },
-          {
-            id: '2',
-            title: 'Project "Stellar Dreams" Final Review',
-            type: 'deadline',
-            date: '2024-01-18T15:00:00Z',
-            participants: ['James Wilson', 'Lisa Park'],
-            priority: 'high'
-          },
-          {
-            id: '3',
-            title: 'Q1 Performance Reviews',
-            type: 'review',
-            date: '2024-01-20T09:00:00Z',
-            participants: ['All Team Members'],
-            priority: 'medium'
-          }
-        ]);
+      const members = teamDetail.members || [];
+      const totalMembers = members.length;
+      const activeMembers = members.length; // All members from API are active
+      const pendingInvites = invitations.filter(i => i.status === 'pending').length;
 
-        setLoading(false);
-      }, 1000);
-    } catch (error) {
-      console.error('Failed to fetch team data:', error);
+      setStats({
+        totalMembers,
+        activeMembers,
+        pendingInvites,
+        departments: 1, // No department data available
+        averageRating: 0,
+        totalProjects: 0,
+        completedProjects: 0,
+        activeProjects: 0,
+      });
+
+      // Build activity list from member join dates
+      const activities: RecentActivity[] = members
+        .filter((m: any) => m.joinedAt)
+        .sort((a: any, b: any) => new Date(b.joinedAt).getTime() - new Date(a.joinedAt).getTime())
+        .slice(0, 5)
+        .map((m: any, idx: number) => ({
+          id: String(idx + 1),
+          type: 'member_joined' as const,
+          user: m.name || (m.email ? m.email.split('@')[0] : 'Unknown'),
+          description: `joined the team as ${m.role}`,
+          timestamp: m.joinedAt,
+          metadata: { role: m.role },
+        }));
+
+      setRecentActivity(activities);
+
+      // No events endpoint — keep empty
+      setUpcomingEvents([]);
+    } catch (err) {
+      console.error('Failed to fetch team data:', err);
+    } finally {
       setLoading(false);
     }
   };

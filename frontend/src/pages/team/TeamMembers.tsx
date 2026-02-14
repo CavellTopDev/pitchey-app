@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Users, UserPlus, Search, Filter, MoreVertical, 
+import {
+  Users, UserPlus, Search, Filter, MoreVertical,
   Edit2, Trash2, Mail, Phone, Calendar, Star,
   Briefcase, Shield, CheckCircle, XCircle, Clock,
   Eye, Download, Settings
 } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { TeamService } from '../../services/team.service';
+import { useCurrentTeam } from '../../hooks/useCurrentTeam';
 
 interface TeamMember {
   id: string;
@@ -43,7 +45,8 @@ export default function TeamMembers() {
   const navigate = useNavigate();
   const { user, logout } = useBetterAuthStore();
   const userType = user?.userType || 'production';
-  
+  const { teamId } = useCurrentTeam();
+
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -59,149 +62,69 @@ export default function TeamMembers() {
   });
 
   useEffect(() => {
-    fetchTeamMembers();
-  }, []);
+    if (teamId) fetchTeamMembers();
+  }, [teamId]);
+
+  const derivePermissions = (role: string): string[] => {
+    switch (role) {
+      case 'owner': return ['manage_projects', 'approve_budgets', 'manage_team', 'manage_roles'];
+      case 'editor': return ['manage_projects', 'edit_content'];
+      case 'viewer': return ['view_projects', 'view_content'];
+      default: return ['view_projects'];
+    }
+  };
 
   const fetchTeamMembers = async () => {
+    if (!teamId) return;
     try {
       setLoading(true);
-      
-      // Mock data for development - replace with actual API calls
-      setTimeout(() => {
-        setTeamMembers([
-          {
-            id: '1',
-            name: 'Sarah Johnson',
-            email: 'sarah.j@company.com',
-            phone: '+1 555-0101',
-            role: 'Senior Producer',
-            department: 'Production',
-            joinDate: '2023-01-15',
-            lastActive: '2024-01-15T14:30:00Z',
-            status: 'active',
-            projects: 12,
-            rating: 4.8,
-            permissions: ['manage_projects', 'approve_budgets', 'manage_team'],
-            location: 'Los Angeles, CA',
-            skills: ['Project Management', 'Budget Planning', 'Team Leadership'],
-            reportsTo: 'Executive Producer'
-          },
-          {
-            id: '2',
-            name: 'Michael Chen',
-            email: 'michael.c@company.com',
-            phone: '+1 555-0102',
-            role: 'Director',
-            department: 'Creative',
-            joinDate: '2023-03-20',
-            lastActive: '2024-01-15T12:15:00Z',
-            status: 'active',
-            projects: 8,
-            rating: 4.9,
-            permissions: ['manage_projects', 'creative_control'],
-            location: 'New York, NY',
-            skills: ['Directing', 'Cinematography', 'Story Development'],
-            reportsTo: 'Creative Director'
-          },
-          {
-            id: '3',
-            name: 'Emma Rodriguez',
-            email: 'emma.r@company.com',
-            role: 'VFX Supervisor',
-            department: 'Technical',
-            joinDate: '2023-06-10',
-            lastActive: '2024-01-15T10:45:00Z',
-            status: 'active',
-            projects: 15,
-            rating: 4.7,
-            permissions: ['manage_vfx', 'approve_renders'],
-            location: 'Vancouver, BC',
-            skills: ['Visual Effects', 'Maya', 'Houdini', 'Compositing']
-          },
-          {
-            id: '4',
-            name: 'James Wilson',
-            email: 'james.w@company.com',
-            role: 'Script Writer',
-            department: 'Creative',
-            joinDate: '2024-01-05',
-            lastActive: '2024-01-14T16:20:00Z',
-            status: 'pending',
-            projects: 2,
-            rating: 4.5,
-            permissions: ['edit_scripts'],
-            location: 'Austin, TX',
-            skills: ['Screenwriting', 'Character Development', 'Dialog']
-          },
-          {
-            id: '5',
-            name: 'Lisa Park',
-            email: 'lisa.p@company.com',
-            phone: '+1 555-0105',
-            role: 'Marketing Director',
-            department: 'Marketing',
-            joinDate: '2022-11-30',
-            lastActive: '2024-01-10T09:30:00Z',
-            status: 'inactive',
-            projects: 20,
-            rating: 4.6,
-            permissions: ['manage_campaigns', 'approve_marketing'],
-            location: 'Chicago, IL',
-            skills: ['Digital Marketing', 'Social Media', 'Brand Strategy']
-          },
-          {
-            id: '6',
-            name: 'Alex Thompson',
-            email: 'alex.t@company.com',
-            phone: '+1 555-0106',
-            role: 'Sound Engineer',
-            department: 'Technical',
-            joinDate: '2023-08-15',
-            lastActive: '2024-01-15T11:00:00Z',
-            status: 'active',
-            projects: 6,
-            rating: 4.4,
-            permissions: ['manage_audio', 'edit_sound'],
-            location: 'Nashville, TN',
-            skills: ['Audio Engineering', 'Pro Tools', 'Music Production']
-          },
-          {
-            id: '7',
-            name: 'Maria Garcia',
-            email: 'maria.g@company.com',
-            role: 'Editor',
-            department: 'Production',
-            joinDate: '2023-04-12',
-            lastActive: '2024-01-15T13:45:00Z',
-            status: 'active',
-            projects: 9,
-            rating: 4.6,
-            permissions: ['edit_content', 'review_cuts'],
-            location: 'Miami, FL',
-            skills: ['Video Editing', 'Avid', 'Final Cut Pro', 'Color Grading']
-          },
-          {
-            id: '8',
-            name: 'David Kumar',
-            email: 'david.k@company.com',
-            phone: '+1 555-0108',
-            role: 'Financial Analyst',
-            department: 'Finance',
-            joinDate: '2023-02-28',
-            lastActive: '2024-01-15T08:30:00Z',
-            status: 'active',
-            projects: 14,
-            rating: 4.3,
-            permissions: ['view_financials', 'approve_expenses'],
-            location: 'San Francisco, CA',
-            skills: ['Financial Analysis', 'Excel', 'Budget Management']
-          }
-        ]);
-        setLoading(false);
-      }, 1000);
-    } catch (error) {
-      console.error('Failed to fetch team members:', error);
+
+      const members = await TeamService.getTeamMembers(teamId);
+
+      const mapped: TeamMember[] = members.map(m => ({
+        id: String(m.userId || m.id),
+        name: m.name || (m.email ? m.email.split('@')[0] : 'Unknown'),
+        email: m.email || '',
+        role: m.role || 'viewer',
+        department: 'Not specified',
+        joinDate: m.joinedDate || (m as any).joinedAt || new Date().toISOString(),
+        lastActive: m.lastActive || new Date().toISOString(),
+        status: m.status || 'active',
+        projects: 0,
+        rating: 0,
+        permissions: derivePermissions(m.role),
+        skills: m.skills || [],
+      }));
+
+      setTeamMembers(mapped);
+    } catch (err) {
+      console.error('Failed to fetch team members:', err);
+    } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRemoveMember = async (memberId: string) => {
+    if (!teamId || !confirm('Are you sure you want to remove this member?')) return;
+    try {
+      await TeamService.removeMember(teamId, memberId);
+      setTeamMembers(prev => prev.filter(m => m.id !== memberId));
+    } catch (err: any) {
+      console.error('Failed to remove member:', err);
+      alert(err.message || 'Failed to remove member');
+    }
+  };
+
+  const handleUpdateRole = async (memberId: string) => {
+    if (!teamId) return;
+    const newRole = prompt('Enter new role (owner, editor, viewer):');
+    if (!newRole || !['owner', 'editor', 'viewer'].includes(newRole)) return;
+    try {
+      await TeamService.updateMemberRole(teamId, memberId, newRole);
+      await fetchTeamMembers();
+    } catch (err: any) {
+      console.error('Failed to update role:', err);
+      alert(err.message || 'Failed to update role');
     }
   };
 
@@ -549,10 +472,18 @@ export default function TeamMembers() {
                           >
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button className="text-gray-600 hover:text-gray-500 transition">
+                          <button
+                            onClick={() => handleUpdateRole(member.id)}
+                            className="text-gray-600 hover:text-gray-500 transition"
+                            title="Change role"
+                          >
                             <Edit2 className="w-4 h-4" />
                           </button>
-                          <button className="text-red-600 hover:text-red-500 transition">
+                          <button
+                            onClick={() => handleRemoveMember(member.id)}
+                            className="text-red-600 hover:text-red-500 transition"
+                            title="Remove member"
+                          >
                             <Trash2 className="w-4 h-4" />
                           </button>
                           <button className="text-gray-600 hover:text-gray-500 transition">

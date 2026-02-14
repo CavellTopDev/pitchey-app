@@ -326,6 +326,30 @@ export class TeamService {
   }
 
   /**
+   * Resend an invitation
+   */
+  static async resendInvitation(inviteId: string): Promise<TeamInvitation> {
+    const response = await apiClient.post<{ invitation: TeamInvitation }>(`/api/teams/invites/${inviteId}/resend`, {});
+
+    if (!response.success || !(response.data as any)?.invitation) {
+      throw new Error(typeof response.error === 'string' ? response.error : response.error?.message || 'Failed to resend invitation');
+    }
+
+    return (response.data as any).invitation;
+  }
+
+  /**
+   * Cancel (delete) an invitation
+   */
+  static async cancelInvitation(inviteId: string): Promise<void> {
+    const response = await apiClient.delete<{ message: string }>(`/api/teams/invites/${inviteId}`);
+
+    if (!response.success) {
+      throw new Error(typeof response.error === 'string' ? response.error : response.error?.message || 'Failed to cancel invitation');
+    }
+  }
+
+  /**
    * Create or update a team role
    */
   static async saveTeamRole(teamId: string, role: Partial<TeamRole>): Promise<TeamRole> {

@@ -664,6 +664,86 @@ async function logTeamActivity(
   }
 }
 
+// Resend team invitation (reset status and extend expiry)
+export async function resendInvitation(sql: Sql, invitationId: string, userId: string) {
+  try {
+    // Verify the user is an owner/editor of the team this invitation belongs to
+    const invite = await sql`
+      SELECT ti.id, ti.team_id
+      FROM team_invitations ti
+      JOIN team_members tm ON ti.team_id = tm.team_id
+      WHERE ti.id = ${invitationId}::int
+        AND tm.user_id = ${userId}::int
+        AND tm.role IN ('owner', 'editor')
+    `;
+
+    if (!invite || invite.length === 0) {
+      throw new Error('Invitation not found or you do not have permission');
+    }
+
+    const result = await sql`
+      UPDATE team_invitations
+      SET status = 'pending',
+          expires_at = NOW() + INTERVAL '7 days',
+          created_at = NOW()
+      WHERE id = ${invitationId}::int
+      RETURNING
+        id,
+        team_id as "teamId",
+        invited_email as "invitedEmail",
+        invited_by as "invitedBy",
+        role,
+        status,
+        message,
+        token,
+        created_at as "createdAt",
+        expires_at as "expiresAt"
+    `;
+
+    if (!result || result.length === 0) {
+      throw new Error('Failed to resend invitation');
+    }
+
+    await logTeamActivity(sql, invite[0].team_id, userId, 'invitation_resent', 'invitation', invitationId);
+
+    return result[0];
+  } catch (error) {
+    console.error('Error resending invitation:', error);
+    throw error;
+  }
+}
+
+// Cancel (delete) a team invitation
+export async function cancelInvitation(sql: Sql, invitationId: string, userId: string) {
+  try {
+    // Verify the user is an owner/editor of the team this invitation belongs to
+    const invite = await sql`
+      SELECT ti.id, ti.team_id
+      FROM team_invitations ti
+      JOIN team_members tm ON ti.team_id = tm.team_id
+      WHERE ti.id = ${invitationId}::int
+        AND tm.user_id = ${userId}::int
+        AND tm.role IN ('owner', 'editor')
+    `;
+
+    if (!invite || invite.length === 0) {
+      throw new Error('Invitation not found or you do not have permission');
+    }
+
+    await sql`
+      DELETE FROM team_invitations
+      WHERE id = ${invitationId}::int
+    `;
+
+    await logTeamActivity(sql, invite[0].team_id, userId, 'invitation_cancelled', 'invitation', invitationId);
+
+    return true;
+  } catch (error) {
+    console.error('Error cancelling invitation:', error);
+    throw error;
+  }
+}
+
 // Check if user can access team
 export async function canAccessTeam(sql: Sql, userId: string, teamId: string): Promise<boolean> {
   try {

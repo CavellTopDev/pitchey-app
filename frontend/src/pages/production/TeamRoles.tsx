@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
+import {
   Shield, Users, Edit2, Save, Plus, Trash2, ArrowLeft,
   CheckCircle, XCircle, Eye, EyeOff, Lock, Unlock,
-  Settings, UserCheck, AlertCircle, Crown, Star
+  Settings, UserCheck, AlertCircle, Crown, Star, Info
 } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { config } from '../../config';
+import { TeamService } from '../../services/team.service';
+import { useCurrentTeam } from '../../hooks/useCurrentTeam';
 
 interface Permission {
   id: string;
@@ -76,7 +77,8 @@ export default function TeamRoles() {
   const navigate = useNavigate();
   const { user, logout } = useBetterAuthStore();
   const userType = user?.userType || 'production';
-  
+  const { teamId } = useCurrentTeam();
+
   const [roles, setRoles] = useState<Role[]>([]);
   const [permissions] = useState<Permission[]>(defaultPermissions);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -88,104 +90,103 @@ export default function TeamRoles() {
   const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
-    fetchRolesAndMembers();
-  }, []);
+    if (teamId) fetchRolesAndMembers();
+  }, [teamId]);
+
+  const roleNameMap: Record<string, string> = {
+    owner: 'Owner',
+    editor: 'Editor',
+    viewer: 'Viewer',
+    admin: 'Admin',
+    member: 'Team Member',
+    collaborator: 'Collaborator',
+  };
 
   const fetchRolesAndMembers = async () => {
+    if (!teamId) return;
     try {
       setLoading(true);
-      
-      // Mock data - replace with actual API calls
-      setTimeout(() => {
-        setRoles([
-          {
-            id: '1',
-            name: 'Owner',
-            description: 'Full access to all features and settings',
-            permissions: defaultPermissions.map(p => p.id),
-            memberCount: 1,
-            isDefault: false,
-            isSystemRole: true,
-            color: 'purple',
-            createdAt: '2023-01-01T00:00:00Z',
-            updatedAt: '2023-01-01T00:00:00Z'
-          },
-          {
-            id: '2',
-            name: 'Producer',
-            description: 'Can manage projects, team, and budgets',
-            permissions: [
-              'view_projects', 'edit_projects', 'create_projects', 'manage_timeline',
-              'view_team', 'invite_members', 'manage_members',
-              'view_budgets', 'edit_budgets', 'approve_expenses', 'view_financial_reports',
-              'view_content', 'edit_content', 'approve_content', 'manage_assets'
-            ],
-            memberCount: 3,
-            isDefault: true,
-            isSystemRole: false,
-            color: 'blue',
-            createdAt: '2023-01-01T00:00:00Z',
-            updatedAt: '2023-06-15T00:00:00Z'
-          },
-          {
-            id: '3',
-            name: 'Director',
-            description: 'Creative control and content management',
-            permissions: [
-              'view_projects', 'edit_projects', 'manage_timeline',
-              'view_team', 'invite_members',
-              'view_budgets', 'view_financial_reports',
-              'view_content', 'edit_content', 'approve_content', 'manage_assets'
-            ],
-            memberCount: 2,
-            isDefault: false,
-            isSystemRole: false,
-            color: 'green',
-            createdAt: '2023-02-01T00:00:00Z',
-            updatedAt: '2023-05-20T00:00:00Z'
-          },
-          {
-            id: '4',
-            name: 'Team Member',
-            description: 'Basic access to view and edit assigned content',
-            permissions: [
-              'view_projects', 'view_team', 'view_content', 'edit_content', 'manage_assets'
-            ],
-            memberCount: 8,
-            isDefault: true,
-            isSystemRole: false,
-            color: 'gray',
-            createdAt: '2023-01-01T00:00:00Z',
-            updatedAt: '2023-03-10T00:00:00Z'
-          }
-        ]);
+      setError('');
 
-        setTeamMembers([
-          { id: '1', name: 'Sarah Johnson', email: 'sarah.j@company.com', role: 'Owner', isActive: true },
-          { id: '2', name: 'Michael Chen', email: 'michael.c@company.com', role: 'Producer', isActive: true },
-          { id: '3', name: 'Emma Rodriguez', email: 'emma.r@company.com', role: 'Director', isActive: true },
-          { id: '4', name: 'James Wilson', email: 'james.w@company.com', role: 'Team Member', isActive: true }
-        ]);
+      const [apiRoles, members] = await Promise.all([
+        TeamService.getTeamRoles(teamId),
+        TeamService.getTeamMembers(teamId),
+      ]);
 
-        setLoading(false);
-      }, 1000);
+      // Map members to local TeamMember shape
+      const mappedMembers: TeamMember[] = members.map(m => ({
+        id: String(m.userId || m.id),
+        name: m.name || (m.email ? m.email.split('@')[0] : 'Unknown'),
+        email: m.email || '',
+        role: roleNameMap[m.role] || m.role,
+        isActive: m.status === 'active',
+      }));
+      setTeamMembers(mappedMembers);
 
-    } catch (error) {
-      console.error('Failed to fetch roles and members:', error);
+      // Build roles with real member counts
+      const roleCounts: Record<string, number> = {};
+      for (const m of members) {
+        const displayName = roleNameMap[m.role] || m.role;
+        roleCounts[displayName] = (roleCounts[displayName] || 0) + 1;
+      }
+
+      // Map API roles to local Role shape, using default permission sets
+      const rolePermissionMap: Record<string, string[]> = {
+        Owner: defaultPermissions.map(p => p.id),
+        Admin: defaultPermissions.filter(p => p.level !== 'critical' || p.id === 'admin_access').map(p => p.id),
+        Editor: ['view_projects', 'edit_projects', 'create_projects', 'manage_timeline', 'view_team', 'invite_members', 'view_budgets', 'view_content', 'edit_content', 'manage_assets'],
+        'Team Member': ['view_projects', 'view_team', 'view_content', 'edit_content', 'manage_assets'],
+        Collaborator: ['view_projects', 'view_content'],
+        Viewer: ['view_projects', 'view_team', 'view_content'],
+      };
+
+      const mappedRoles: Role[] = apiRoles.map(r => ({
+        id: r.id,
+        name: r.name,
+        description: r.description || '',
+        permissions: rolePermissionMap[r.name] || ['view_projects', 'view_content'],
+        memberCount: roleCounts[r.name] || r.memberCount || 0,
+        isDefault: r.isDefault,
+        isSystemRole: r.name === 'Owner',
+        color: r.name === 'Owner' ? 'purple' : r.name === 'Editor' ? 'blue' : r.name === 'Admin' ? 'green' : 'gray',
+        createdAt: r.createdAt,
+        updatedAt: r.createdAt,
+      }));
+
+      setRoles(mappedRoles);
+    } catch (err: any) {
+      console.error('Failed to fetch roles and members:', err);
       setError('Failed to load roles and team members');
+    } finally {
       setLoading(false);
     }
   };
 
   const handleSaveRole = async (roleData: Partial<Role>) => {
     try {
-      // TODO: Replace with actual API call
-      setSuccessMessage('Role saved successfully!');
+      // Local-only: custom roles don't persist to backend yet
+      if (roleData.id && !roleData.id.startsWith('new_')) {
+        setRoles(prev => prev.map(r => r.id === roleData.id ? { ...r, ...roleData } as Role : r));
+      } else {
+        const newRole: Role = {
+          id: roleData.id || `local_${Date.now()}`,
+          name: roleData.name || 'New Role',
+          description: roleData.description || '',
+          permissions: roleData.permissions || [],
+          memberCount: 0,
+          isDefault: false,
+          isSystemRole: false,
+          color: roleData.color || 'gray',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        setRoles(prev => [...prev, newRole]);
+      }
+      setSuccessMessage('Role saved locally. Note: custom role changes are not persisted to the server yet.');
       setEditingRole(null);
       setShowCreateRole(false);
-      await fetchRolesAndMembers();
-    } catch (error) {
-      console.error('Failed to save role:', error);
+    } catch (err: any) {
+      console.error('Failed to save role:', err);
       setError('Failed to save role');
     }
   };
@@ -196,11 +197,11 @@ export default function TeamRoles() {
     }
 
     try {
-      // TODO: Replace with actual API call
+      // Local-only: custom roles don't persist to backend yet
       setRoles(prev => prev.filter(role => role.id !== roleId));
-      setSuccessMessage('Role deleted successfully!');
-    } catch (error) {
-      console.error('Failed to delete role:', error);
+      setSuccessMessage('Role deleted locally. Note: custom role changes are not persisted to the server yet.');
+    } catch (err: any) {
+      console.error('Failed to delete role:', err);
       setError('Failed to delete role');
     }
   };
@@ -419,6 +420,15 @@ export default function TeamRoles() {
             <p className="text-red-700">{error}</p>
           </div>
         )}
+
+        {/* Info Banner */}
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
+          <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+          <p className="text-blue-800 text-sm">
+            Role definitions are loaded from defaults. Custom role changes are saved locally and don't persist to the server yet.
+            Member counts reflect real team data.
+          </p>
+        </div>
 
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">

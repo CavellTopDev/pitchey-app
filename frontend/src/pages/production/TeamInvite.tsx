@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  UserPlus, Mail, Send, Clock, CheckCircle, XCircle, 
+import {
+  UserPlus, Mail, Send, Clock, CheckCircle, XCircle,
   ArrowLeft, Copy, RefreshCw, Trash2, Eye, AlertCircle,
   Users, Calendar, Shield
 } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { config, API_URL } from '../../config';
+import { TeamService } from '../../services/team.service';
+import { useCurrentTeam } from '../../hooks/useCurrentTeam';
 
 interface PendingInvitation {
   id: string;
@@ -44,7 +45,8 @@ export default function TeamInvite() {
   const navigate = useNavigate();
   const { user, logout } = useBetterAuthStore();
   const userType = user?.userType || 'production';
-  
+  const { teamId } = useCurrentTeam();
+
   const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInviteForm, setShowInviteForm] = useState(false);
@@ -67,61 +69,29 @@ export default function TeamInvite() {
   const fetchPendingInvitations = async () => {
     try {
       setLoading(true);
-      
-      // Mock data for development - replace with actual API call
-      setTimeout(() => {
-        setPendingInvitations([
-          {
-            id: '1',
-            email: 'john.doe@example.com',
-            name: 'John Doe',
-            role: 'Director',
-            department: 'Creative',
-            invitedBy: 'Sarah Johnson',
-            sentAt: '2024-01-15T10:30:00Z',
-            expiresAt: '2024-01-22T10:30:00Z',
-            status: 'pending',
-            inviteLink: 'https://pitchey-5o8.pages.dev/invite/abc123',
-            message: 'Welcome to our creative team! Looking forward to working together.'
-          },
-          {
-            id: '2',
-            email: 'alice.smith@example.com',
-            name: 'Alice Smith',
-            role: 'VFX Artist',
-            department: 'Technical',
-            invitedBy: 'Michael Chen',
-            sentAt: '2024-01-10T14:20:00Z',
-            expiresAt: '2024-01-17T14:20:00Z',
-            status: 'expired',
-            inviteLink: 'https://pitchey-5o8.pages.dev/invite/def456'
-          },
-          {
-            id: '3',
-            email: 'bob.wilson@example.com',
-            name: 'Bob Wilson',
-            role: 'Producer',
-            department: 'Production',
-            invitedBy: 'Sarah Johnson',
-            sentAt: '2024-01-12T09:00:00Z',
-            expiresAt: '2024-01-19T09:00:00Z',
-            status: 'accepted',
-            inviteLink: 'https://pitchey-5o8.pages.dev/invite/ghi789'
-          }
-        ]);
-        setLoading(false);
-      }, 1000);
-      
-      // TODO: Replace with actual API call
-    const response = await fetch(`${API_URL}/api/teams/invites`, {
-      method: 'GET',
-      credentials: 'include' // Send cookies for Better Auth session
-    });
-      const data = await response.json();
-      setPendingInvitations(data.data?.invitations || data.invitations || []);
-    } catch (error) {
-      console.error('Failed to fetch invitations:', error);
+      setError('');
+
+      const invites = await TeamService.getInvitations();
+
+      const mapped: PendingInvitation[] = invites.map(inv => ({
+        id: String(inv.id),
+        email: inv.email || (inv as any).invitedEmail || '',
+        name: (inv as any).invitedByName || ((inv.email || (inv as any).invitedEmail || '').split('@')[0]),
+        role: inv.role || 'viewer',
+        department: 'Not specified',
+        invitedBy: (inv as any).invitedByName || 'Team member',
+        sentAt: inv.createdAt,
+        expiresAt: inv.expiresAt,
+        status: inv.status as PendingInvitation['status'],
+        inviteLink: (inv as any).token ? `${window.location.origin}/invite/${(inv as any).token}` : undefined,
+        message: inv.message,
+      }));
+
+      setPendingInvitations(mapped);
+    } catch (err: any) {
+      console.error('Failed to fetch invitations:', err);
       setError('Failed to load pending invitations');
+    } finally {
       setLoading(false);
     }
   };
@@ -145,23 +115,34 @@ export default function TeamInvite() {
       setSubmitting(true);
       setError('');
 
-      // Validate form
       if (!formData.email || !formData.name || !formData.role || !formData.department) {
         setError('Please fill in all required fields');
         return;
       }
 
-      // TODO: Replace with actual API call
-    const response = await fetch(`${API_URL}/api/teams/invites`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData),
-      credentials: 'include' // Send cookies for Better Auth session
-    });
-      
-      // Mock success
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
+      if (!teamId) {
+        setError('No team found. Please create a team first.');
+        return;
+      }
+
+      // Map job title roles to access levels for the backend
+      const roleMap: Record<string, string> = {
+        'Producer': 'editor',
+        'Director': 'editor',
+        'Writer': 'editor',
+        'Editor': 'editor',
+        'Cinematographer': 'viewer',
+        'Sound Designer': 'viewer',
+        'VFX Artist': 'viewer',
+        'Assistant Producer': 'viewer',
+      };
+
+      await TeamService.inviteToTeam(teamId, {
+        email: formData.email,
+        role: roleMap[formData.role] || 'viewer',
+        message: formData.message || undefined,
+      });
+
       setSuccessMessage('Invitation sent successfully!');
       setFormData({
         email: '',
@@ -172,13 +153,11 @@ export default function TeamInvite() {
         permissions: []
       });
       setShowInviteForm(false);
-      
-      // Refresh invitations list
+
       await fetchPendingInvitations();
-      
-    } catch (error) {
-      console.error('Failed to send invitation:', error);
-      setError('Failed to send invitation. Please try again.');
+    } catch (err: any) {
+      console.error('Failed to send invitation:', err);
+      setError(err.message || 'Failed to send invitation. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -186,22 +165,25 @@ export default function TeamInvite() {
 
   const handleResendInvitation = async (inviteId: string) => {
     try {
-      // TODO: Implement resend functionality
+      setError('');
+      await TeamService.resendInvitation(inviteId);
       setSuccessMessage('Invitation resent successfully!');
-    } catch (error) {
-      console.error('Failed to resend invitation:', error);
-      setError('Failed to resend invitation');
+      await fetchPendingInvitations();
+    } catch (err: any) {
+      console.error('Failed to resend invitation:', err);
+      setError(err.message || 'Failed to resend invitation');
     }
   };
 
   const handleCancelInvitation = async (inviteId: string) => {
     try {
-      // TODO: Implement cancel functionality
+      setError('');
+      await TeamService.cancelInvitation(inviteId);
       setPendingInvitations(prev => prev.filter(inv => inv.id !== inviteId));
       setSuccessMessage('Invitation cancelled successfully');
-    } catch (error) {
-      console.error('Failed to cancel invitation:', error);
-      setError('Failed to cancel invitation');
+    } catch (err: any) {
+      console.error('Failed to cancel invitation:', err);
+      setError(err.message || 'Failed to cancel invitation');
     }
   };
 

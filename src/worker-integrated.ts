@@ -117,6 +117,8 @@ import {
   getInvitationsHandler,
   acceptInvitationHandler,
   rejectInvitationHandler,
+  resendInvitationHandler,
+  cancelInvitationHandler,
   updateMemberRoleHandler,
   removeTeamMemberHandler
 } from './handlers/teams';
@@ -2331,6 +2333,8 @@ class RouteRegistry {
     this.register('GET', '/api/teams/invites', (req) => getInvitationsHandler(req, this.env));
     this.register('POST', '/api/teams/invites/:id/accept', (req) => acceptInvitationHandler(req, this.env));
     this.register('POST', '/api/teams/invites/:id/reject', (req) => rejectInvitationHandler(req, this.env));
+    this.register('POST', '/api/teams/invites/:id/resend', (req) => resendInvitationHandler(req, this.env));
+    this.register('DELETE', '/api/teams/invites/:id', (req) => cancelInvitationHandler(req, this.env));
 
     // Settings Management routes (use internal validateAuth for consistency)
     this.register('GET', '/api/user/settings', (req) => this.getSettingsInternal(req));

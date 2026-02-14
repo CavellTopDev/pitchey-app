@@ -750,6 +750,132 @@ export async function updateMemberRoleHandler(request: Request, env: Env): Promi
   }
 }
 
+// POST /api/teams/invites/:id/resend - Resend invitation
+export async function resendInvitationHandler(request: Request, env: Env): Promise<Response> {
+  const origin = request.headers.get('Origin');
+  const corsHeaders = getCorsHeaders(origin);
+
+  try {
+    const url = new URL(request.url);
+    const pathParts = url.pathname.split('/');
+    const inviteId = pathParts[pathParts.indexOf('invites') + 1];
+
+    if (!inviteId) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Invitation ID required'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
+
+    const authResult = await verifyAuth(request, env);
+    if (!authResult.success || !authResult.user) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Unauthorized'
+      }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
+
+    const sql = getDb(env);
+    if (!sql) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Database unavailable'
+      }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
+
+    const invitation = await teamQueries.resendInvitation(sql, inviteId, authResult.user.id.toString());
+
+    return new Response(JSON.stringify({
+      success: true,
+      data: { invitation }
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
+  } catch (error: any) {
+    console.error('Resend invitation error:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || 'Failed to resend invitation'
+    }), {
+      status: error.message?.includes('permission') ? 403 : 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
+  }
+}
+
+// DELETE /api/teams/invites/:id - Cancel invitation
+export async function cancelInvitationHandler(request: Request, env: Env): Promise<Response> {
+  const origin = request.headers.get('Origin');
+  const corsHeaders = getCorsHeaders(origin);
+
+  try {
+    const url = new URL(request.url);
+    const pathParts = url.pathname.split('/');
+    const inviteId = pathParts[pathParts.indexOf('invites') + 1];
+
+    if (!inviteId) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Invitation ID required'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
+
+    const authResult = await verifyAuth(request, env);
+    if (!authResult.success || !authResult.user) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Unauthorized'
+      }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
+
+    const sql = getDb(env);
+    if (!sql) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Database unavailable'
+      }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
+
+    await teamQueries.cancelInvitation(sql, inviteId, authResult.user.id.toString());
+
+    return new Response(JSON.stringify({
+      success: true,
+      data: { message: 'Invitation cancelled successfully' }
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
+  } catch (error: any) {
+    console.error('Cancel invitation error:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || 'Failed to cancel invitation'
+    }), {
+      status: error.message?.includes('permission') ? 403 : 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
+  }
+}
+
 // DELETE /api/teams/:teamId/members/:memberId - Remove team member
 export async function removeTeamMemberHandler(request: Request, env: Env): Promise<Response> {
   const origin = request.headers.get('Origin');
