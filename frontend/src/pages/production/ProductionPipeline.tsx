@@ -87,108 +87,11 @@ export default function ProductionPipeline() {
       setStats(data.stats);
       setError(null);
     } catch (err) {
-      console.error('Error fetching pipeline data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load pipeline data');
-      // Fallback to demo data for development
-      const demoProjects: PipelineProject[] = [
-        {
-          id: '1',
-          title: 'Ocean\'s Secret',
-          genre: 'Thriller',
-          stage: 'development',
-          budget: 3200000,
-          progress: 25,
-          team: 12,
-          director: 'James Park',
-          estimatedCompletion: '2025-02-15',
-          priority: 'high',
-          risk: 'low',
-          daysInStage: 45,
-          nextMilestone: 'Script finalization',
-          blockers: []
-        },
-        {
-          id: '2',
-          title: 'Time Traveler\'s Dilemma',
-          genre: 'Sci-Fi',
-          stage: 'development',
-          budget: 8000000,
-          progress: 10,
-          team: 8,
-          priority: 'urgent',
-          risk: 'high',
-          daysInStage: 30,
-          nextMilestone: 'Financing approval',
-          blockers: ['Pending investor decision', 'Script revisions needed'],
-          estimatedCompletion: '2026-12-31'
-        },
-        {
-          id: '3',
-          title: 'The Last Symphony',
-          genre: 'Drama',
-          stage: 'production',
-          budget: 2500000,
-          progress: 65,
-          team: 45,
-          director: 'Sarah Johnson',
-          producer: 'Michael Chen',
-          estimatedCompletion: '2024-12-15',
-          priority: 'medium',
-          risk: 'low',
-          daysInStage: 42,
-          nextMilestone: 'Location wrap',
-          blockers: []
-        },
-        {
-          id: '4',
-          title: 'Digital Rebellion',
-          genre: 'Sci-Fi',
-          stage: 'post-production',
-          budget: 5000000,
-          progress: 45,
-          team: 25,
-          director: 'Alex Rivera',
-          producer: 'Emma Watson',
-          estimatedCompletion: '2024-12-30',
-          priority: 'high',
-          risk: 'medium',
-          daysInStage: 45,
-          nextMilestone: 'Fine cut approval',
-          blockers: ['VFX vendor delay']
-        },
-        {
-          id: '5',
-          title: 'The Forgotten City',
-          genre: 'Mystery',
-          stage: 'delivery',
-          budget: 1800000,
-          progress: 95,
-          team: 15,
-          director: 'Maria Garcia',
-          producer: 'David Lee',
-          estimatedCompletion: '2024-11-15',
-          priority: 'urgent',
-          risk: 'low',
-          daysInStage: 10,
-          nextMilestone: 'Final delivery',
-          blockers: []
-        }
-      ];
-      
-      setProjects(demoProjects);
-      setStats({
-        totalProjects: demoProjects.length,
-        totalBudget: demoProjects.reduce((sum, p) => sum + p.budget, 0),
-        averageProgress: Math.round(demoProjects.reduce((sum, p) => sum + p.progress, 0) / demoProjects.length),
-        projectsByStage: demoProjects.reduce((acc, p) => {
-          acc[p.stage] = (acc[p.stage] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>),
-        upcomingDeadlines: 2,
-        blockedProjects: demoProjects.filter(p => p.blockers.length > 0).length,
-        onTrackProjects: demoProjects.filter(p => p.risk === 'low').length,
-        behindSchedule: demoProjects.filter(p => p.risk === 'high').length
-      });
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Error fetching pipeline data:', e);
+      setError(e.message);
+      setProjects([]);
+      setStats(null);
     } finally {
       setLoading(false);
     }
@@ -231,10 +134,18 @@ export default function ProductionPipeline() {
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center">
-              <AlertCircle className="w-5 h-5 text-yellow-500 mr-2" />
-              <p className="text-yellow-700">Using demo data: {error}</p>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <AlertCircle className="w-5 h-5 text-red-500 mr-2" />
+                <p className="text-red-700">{error}</p>
+              </div>
+              <button
+                onClick={fetchPipelineData}
+                className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition"
+              >
+                Retry
+              </button>
             </div>
           </div>
         )}

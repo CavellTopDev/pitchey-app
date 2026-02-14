@@ -87,6 +87,7 @@ export const EnhancedProductionAnalytics: React.FC<ProductionAnalyticsProps> = (
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
   const [analyticsData, setAnalyticsData] = useState<ProductionAnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
   const fetchAnalyticsData = useCallback(async () => {
@@ -118,13 +119,15 @@ export const EnhancedProductionAnalytics: React.FC<ProductionAnalyticsProps> = (
         const transformedData: ProductionAnalyticsData = transformApiResponse(apiData, timeRange);
         setAnalyticsData(transformedData);
       } else {
-        // Fall back to mock data if API doesn't return expected structure
-        console.warn('API returned unexpected structure, using fallback data', result);
-        setAnalyticsData(getMockData(timeRange));
+        console.warn('API returned unexpected structure', result);
+        setAnalyticsData(null);
+        setError('Unexpected API response format');
       }
-    } catch (error) {
-      console.error('Error fetching analytics data:', error);
-      setAnalyticsData(getMockData(timeRange));
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Error fetching analytics data:', e);
+      setAnalyticsData(null);
+      setError(e.message);
     } finally {
       setLoading(false);
     }
@@ -242,104 +245,10 @@ export const EnhancedProductionAnalytics: React.FC<ProductionAnalyticsProps> = (
     };
   };
 
-  // Generate time series data based on time range
-  const generateTimeSeriesData = (range: string, min: number, max: number) => {
-    const points = range === '7d' ? 7 : range === '30d' ? 12 : range === '90d' ? 12 : 12;
-    const now = new Date();
-    return Array.from({ length: points }, (_, i) => {
-      const date = new Date(now);
-      if (range === '7d') {
-        date.setDate(date.getDate() - (points - 1 - i));
-      } else {
-        date.setMonth(date.getMonth() - (points - 1 - i));
-      }
-      return {
-        date: date.toISOString().split('T')[0],
-        value: min + Math.floor(Math.random() * (max - min)) + (i * (max - min) / points * 0.3),
-      };
-    });
-  };
+  // Empty chart data generators (no fake data — charts show "no data" state)
+  const generateTimeSeriesData = (_range: string, _min: number, _max: number): { date: string; value: number }[] => [];
 
-  // Generate monthly metrics based on time range
-  const generateMonthlyMetrics = (range: string) => {
-    const months = range === '7d' ? 1 : range === '30d' ? 6 : range === '90d' ? 9 : 12;
-    const now = new Date();
-    return Array.from({ length: months }, (_, i) => {
-      const date = new Date(now.getFullYear(), now.getMonth() - (months - 1 - i), 1);
-      return {
-        month: date.toLocaleDateString('en-US', { month: 'short' }),
-        projects: Math.floor(Math.random() * 3) + 2,
-        revenue: Math.floor(Math.random() * 200000) + 650000,
-        costs: Math.floor(Math.random() * 150000) + 450000,
-      };
-    });
-  };
-
-  const getMockData = (range: string = '30d'): ProductionAnalyticsData => {
-    const multiplier = range === '7d' ? 0.25 : range === '30d' ? 1 : range === '90d' ? 3 : 12;
-
-    return {
-    kpis: {
-      activeProjects: Math.round(8 * (range === '7d' ? 0.8 : 1)),
-      totalBudget: Math.round(15000000 * multiplier),
-      avgProjectCost: 1875000,
-      completionRate: 87,
-      partnerships: Math.round(24 * multiplier / 12),
-      monthlyRevenue: 850000,
-      crewUtilization: 82,
-      onTimeDelivery: 75,
-      costVariance: -5.2,
-      clientSatisfaction: 4.6,
-    },
-    changes: {
-      projectsChange: range === '7d' ? 15 : range === '30d' ? 33 : range === '90d' ? 45 : 60,
-      budgetChange: range === '7d' ? 8 : range === '30d' ? 22 : range === '90d' ? 35 : 50,
-      costChange: -5,
-      completionChange: range === '7d' ? 3 : range === '30d' ? 8 : range === '90d' ? 12 : 18,
-      partnershipsChange: range === '7d' ? 5 : range === '30d' ? 20 : range === '90d' ? 35 : 55,
-      revenueChange: range === '7d' ? 5 : range === '30d' ? 15 : range === '90d' ? 28 : 45,
-      utilizationChange: 3,
-      deliveryChange: -2,
-      varianceChange: 1.5,
-      satisfactionChange: 0.2,
-    },
-    charts: {
-      projectPipeline: [
-        { stage: 'Development', count: Math.round(12 * multiplier / 12), budget: 2400000 },
-        { stage: 'Pre-Production', count: Math.round(8 * multiplier / 12), budget: 3200000 },
-        { stage: 'Production', count: Math.round(5 * multiplier / 12), budget: 6500000 },
-        { stage: 'Post-Production', count: Math.round(3 * multiplier / 12), budget: 2100000 },
-        { stage: 'Distribution', count: Math.round(2 * multiplier / 12), budget: 800000 },
-      ],
-      budgetUtilization: generateTimeSeriesData(range, 70, 95),
-      partnershipGrowth: generateTimeSeriesData(range, 15, 40),
-      revenueProjections: generateTimeSeriesData(range, 600000, 1000000),
-      genreDistribution: [
-        { genre: 'Action', projects: 8, budget: 4200000 },
-        { genre: 'Drama', projects: 6, budget: 2800000 },
-        { genre: 'Comedy', projects: 5, budget: 2100000 },
-        { genre: 'Thriller', projects: 4, budget: 3100000 },
-        { genre: 'Sci-Fi', projects: 3, budget: 2800000 },
-        { genre: 'Documentary', projects: 4, budget: 1200000 },
-      ],
-      monthlyMetrics: generateMonthlyMetrics(range),
-      projectTimelines: [
-        { project: 'The Last Symphony', planned: 120, actual: 115, status: 'Completed' },
-        { project: 'Digital Rebellion', planned: 90, actual: 105, status: 'In Progress' },
-        { project: 'Ocean\'s Secret', planned: 75, actual: 78, status: 'Completed' },
-        { project: 'Time Traveler\'s Dilemma', planned: 100, actual: 0, status: 'Pre-Production' },
-        { project: 'The Forgotten City', planned: 85, actual: 92, status: 'Post-Production' },
-        { project: 'Midnight Protocol', planned: 110, actual: 88, status: 'In Progress' },
-      ],
-      resourceAllocation: [
-        { resource: 'Directors', allocated: 12, utilized: 10 },
-        { resource: 'Producers', allocated: 10, utilized: 8 },
-        { resource: 'Editors', allocated: 8, utilized: 7 },
-        { resource: 'VFX Artists', allocated: 20, utilized: 18 },
-      ]
-    }
-  };
-  };
+  const generateMonthlyMetrics = (_range: string): { month: string; projects: number; revenue: number; costs: number }[] => [];
 
   if (loading) {
     return (
@@ -352,7 +261,13 @@ export const EnhancedProductionAnalytics: React.FC<ProductionAnalyticsProps> = (
   if (!analyticsData) {
     return (
       <div className="text-center text-gray-500 py-8">
-        Failed to load analytics data. Please try again.
+        <p className="mb-2">{error ? `Error: ${error}` : 'No analytics data available yet.'}</p>
+        <button
+          onClick={fetchAnalyticsData}
+          className="text-blue-600 hover:text-blue-800 underline text-sm"
+        >
+          Retry
+        </button>
       </div>
     );
   }

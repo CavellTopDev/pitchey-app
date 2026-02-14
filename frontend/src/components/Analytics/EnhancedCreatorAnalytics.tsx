@@ -91,20 +91,21 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
+  const [error, setError] = useState<string | null>(null);
+
   const fetchAnalyticsData = useCallback(async () => {
     try {
       setLoading(true);
-      
+      setError(null);
+
       // Map time range to preset
       const preset = timeRange === '7d' ? 'week' :
                      timeRange === '30d' ? 'month' :
                      timeRange === '90d' ? 'quarter' : 'year';
 
-
-      // If user is not loaded yet, use mock data as fallback
+      // If user is not loaded yet, show empty state
       if (!user?.id) {
-        console.log('User not loaded, using fallback analytics data');
-        setAnalyticsData(getMockData(timeRange));
+        setAnalyticsData(null);
         setLoading(false);
         return;
       }
@@ -113,7 +114,6 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
         analyticsService.getDashboardMetrics({ preset } as any),
         analyticsService.getUserAnalytics(user.id, { preset } as any)
       ]);
-      
 
       // Transform the data with null safety checks
       const overview = dashboardMetrics?.overview || {
@@ -126,22 +126,22 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
         likesChange: 0,
         followersChange: 0
       };
-      
+
       const performance = dashboardMetrics?.performance || {
         engagementTrend: []
       };
-      
+
       const transformedData: CreatorAnalyticsData = {
         kpis: {
           totalPitches: overview.totalPitches || 0,
           totalViews: overview.totalViews || 0,
           totalLikes: overview.totalLikes || 0,
-          totalShares: 0, // Will be added when available
-          engagementRate: performance.engagementTrend?.length ? 
+          totalShares: 0,
+          engagementRate: performance.engagementTrend?.length ?
             performance.engagementTrend.reduce((acc, curr) => acc + (curr?.rate || 0), 0) / performance.engagementTrend.length : 0,
           fundingReceived: dashboardMetrics?.revenue?.total || 0,
-          averageRating: 4.2, // Mock data
-          responseRate: 45, // Mock data
+          averageRating: 0,
+          responseRate: 0,
           totalFollowers: overview.totalFollowers || 0,
           ndaRequests: userAnalytics?.totalNDAs || 0,
         },
@@ -149,65 +149,48 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
           pitchesChange: overview.pitchesChange || 0,
           viewsChange: overview.viewsChange || 0,
           likesChange: overview.likesChange || 0,
-          sharesChange: 8,
-          engagementChange: 5,
-          fundingChange: dashboardMetrics.revenue?.growth || 0,
-          ratingChange: 0.3,
-          responseChange: -2,
+          sharesChange: 0,
+          engagementChange: 0,
+          fundingChange: dashboardMetrics?.revenue?.growth || 0,
+          ratingChange: 0,
+          responseChange: 0,
           followersChange: overview.followersChange || 0,
-          ndaChange: 15,
+          ndaChange: 0,
         },
         charts: {
           pitchViews: (performance.engagementTrend && performance.engagementTrend.length > 0)
-            ? performance.engagementTrend.map((item: any, index: number) => ({
+            ? performance.engagementTrend.map((item: any) => ({
                 date: item?.date || new Date().toISOString(),
-                value: Math.floor(Math.random() * 200) + 100 + index * 10
+                value: item?.views || item?.value || 0
               }))
-            : getMockData(timeRange).charts.pitchViews,
+            : [],
           engagementTrends: (performance.engagementTrend && performance.engagementTrend.length > 0)
             ? performance.engagementTrend.map((item: any) => ({
                 date: item?.date || new Date().toISOString(),
                 value: item?.rate || item?.value || 0
               }))
-            : getMockData(timeRange).charts.engagementTrends,
-          fundingProgress: Array.from({ length: 6 }, (_, i) => ({
-            date: new Date(2024, i * 2, 1).toISOString().split('T')[0],
-            value: Math.floor(Math.random() * 100000) + 50000 + i * 25000
-          })),
-          categoryPerformance: [
-            { category: 'Action', views: 1250, funding: 75000, pitches: 3 },
-            { category: 'Drama', views: 980, funding: 65000, pitches: 2 },
-            { category: 'Comedy', views: 1150, funding: 45000, pitches: 4 },
-            { category: 'Thriller', views: 890, funding: 55000, pitches: 2 },
-            { category: 'Sci-Fi', views: 1350, funding: 85000, pitches: 1 },
-          ],
-          viewerDemographics: [
-            { type: 'Investors', count: 45 },
-            { type: 'Producers', count: 30 },
-            { type: 'Directors', count: 15 },
-            { type: 'Creators', count: 10 },
-          ],
-          topPitches: (userAnalytics?.topPitches && userAnalytics.topPitches.length > 0) 
+            : [],
+          fundingProgress: [],
+          categoryPerformance: [],
+          viewerDemographics: [],
+          topPitches: (userAnalytics?.topPitches && userAnalytics.topPitches.length > 0)
             ? userAnalytics.topPitches.map(pitch => ({
                 title: pitch.title,
                 views: pitch.views,
                 engagement: pitch.engagement,
-                funding: Math.floor(Math.random() * 50000) + 10000
+                funding: 0
               }))
-            : getMockData(timeRange).charts.topPitches,
-          monthlyMetrics: Array.from({ length: 12 }, (_, i) => ({
-            month: new Date(2024, i, 1).toLocaleDateString('en-US', { month: 'short' }),
-            pitches: Math.floor(Math.random() * 3) + 1,
-            views: Math.floor(Math.random() * 500) + 200,
-            funding: Math.floor(Math.random() * 30000) + 10000
-          }))
+            : [],
+          monthlyMetrics: []
         }
       };
 
       setAnalyticsData(transformedData);
-    } catch (error) {
-      console.error('Error fetching analytics data:', error);
-      setAnalyticsData(getMockData(timeRange));
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Error fetching analytics data:', e);
+      setError(e.message);
+      setAnalyticsData(null);
     } finally {
       setLoading(false);
     }
@@ -215,8 +198,8 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
 
   useEffect(() => {
     if (disableRemoteFetch) {
-      // Use mock data only and avoid network calls
-      setAnalyticsData(getMockData(timeRange));
+      // Skip remote fetch — show null (empty state)
+      setAnalyticsData(null);
       setLoading(false);
       return;
     }
@@ -234,105 +217,6 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
     };
   }, [timeRange, autoRefresh, disableRemoteFetch, fetchAnalyticsData]);
 
-  // Helper function to generate time series data based on time range
-  const generateTimeSeriesData = (range: string, baseMin: number, baseMax: number) => {
-    const points = range === '7d' ? 7 : range === '30d' ? 30 : range === '90d' ? 12 : 12;
-    const now = new Date();
-    return Array.from({ length: points }, (_, i) => {
-      const date = new Date(now);
-      if (range === '7d') {
-        date.setDate(date.getDate() - (points - 1 - i));
-      } else if (range === '30d') {
-        date.setDate(date.getDate() - (points - 1 - i));
-      } else {
-        date.setMonth(date.getMonth() - (points - 1 - i));
-      }
-      const variance = Math.random() * (baseMax - baseMin);
-      const trend = i * ((baseMax - baseMin) / points) * 0.3;
-      return {
-        date: date.toISOString().split('T')[0],
-        value: Math.round(baseMin + variance + trend),
-      };
-    });
-  };
-
-  // Helper function to generate monthly metrics based on time range
-  const generateMonthlyMetrics = (range: string) => {
-    const months = range === '7d' ? 1 : range === '30d' ? 3 : range === '90d' ? 6 : 12;
-    const now = new Date();
-    return Array.from({ length: months }, (_, i) => {
-      const date = new Date(now);
-      date.setMonth(date.getMonth() - (months - 1 - i));
-      const multiplier = range === '7d' ? 0.25 : range === '30d' ? 1 : range === '90d' ? 1.5 : 2;
-      return {
-        month: date.toLocaleDateString('en-US', { month: 'short' }),
-        pitches: Math.floor(Math.random() * 3 * multiplier) + 1,
-        views: Math.floor((Math.random() * 400 + 200) * multiplier),
-        funding: Math.floor((Math.random() * 25000 + 15000) * multiplier),
-      };
-    });
-  };
-
-  const getMockData = (range: string = '30d'): CreatorAnalyticsData => {
-    // Multiplier based on time range for cumulative metrics
-    const multiplier = range === '7d' ? 0.25 : range === '30d' ? 1 : range === '90d' ? 3 : 12;
-    // Change percentages vary by time range
-    const changeMultiplier = range === '7d' ? 0.5 : range === '30d' ? 1 : range === '90d' ? 1.5 : 2;
-
-    return {
-      kpis: {
-        totalPitches: Math.round(12 * (range === '7d' ? 0.8 : 1)),
-        totalViews: Math.round(3420 * multiplier),
-        totalLikes: Math.round(892 * multiplier),
-        totalShares: Math.round(156 * multiplier),
-        engagementRate: 68 + (range === '7d' ? -5 : range === '90d' ? 3 : range === '1y' ? 8 : 0),
-        fundingReceived: Math.round(250000 * multiplier),
-        averageRating: 4.2 + (range === '1y' ? 0.2 : 0),
-        responseRate: 45 + (range === '7d' ? 5 : range === '1y' ? -5 : 0),
-        totalFollowers: Math.round(1234 * (range === '7d' ? 0.95 : range === '1y' ? 1.3 : 1)),
-        ndaRequests: Math.round(45 * multiplier),
-      },
-      changes: {
-        pitchesChange: Math.round(20 * changeMultiplier),
-        viewsChange: Math.round(15 * changeMultiplier),
-        likesChange: Math.round(12 * changeMultiplier),
-        sharesChange: Math.round(8 * changeMultiplier),
-        engagementChange: Math.round(5 * changeMultiplier),
-        fundingChange: Math.round(12 * changeMultiplier),
-        ratingChange: 0.3 * changeMultiplier,
-        responseChange: Math.round(-2 * changeMultiplier),
-        followersChange: Math.round(18 * changeMultiplier),
-        ndaChange: Math.round(15 * changeMultiplier),
-      },
-      charts: {
-        pitchViews: generateTimeSeriesData(range, 50, 150),
-        engagementTrends: generateTimeSeriesData(range, 40, 75),
-        fundingProgress: generateTimeSeriesData(range, 25000, 125000),
-        categoryPerformance: [
-          { category: 'Action', views: Math.round(1250 * multiplier), funding: Math.round(75000 * multiplier), pitches: Math.round(3 * (range === '7d' ? 0.5 : 1)) },
-          { category: 'Drama', views: Math.round(980 * multiplier), funding: Math.round(65000 * multiplier), pitches: Math.round(2 * (range === '7d' ? 0.5 : 1)) },
-          { category: 'Comedy', views: Math.round(1150 * multiplier), funding: Math.round(45000 * multiplier), pitches: Math.round(4 * (range === '7d' ? 0.5 : 1)) },
-          { category: 'Thriller', views: Math.round(890 * multiplier), funding: Math.round(55000 * multiplier), pitches: Math.round(2 * (range === '7d' ? 0.5 : 1)) },
-          { category: 'Sci-Fi', views: Math.round(1350 * multiplier), funding: Math.round(85000 * multiplier), pitches: Math.round(1 * (range === '7d' ? 1 : 1)) },
-        ],
-        viewerDemographics: [
-          { type: 'Investors', count: Math.round(45 * multiplier) },
-          { type: 'Producers', count: Math.round(30 * multiplier) },
-          { type: 'Directors', count: Math.round(15 * multiplier) },
-          { type: 'Creators', count: Math.round(10 * multiplier) },
-        ],
-        topPitches: [
-          { title: 'Time Traveler\'s Dilemma', views: Math.round(856 * multiplier), engagement: 85, funding: Math.round(45000 * multiplier) },
-          { title: 'The Last Symphony', views: Math.round(742 * multiplier), engagement: 78, funding: Math.round(38000 * multiplier) },
-          { title: 'Digital Rebellion', views: Math.round(623 * multiplier), engagement: 72, funding: Math.round(32000 * multiplier) },
-          { title: 'Ocean\'s Secret', views: Math.round(587 * multiplier), engagement: 69, funding: Math.round(28000 * multiplier) },
-          { title: 'The Forgotten City', views: Math.round(512 * multiplier), engagement: 65, funding: Math.round(25000 * multiplier) },
-        ],
-        monthlyMetrics: generateMonthlyMetrics(range),
-      }
-    };
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -344,7 +228,15 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
   if (!analyticsData) {
     return (
       <div className="text-center text-gray-500 py-8">
-        Failed to load analytics data. Please try again.
+        <p className="mb-2">{error ? `Error: ${error}` : 'No analytics data available yet.'}</p>
+        {!disableRemoteFetch && (
+          <button
+            onClick={fetchAnalyticsData}
+            className="text-blue-600 hover:text-blue-800 underline text-sm"
+          >
+            Retry
+          </button>
+        )}
       </div>
     );
   }

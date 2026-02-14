@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
+import {
   Search, Filter, SlidersHorizontal, Grid, List,
   Star, Clock, DollarSign, Calendar, Users,
   MapPin, Film, Award, Eye, Heart, ChevronDown,
@@ -11,6 +11,7 @@ import { useBetterAuthStore } from '../store/betterAuthStore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { toast } from 'react-hot-toast';
+import { API_URL } from '../config';
 
 interface SearchFilters {
   query: string;
@@ -97,116 +98,25 @@ export default function AdvancedSearch() {
     'Completed', 'Released', 'In Review', 'Greenlit'
   ];
 
-  // Mock search results
-  const mockResults: SearchResult[] = [
-    {
-      id: '1',
-      type: 'pitch',
-      title: 'The Last Symphony',
-      description: 'A haunting tale of a composer who discovers that his music can manipulate time itself. Set in 1920s Vienna, this psychological thriller explores the dangerous intersection of art and power.',
-      image: '/api/placeholder/300/200',
-      rating: 4.7,
-      genre: ['Drama', 'Thriller'],
-      budget: 2500000,
-      format: 'Feature Film',
-      status: 'Development',
-      location: 'New York, NY',
-      createdAt: '2024-01-15T10:30:00Z',
-      author: 'Sarah Chen',
-      views: 1247,
-      likes: 89
-    },
-    {
-      id: '2',
-      type: 'creator',
-      title: 'Alex Rodriguez',
-      description: 'Award-winning director with 15 years of experience in independent filmmaking. Specializes in character-driven narratives and innovative visual storytelling.',
-      image: '/api/placeholder/150/150',
-      rating: 4.9,
-      genre: ['Drama', 'Comedy'],
-      location: 'Los Angeles, CA',
-      createdAt: '2023-08-20T14:22:00Z',
-      views: 3421,
-      likes: 234
-    },
-    {
-      id: '3',
-      type: 'pitch',
-      title: 'Neon Dreams',
-      description: 'A cyberpunk thriller set in 2087 where memories can be bought and sold. Follow a memory thief who discovers a conspiracy that threatens the fabric of reality.',
-      image: '/api/placeholder/300/200',
-      rating: 4.3,
-      genre: ['Sci-Fi', 'Thriller'],
-      budget: 8500000,
-      format: 'Feature Film',
-      status: 'Pre-Production',
-      location: 'Vancouver, BC',
-      createdAt: '2024-02-01T09:15:00Z',
-      author: 'Marcus Thompson',
-      views: 892,
-      likes: 67
-    },
-    {
-      id: '4',
-      type: 'production',
-      title: 'Moonrise Studios',
-      description: 'Independent production company focused on innovative storytelling and emerging talent. Known for award-winning documentaries and feature films.',
-      image: '/api/placeholder/200/150',
-      rating: 4.6,
-      location: 'Austin, TX',
-      createdAt: '2022-11-10T11:45:00Z',
-      views: 2156,
-      likes: 145
-    },
-    {
-      id: '5',
-      type: 'pitch',
-      title: 'The Lighthouse Keeper',
-      description: 'An atmospheric horror film about a lighthouse keeper who begins to question reality when strange ships appear on the horizon every night at midnight.',
-      image: '/api/placeholder/300/200',
-      rating: 4.1,
-      genre: ['Horror', 'Mystery'],
-      budget: 1200000,
-      format: 'Feature Film',
-      status: 'In Review',
-      location: 'Maine, USA',
-      createdAt: '2024-01-28T16:20:00Z',
-      author: 'Emily Foster',
-      views: 756,
-      likes: 42
-    },
-    {
-      id: '6',
-      type: 'creator',
-      title: 'Jordan Kim',
-      description: 'Cinematographer and director known for groundbreaking work in virtual reality filmmaking. Pioneer in immersive storytelling techniques.',
-      image: '/api/placeholder/150/150',
-      rating: 4.8,
-      genre: ['Sci-Fi', 'Documentary'],
-      location: 'San Francisco, CA',
-      createdAt: '2023-12-05T13:30:00Z',
-      views: 1876,
-      likes: 198
-    }
-  ];
-
   // Initialize from URL parameters
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const query = searchParams.get('q') || '';
     if (query) {
       setFilters(prev => ({ ...prev, query }));
-      performSearch();
     }
   }, [location.search]);
 
   // Debounced search
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (filters.query || Object.values(filters).some(v => 
+      if (filters.query || Object.values(filters).some(v =>
         Array.isArray(v) ? v.length > 0 : v !== '' && v !== 0 && v !== 'all' && v !== 'relevance' && v !== 'desc'
       )) {
         performSearch();
+      } else {
+        setResults([]);
+        setTotalResults(0);
       }
     }, 300);
 
@@ -216,57 +126,60 @@ export default function AdvancedSearch() {
   const performSearch = async () => {
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Filter and sort mock results
-      const filteredResults = mockResults.filter(result => {
-        if (filters.type !== 'all' && result.type !== filters.type) return false;
-        if (filters.query && !result.title.toLowerCase().includes(filters.query.toLowerCase()) && 
-            !result.description.toLowerCase().includes(filters.query.toLowerCase())) return false;
-        if (filters.genres.length > 0 && result.genre && 
-            !filters.genres.some(genre => result.genre!.includes(genre))) return false;
-        if (filters.budget && result.budget && 
-            (result.budget < filters.budgetRange.min || result.budget > filters.budgetRange.max)) return false;
-        if (filters.rating > 0 && result.rating && result.rating < filters.rating) return false;
-        if (filters.location && result.location && 
-            !result.location.toLowerCase().includes(filters.location.toLowerCase())) return false;
-        return true;
+      const params = new URLSearchParams();
+      if (filters.query) params.set('q', filters.query);
+      if (filters.type !== 'all') params.set('type', filters.type);
+      if (filters.genres.length > 0) params.set('genres', filters.genres.join(','));
+      if (filters.budgetRange.max < 50000000) params.set('maxBudget', String(filters.budgetRange.max));
+      if (filters.budgetRange.min > 0) params.set('minBudget', String(filters.budgetRange.min));
+      if (filters.rating > 0) params.set('minRating', String(filters.rating));
+      if (filters.location) params.set('location', filters.location);
+      if (filters.sortBy !== 'relevance') params.set('sort', filters.sortBy);
+      if (filters.sortOrder !== 'desc') params.set('order', filters.sortOrder);
+      params.set('page', String(currentPage));
+      params.set('limit', String(resultsPerPage));
+
+      const response = await fetch(`${API_URL}/api/search?${params.toString()}`, {
+        credentials: 'include',
       });
 
-      // Sort results
-      filteredResults.sort((a, b) => {
-        let aVal: any, bVal: any;
-        switch (filters.sortBy) {
-          case 'date':
-            aVal = new Date(a.createdAt).getTime();
-            bVal = new Date(b.createdAt).getTime();
-            break;
-          case 'rating':
-            aVal = a.rating || 0;
-            bVal = b.rating || 0;
-            break;
-          case 'budget':
-            aVal = a.budget || 0;
-            bVal = b.budget || 0;
-            break;
-          case 'popularity':
-            aVal = (a.views || 0) + (a.likes || 0);
-            bVal = (b.views || 0) + (b.likes || 0);
-            break;
-          default:
-            return 0;
-        }
-        
-        return filters.sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
-      });
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.status}`);
+      }
 
-      setResults(filteredResults);
-      setTotalResults(filteredResults.length);
+      const result = await response.json();
+
+      // Map backend results to SearchResult interface
+      // Backend may return pitches, users, or mixed results
+      const rawResults = result.data?.results || result.results || result.pitches || result.data || [];
+      const mapped: SearchResult[] = (Array.isArray(rawResults) ? rawResults : []).map((r: any) => ({
+        id: String(r.id),
+        type: r.type || (r.user_type ? (r.user_type === 'production' ? 'production' : 'creator') : 'pitch'),
+        title: r.title || r.name || r.display_name || 'Untitled',
+        description: r.description || r.logline || r.bio || '',
+        image: r.thumbnail_url || r.avatar_url || r.image,
+        rating: r.rating ? Number(r.rating) : undefined,
+        genre: r.genre ? (Array.isArray(r.genre) ? r.genre : [r.genre]) : undefined,
+        budget: r.budget ? Number(r.budget) : undefined,
+        format: r.format,
+        status: r.status,
+        location: r.location,
+        createdAt: r.created_at || r.createdAt || new Date().toISOString(),
+        author: r.creator_name || r.author,
+        views: r.views ? Number(r.views) : undefined,
+        likes: r.likes ? Number(r.likes) : undefined,
+      }));
+
+      setResults(mapped);
+      setTotalResults(result.total || result.data?.total || mapped.length);
       setCurrentPage(1);
-      
-    } catch (error) {
+
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Search failed:', e);
       toast.error('Search failed. Please try again.');
+      setResults([]);
+      setTotalResults(0);
     } finally {
       setLoading(false);
     }

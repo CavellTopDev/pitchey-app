@@ -9,6 +9,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { API_URL } from '../../config';
 
 interface PerformanceMetric {
   id: string;
@@ -46,135 +47,120 @@ const PerformanceTracking = () => {
   const [metrics, setMetrics] = useState<PerformanceMetric[]>([]);
   const [investments, setInvestments] = useState<InvestmentPerformance[]>([]);
   const [selectedMetric, setSelectedMetric] = useState<string>('all');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadPerformanceData();
   }, [timeRange]);
 
-  const getMockData = (range: string) => {
-    const multiplier = range === '1m' ? 0.2 : range === '3m' ? 0.4 : range === '6m' ? 0.6 : range === 'all' ? 2 : 1;
-    const isPositive = Math.random() > 0.3;
-
-    const metrics: PerformanceMetric[] = [
-      {
-        id: '1',
-        name: 'Portfolio Value',
-        value: `$${(12.5 * multiplier).toFixed(1)}M`,
-        change: Math.round((15.8 * (0.8 + Math.random() * 0.4)) * 10) / 10,
-        changeType: 'positive',
-        icon: DollarSign,
-        color: 'text-green-600',
-        description: 'Total value of all investments'
-      },
-      {
-        id: '2',
-        name: 'Total ROI',
-        value: `${(28.5 * (0.9 + Math.random() * 0.2)).toFixed(1)}%`,
-        change: Math.round((3.2 * (0.5 + Math.random())) * 10) / 10,
-        changeType: isPositive ? 'positive' : 'negative',
-        icon: TrendingUp,
-        color: 'text-blue-600',
-        description: 'Return on investment across portfolio'
-      },
-      {
-        id: '3',
-        name: 'Active Projects',
-        value: Math.round(18 * multiplier) || 1,
-        change: Math.round(2 * multiplier),
-        changeType: 'positive',
-        icon: Activity,
-        color: 'text-purple-600',
-        description: 'Currently active investments'
-      },
-      {
-        id: '4',
-        name: 'Success Rate',
-        value: `${Math.round(70 + Math.random() * 10)}%`,
-        change: Math.round((Math.random() * 5 - 2.5) * 10) / 10,
-        changeType: Math.random() > 0.5 ? 'positive' : 'negative',
-        icon: Target,
-        color: 'text-orange-600',
-        description: 'Percentage of profitable investments'
-      },
-      {
-        id: '5',
-        name: 'Avg. Hold Period',
-        value: `${(2.3 * (0.9 + Math.random() * 0.2)).toFixed(1)} years`,
-        change: 0.1,
-        changeType: 'neutral',
-        icon: Clock,
-        color: 'text-gray-600',
-        description: 'Average investment duration'
-      },
-      {
-        id: '6',
-        name: 'Risk Score',
-        value: multiplier > 1 ? 'Moderate-High' : 'Moderate',
-        change: 0,
-        changeType: 'neutral',
-        icon: AlertCircle,
-        color: 'text-yellow-600',
-        description: 'Overall portfolio risk assessment'
-      }
-    ];
-
-    const investments: InvestmentPerformance[] = [
-      {
-        id: '1',
-        pitchTitle: 'The Quantum Paradox',
-        company: 'Quantum Films Ltd',
-        investmentDate: '2024-01-15',
-        investedAmount: 500000 * multiplier,
-        currentValue: 725000 * multiplier,
-        roi: 45,
-        status: 'performing',
-        milestones: { completed: 7, total: 10 },
-        nextMilestone: 'Post-production completion',
-        risk: 'low'
-      },
-      {
-        id: '2',
-        pitchTitle: 'Urban Legends',
-        company: 'Dark Horse Productions',
-        investmentDate: '2023-11-20',
-        investedAmount: 750000 * multiplier,
-        currentValue: 820000 * multiplier,
-        roi: 9.3,
-        status: 'on-track',
-        milestones: { completed: 4, total: 8 },
-        nextMilestone: 'Principal photography',
-        risk: 'medium'
-      },
-      {
-        id: '3',
-        pitchTitle: 'Digital Dreams',
-        company: 'Tech Cinema Co',
-        investmentDate: '2023-08-10',
-        investedAmount: 300000 * multiplier,
-        currentValue: 280000 * multiplier,
-        roi: -6.7,
-        status: 'underperforming',
-        milestones: { completed: 3, total: 9 },
-        nextMilestone: 'Script revision',
-        risk: 'high'
-      }
-    ];
-
-    return { metrics, investments };
-  };
-
   const loadPerformanceData = async () => {
     try {
       setLoading(true);
-      // Simulate API call with dynamic mock data
-      setTimeout(() => {
-        const mock = getMockData(timeRange);
-        setMetrics(mock.metrics);
-        setInvestments(mock.investments);
-        setLoading(false);
-      }, 500);
-    } catch (error) {
-      console.error('Failed to load performance data:', error);
+      setError(null);
+      const response = await fetch(`${API_URL}/api/investor/performance`, {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to load performance data: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      // Build metrics from backend response
+      const totalInvested = result.roiByProject?.reduce((s: number, r: any) => s + (Number(r.amount) || 0), 0) || 0;
+      const totalValue = result.roiByProject?.reduce((s: number, r: any) => s + (Number(r.current_value) || 0), 0) || 0;
+      const overallROI = result.overallROI || 0;
+      const activeCount = result.roiByProject?.filter((r: any) => r.status === 'active' || r.status === 'performing').length || result.roiByProject?.length || 0;
+      const profitableCount = result.roiByProject?.filter((r: any) => Number(r.roi) > 0).length || 0;
+      const totalCount = result.roiByProject?.length || 0;
+      const successRate = totalCount > 0 ? Math.round((profitableCount / totalCount) * 100) : 0;
+
+      const builtMetrics: PerformanceMetric[] = [
+        {
+          id: '1',
+          name: 'Portfolio Value',
+          value: totalValue >= 1000000 ? `$${(totalValue / 1000000).toFixed(1)}M` : `$${(totalValue / 1000).toFixed(0)}K`,
+          change: overallROI,
+          changeType: overallROI > 0 ? 'positive' : overallROI < 0 ? 'negative' : 'neutral',
+          icon: DollarSign,
+          color: 'text-green-600',
+          description: 'Total value of all investments'
+        },
+        {
+          id: '2',
+          name: 'Total ROI',
+          value: `${overallROI}%`,
+          change: overallROI,
+          changeType: overallROI > 0 ? 'positive' : overallROI < 0 ? 'negative' : 'neutral',
+          icon: TrendingUp,
+          color: 'text-blue-600',
+          description: 'Return on investment across portfolio'
+        },
+        {
+          id: '3',
+          name: 'Active Projects',
+          value: activeCount,
+          change: 0,
+          changeType: 'neutral',
+          icon: Activity,
+          color: 'text-purple-600',
+          description: 'Currently active investments'
+        },
+        {
+          id: '4',
+          name: 'Success Rate',
+          value: `${successRate}%`,
+          change: 0,
+          changeType: 'neutral',
+          icon: Target,
+          color: 'text-orange-600',
+          description: 'Percentage of profitable investments'
+        },
+        {
+          id: '5',
+          name: 'Genres',
+          value: result.roiByGenre?.length || 0,
+          change: 0,
+          changeType: 'neutral',
+          icon: Clock,
+          color: 'text-gray-600',
+          description: 'Number of genres in portfolio'
+        },
+        {
+          id: '6',
+          name: 'Projected ROI',
+          value: `${result.projectedROI || 0}%`,
+          change: 0,
+          changeType: 'neutral',
+          icon: AlertCircle,
+          color: 'text-yellow-600',
+          description: 'Projected future return'
+        }
+      ];
+
+      // Map per-project data to investment performance
+      const builtInvestments: InvestmentPerformance[] = (result.roiByProject || []).map((p: any) => ({
+        id: String(p.investment_id || p.id),
+        pitchTitle: p.title || 'Untitled',
+        company: p.genre || 'Unknown',
+        investmentDate: p.created_at || new Date().toISOString(),
+        investedAmount: Number(p.amount) || 0,
+        currentValue: Number(p.current_value) || 0,
+        roi: Number(p.roi) || 0,
+        status: Number(p.roi) > 15 ? 'performing' as const : Number(p.roi) > 0 ? 'on-track' as const : 'underperforming' as const,
+        milestones: { completed: 0, total: 0 },
+        nextMilestone: p.status || 'N/A',
+        risk: Number(p.roi) < 0 ? 'high' as const : Number(p.roi) < 10 ? 'medium' as const : 'low' as const,
+      }));
+
+      setMetrics(builtMetrics);
+      setInvestments(builtInvestments);
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to load performance data:', e);
+      setError(e.message);
+    } finally {
       setLoading(false);
     }
   };
@@ -230,6 +216,22 @@ const PerformanceTracking = () => {
       <div>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <div className="text-center py-12 bg-white rounded-lg">
+          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to load performance data</h3>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button onClick={loadPerformanceData} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry
+          </Button>
         </div>
       </div>
     );
@@ -374,6 +376,13 @@ const PerformanceTracking = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
+                  {investments.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                        No investments yet. Browse opportunities to start building your portfolio.
+                      </td>
+                    </tr>
+                  )}
                   {investments.map((investment) => (
                     <tr key={investment.id} className="hover:bg-gray-50">
                       <td className="px-4 py-4 whitespace-nowrap">

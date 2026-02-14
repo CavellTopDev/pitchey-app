@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
+import {
   Handshake, Clock, CheckCircle, XCircle, AlertCircle,
   DollarSign, Calendar, FileText, Search, Filter,
   Eye, MessageSquare, Download, TrendingUp, Users,
-  Building, Star, Award, Target, Globe, ArrowRight
+  Building, Star, Award, Target, Globe, ArrowRight,
+  RefreshCw
 } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { API_URL } from '../../config';
 
 interface Deal {
   id: string;
@@ -89,234 +91,80 @@ export default function InvestorDeals() {
     applyFilters();
   }, [deals, filters, searchQuery]);
 
+  const [error, setError] = useState<string | null>(null);
+
   const loadDeals = async () => {
     try {
-      // Simulate API call - replace with actual API
-      setTimeout(() => {
-        const mockDeals: Deal[] = [
-          {
-            id: '1',
-            title: 'Series A Investment - Quantum Paradox',
-            type: 'equity',
-            status: 'term-sheet',
-            stage: 'series-a',
-            creator: {
-              id: 'c1',
-              name: 'Alex Thompson',
-              company: 'Quantum Studios',
-              verified: true
-            },
-            project: {
-              id: 'p1',
-              title: 'The Quantum Paradox',
-              genre: ['Sci-Fi', 'Thriller'],
-              budget: 2500000,
-              description: 'A scientist discovers parallel universes through quantum experiments.'
-            },
-            investment: {
-              amountRequested: 500000,
-              amountOffered: 450000,
-              equityPercentage: 15,
-              valuation: 3000000,
-              minimumInvestment: 100000
-            },
-            timeline: {
-              submittedDate: '2024-11-15T10:00:00Z',
-              lastUpdated: '2024-12-07T14:30:00Z',
-              expectedCloseDate: '2024-12-20T17:00:00Z'
-            },
-            documents: {
-              pitchDeck: true,
-              businessPlan: true,
-              financials: true,
-              termSheet: true,
-              legalDocs: false
-            },
-            metrics: {
-              roi: 285,
-              irr: 35.2,
-              paybackPeriod: 3.5,
-              riskScore: 'medium'
-            },
-            notes: 'Strong concept with proven team. Competitive landscape analysis needed.',
-            priority: 'high'
-          },
-          {
-            id: '2',
-            title: 'Seed Investment - Digital Shadows',
-            type: 'equity',
-            status: 'due-diligence',
-            stage: 'seed',
-            creator: {
-              id: 'c2',
-              name: 'Marcus Chen',
-              verified: false
-            },
-            project: {
-              id: 'p2',
-              title: 'Digital Shadows',
-              genre: ['Sci-Fi', 'Action'],
-              budget: 1200000,
-              description: 'Cyberpunk thriller exploring virtual reality and consciousness.'
-            },
-            investment: {
-              amountRequested: 200000,
-              amountOffered: 180000,
-              equityPercentage: 20,
-              valuation: 900000,
-              minimumInvestment: 50000
-            },
-            timeline: {
-              submittedDate: '2024-11-28T16:45:00Z',
-              lastUpdated: '2024-12-08T09:20:00Z',
-              expectedCloseDate: '2024-12-25T17:00:00Z'
-            },
-            documents: {
-              pitchDeck: true,
-              businessPlan: true,
-              financials: false,
-              termSheet: false,
-              legalDocs: false
-            },
-            metrics: {
-              roi: 220,
-              irr: 28.5,
-              paybackPeriod: 4.2,
-              riskScore: 'high'
-            },
-            priority: 'medium'
-          },
-          {
-            id: '3',
-            title: 'Revenue Share - Indie Horror Collection',
-            type: 'revenue-share',
-            status: 'negotiation',
-            stage: 'seed',
-            creator: {
-              id: 'c3',
-              name: 'Sarah Mitchell',
-              company: 'Midnight Productions',
-              verified: true
-            },
-            project: {
-              id: 'p3',
-              title: 'Midnight Tales',
-              genre: ['Horror', 'Anthology'],
-              budget: 650000,
-              description: 'Low-budget horror anthology for streaming platforms.'
-            },
-            investment: {
-              amountRequested: 150000,
-              minimumInvestment: 25000
-            },
-            timeline: {
-              submittedDate: '2024-12-01T11:30:00Z',
-              lastUpdated: '2024-12-08T16:15:00Z',
-              expectedCloseDate: '2024-12-30T17:00:00Z'
-            },
-            documents: {
-              pitchDeck: true,
-              businessPlan: false,
-              financials: true,
-              termSheet: false,
-              legalDocs: false
-            },
-            metrics: {
-              roi: 180,
-              paybackPeriod: 2.8,
-              riskScore: 'low'
-            },
-            priority: 'medium'
-          },
-          {
-            id: '4',
-            title: 'Partnership Deal - Animation Studio',
-            type: 'partnership',
-            status: 'pipeline',
-            stage: 'growth',
-            creator: {
-              id: 'c4',
-              name: 'Emma Rodriguez',
-              company: 'Stellar Animation',
-              verified: true
-            },
-            project: {
-              id: 'p4',
-              title: 'Ocean\'s Heart',
-              genre: ['Animation', 'Family'],
-              budget: 1800000,
-              description: 'Animated family film about ocean conservation.'
-            },
-            investment: {
-              amountRequested: 750000,
-              valuation: 5000000
-            },
-            timeline: {
-              submittedDate: '2024-12-05T14:20:00Z',
-              lastUpdated: '2024-12-06T10:45:00Z'
-            },
-            documents: {
-              pitchDeck: true,
-              businessPlan: true,
-              financials: false,
-              termSheet: false,
-              legalDocs: false
-            },
-            metrics: {
-              riskScore: 'medium'
-            },
-            priority: 'low'
-          },
-          {
-            id: '5',
-            title: 'Bridge Round - Music Drama',
-            type: 'debt',
-            status: 'closed',
-            stage: 'bridge',
-            creator: {
-              id: 'c5',
-              name: 'James Wilson',
-              verified: true
-            },
-            project: {
-              id: 'p5',
-              title: 'The Last Symphony',
-              genre: ['Drama', 'Music'],
-              budget: 950000,
-              description: 'Story of a composer battling Alzheimer\'s disease.'
-            },
-            investment: {
-              amountRequested: 300000,
-              amountOffered: 300000,
-              minimumInvestment: 100000
-            },
-            timeline: {
-              submittedDate: '2024-09-15T12:00:00Z',
-              lastUpdated: '2024-11-30T17:00:00Z',
-              expectedCloseDate: '2024-11-30T17:00:00Z',
-              actualCloseDate: '2024-11-30T17:00:00Z'
-            },
-            documents: {
-              pitchDeck: true,
-              businessPlan: true,
-              financials: true,
-              termSheet: true,
-              legalDocs: true
-            },
-            metrics: {
-              roi: 195,
-              irr: 22.8,
-              paybackPeriod: 4.5,
-              riskScore: 'low'
-            },
-            priority: 'high'
-          }
-        ];
-        setDeals(mockDeals);
-        setLoading(false);
-      }, 1000);
-    } catch (error) {
-      console.error('Failed to load deals:', error);
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`${API_URL}/api/investor/deals`, {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to load deals: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const rawDeals = result.deals || [];
+
+      // Map backend snake_case fields to frontend Deal interface
+      const mapped: Deal[] = rawDeals.map((d: any) => ({
+        id: String(d.id),
+        title: d.title || `Deal #${d.id}`,
+        type: d.type || 'equity',
+        status: d.status || 'pipeline',
+        stage: d.stage || 'seed',
+        creator: {
+          id: String(d.creator_id || d.creator?.id || ''),
+          name: d.creator_name || d.creator?.name || 'Unknown',
+          company: d.creator_company || d.creator?.company,
+          avatar: d.creator_avatar || d.creator?.avatar,
+          verified: d.creator_verified ?? d.creator?.verified ?? false,
+        },
+        project: {
+          id: String(d.project_id || d.project?.id || d.pitch_id || ''),
+          title: d.project_title || d.project?.title || d.title || '',
+          genre: d.genre ? (Array.isArray(d.genre) ? d.genre : [d.genre]) : d.project?.genre || [],
+          budget: Number(d.budget || d.project?.budget || 0),
+          description: d.description || d.project?.description || '',
+        },
+        investment: {
+          amountRequested: Number(d.amount_requested || d.investment?.amountRequested || d.amount || 0),
+          amountOffered: d.amount_offered ? Number(d.amount_offered) : d.investment?.amountOffered,
+          equityPercentage: d.equity_percentage ? Number(d.equity_percentage) : d.investment?.equityPercentage,
+          valuation: d.valuation ? Number(d.valuation) : d.investment?.valuation,
+          minimumInvestment: d.minimum_investment ? Number(d.minimum_investment) : d.investment?.minimumInvestment,
+        },
+        timeline: {
+          submittedDate: d.created_at || d.timeline?.submittedDate || new Date().toISOString(),
+          lastUpdated: d.updated_at || d.timeline?.lastUpdated || new Date().toISOString(),
+          expectedCloseDate: d.expected_close_date || d.timeline?.expectedCloseDate,
+          actualCloseDate: d.actual_close_date || d.timeline?.actualCloseDate,
+        },
+        documents: d.documents || {
+          pitchDeck: false,
+          businessPlan: false,
+          financials: false,
+          termSheet: false,
+          legalDocs: false,
+        },
+        metrics: {
+          roi: d.roi ? Number(d.roi) : d.metrics?.roi,
+          irr: d.irr ? Number(d.irr) : d.metrics?.irr,
+          paybackPeriod: d.payback_period ? Number(d.payback_period) : d.metrics?.paybackPeriod,
+          riskScore: d.risk_score || d.metrics?.riskScore || 'medium',
+        },
+        notes: d.notes,
+        priority: d.priority || 'medium',
+      }));
+
+      setDeals(mapped);
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to load deals:', e);
+      setError(e.message);
+    } finally {
       setLoading(false);
     }
   };
@@ -450,8 +298,27 @@ export default function InvestorDeals() {
   if (loading) {
     return (
       <div>
-                <div className="flex items-center justify-center h-64">
+        <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center py-12 bg-white rounded-lg">
+          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to load deals</h3>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={loadDeals}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Retry
+          </button>
         </div>
       </div>
     );

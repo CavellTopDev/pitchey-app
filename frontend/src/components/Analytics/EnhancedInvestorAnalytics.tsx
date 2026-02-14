@@ -85,6 +85,7 @@ export const EnhancedInvestorAnalytics: React.FC<InvestorAnalyticsProps> = ({
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
   const [analyticsData, setAnalyticsData] = useState<InvestorAnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
   const fetchAnalyticsData = useCallback(async () => {
@@ -118,13 +119,15 @@ export const EnhancedInvestorAnalytics: React.FC<InvestorAnalyticsProps> = ({
         const transformedData: InvestorAnalyticsData = transformApiResponse(analyticsData, timeRange);
         setAnalyticsData(transformedData);
       } else {
-        // Fall back to mock data if API doesn't return expected structure
-        console.warn('API returned unexpected structure, using fallback data', result);
-        setAnalyticsData(getMockData(timeRange));
+        console.warn('API returned unexpected structure', result);
+        setAnalyticsData(null);
+        setError('Unexpected API response format');
       }
-    } catch (error) {
-      console.error('Error fetching analytics data:', error);
-      setAnalyticsData(getMockData(timeRange));
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Error fetching analytics data:', e);
+      setAnalyticsData(null);
+      setError(e.message);
     } finally {
       setLoading(false);
     }
@@ -204,38 +207,10 @@ export const EnhancedInvestorAnalytics: React.FC<InvestorAnalyticsProps> = ({
     };
   };
 
-  // Generate time series data based on time range
-  const generateTimeSeriesData = (range: string, min: number, max: number) => {
-    const points = range === '7d' ? 7 : range === '30d' ? 12 : range === '90d' ? 12 : 12;
-    const now = new Date();
-    return Array.from({ length: points }, (_, i) => {
-      const date = new Date(now);
-      if (range === '7d') {
-        date.setDate(date.getDate() - (points - 1 - i));
-      } else {
-        date.setMonth(date.getMonth() - (points - 1 - i));
-      }
-      return {
-        date: date.toISOString().split('T')[0],
-        value: min + Math.floor(Math.random() * (max - min)) + (i * (max - min) / points * 0.3),
-      };
-    });
-  };
+  // Empty chart data generators (no fake data — charts show "no data" state)
+  const generateTimeSeriesData = (_range: string, _min: number, _max: number): { date: string; value: number }[] => [];
 
-  // Generate monthly performance based on time range
-  const generateMonthlyPerformance = (range: string) => {
-    const months = range === '7d' ? 1 : range === '30d' ? 6 : range === '90d' ? 9 : 12;
-    const now = new Date();
-    return Array.from({ length: months }, (_, i) => {
-      const date = new Date(now.getFullYear(), now.getMonth() - (months - 1 - i), 1);
-      return {
-        month: date.toLocaleDateString('en-US', { month: 'short' }),
-        invested: Math.floor(Math.random() * 200000) + 150000,
-        returns: Math.floor(Math.random() * 80000) + 30000,
-        deals: Math.floor(Math.random() * 3) + 1,
-      };
-    });
-  };
+  const generateMonthlyPerformance = (_range: string): { month: string; invested: number; returns: number; deals: number }[] => [];
 
   useEffect(() => {
     fetchAnalyticsData();
@@ -251,70 +226,6 @@ export const EnhancedInvestorAnalytics: React.FC<InvestorAnalyticsProps> = ({
     };
   }, [timeRange, autoRefresh, fetchAnalyticsData]);
 
-  const getMockData = (range: string = '30d'): InvestorAnalyticsData => {
-    const multiplier = range === '7d' ? 0.25 : range === '30d' ? 1 : range === '90d' ? 3 : 12;
-
-    return {
-    kpis: {
-      totalInvestments: Math.round(15 * multiplier / 12),
-      totalInvested: Math.round(2500000 * multiplier),
-      portfolioValue: Math.round(3200000 * multiplier),
-      activeDeals: Math.round(8 * (range === '7d' ? 0.8 : 1)),
-      averageROI: 22.5,
-      successRate: 73,
-      monthlyDeals: range === '7d' ? 1 : range === '30d' ? 3 : range === '90d' ? 9 : 36,
-      ndasSigned: Math.round(45 * multiplier / 12),
-      diversificationIndex: 7.8,
-      riskScore: 6.2,
-    },
-    changes: {
-      investmentsChange: range === '7d' ? 10 : range === '30d' ? 25 : range === '90d' ? 40 : 60,
-      investedChange: range === '7d' ? 8 : range === '30d' ? 18 : range === '90d' ? 30 : 50,
-      portfolioChange: range === '7d' ? 12 : range === '30d' ? 28 : range === '90d' ? 45 : 70,
-      dealsChange: range === '7d' ? 5 : range === '30d' ? 14 : range === '90d' ? 25 : 40,
-      roiChange: 3.2,
-      successChange: 5,
-      monthlyDealsChange: 0,
-      ndaChange: range === '7d' ? 5 : range === '30d' ? 15 : range === '90d' ? 25 : 40,
-      diversificationChange: 0.5,
-      riskChange: -0.3,
-    },
-    charts: {
-      portfolioGrowth: generateTimeSeriesData(range, 1500000, 3500000),
-      investmentsByCategory: [
-        { category: 'Action', amount: 650000, count: 4 },
-        { category: 'Drama', amount: 450000, count: 3 },
-        { category: 'Comedy', amount: 350000, count: 2 },
-        { category: 'Thriller', amount: 550000, count: 3 },
-        { category: 'Sci-Fi', amount: 750000, count: 3 },
-        { category: 'Documentary', amount: 245000, count: 2 },
-      ],
-      dealFlow: generateTimeSeriesData(range, 1, 6),
-      roiTrends: generateTimeSeriesData(range, 15, 35),
-      riskAssessment: [
-        { risk: 'Low Risk', count: 6 },
-        { risk: 'Medium Risk', count: 7 },
-        { risk: 'High Risk', count: 2 },
-      ],
-      monthlyPerformance: generateMonthlyPerformance(range),
-      topInvestments: [
-        { title: 'Time Traveler\'s Dilemma', amount: 250000, roi: 28.5, status: 'Active' },
-        { title: 'The Last Symphony', amount: 180000, roi: 35.2, status: 'Completed' },
-        { title: 'Digital Rebellion', amount: 320000, roi: 22.8, status: 'Active' },
-        { title: 'Ocean\'s Secret', amount: 150000, roi: 41.5, status: 'Completed' },
-        { title: 'The Forgotten City', amount: 200000, roi: 18.9, status: 'Active' },
-        { title: 'Midnight Protocol', amount: 275000, roi: 31.7, status: 'Active' },
-      ],
-      marketSegments: [
-        { segment: 'Feature Films', allocation: 65, performance: 24.5 },
-        { segment: 'Short Films', allocation: 20, performance: 18.2 },
-        { segment: 'Documentaries', allocation: 10, performance: 15.8 },
-        { segment: 'Web Series', allocation: 5, performance: 22.1 },
-      ]
-    }
-  };
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -326,7 +237,13 @@ export const EnhancedInvestorAnalytics: React.FC<InvestorAnalyticsProps> = ({
   if (!analyticsData) {
     return (
       <div className="text-center text-gray-500 py-8">
-        Failed to load analytics data. Please try again.
+        <p className="mb-2">{error ? `Error: ${error}` : 'No analytics data available yet.'}</p>
+        <button
+          onClick={fetchAnalyticsData}
+          className="text-blue-600 hover:text-blue-800 underline text-sm"
+        >
+          Retry
+        </button>
       </div>
     );
   }

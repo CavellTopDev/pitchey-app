@@ -38,61 +38,20 @@ const ROIAnalysis = () => {
     loadROIData();
   }, [timeRange]);
 
-  const getMockData = (range: string) => {
-    const multiplier = range === '1m' ? 0.1 : range === '3m' ? 0.3 : range === '6m' ? 0.5 : range === 'all' ? 2 : 1;
-
-    const categories = [
-      { category: 'Action', avg_roi: 45 + Math.random() * 10, count: Math.round(5 * multiplier), total_profit: 1500000 * multiplier },
-      { category: 'Drama', avg_roi: 60 + Math.random() * 15, count: Math.round(4 * multiplier), total_profit: 1700000 * multiplier },
-      { category: 'Thriller', avg_roi: 40 + Math.random() * 20, count: Math.round(3 * multiplier), total_profit: 900000 * multiplier },
-      { category: 'Sci-Fi', avg_roi: 15 + Math.random() * 10, count: Math.round(2 * multiplier), total_profit: 400000 * multiplier },
-      { category: 'Comedy', avg_roi: 45 + Math.random() * 10, count: Math.round(3 * multiplier), total_profit: 600000 * multiplier },
-      { category: 'Documentary', avg_roi: 70 + Math.random() * 10, count: Math.round(2 * multiplier), total_profit: 600000 * multiplier }
-    ].map(cat => ({
-      ...cat,
-      avg_roi: Math.round(cat.avg_roi * 10) / 10,
-      count: Math.max(1, cat.count)
-    }));
-
-    const summary = {
-      total_investments: categories.reduce((sum, c) => sum + c.count, 0) * 1000000, // Roughly $1M per project
-      average_roi: Math.round(categories.reduce((sum, c) => sum + c.avg_roi, 0) / categories.length * 10) / 10,
-      best_roi: Math.max(...categories.map(c => c.avg_roi)),
-      worst_roi: Math.min(...categories.map(c => c.avg_roi)),
-      profitable_count: categories.filter(c => c.avg_roi > 0).length
-    };
-
-    // Generate monthly trend data based on range
-    const months = range === '1m' ? 1 : range === '3m' ? 3 : range === '6m' ? 6 : 12;
-    const now = new Date();
-    const trendData = Array.from({ length: months }, (_, i) => {
-      const d = new Date(now);
-      d.setMonth(now.getMonth() - (months - 1 - i));
-      const monthName = d.toLocaleString('default', { month: 'short' });
-      const baseInvested = 500000 * (1 + Math.random() * 0.5);
-      const roi = 10 + i * 3 + Math.random() * 5;
-      return {
-        month: monthName,
-        roi: Math.round(roi * 10) / 10,
-        invested: Math.round(baseInvested),
-        returned: Math.round(baseInvested * (1 + roi / 100))
-      };
-    });
-
-    return { categories, summary, trendData };
-  };
+  const [error, setError] = useState<string | null>(null);
+  const [trendData, setTrendData] = useState<{ month: string; roi: number; invested: number; returned: number }[]>([]);
 
   const loadROIData = async () => {
     try {
       setLoading(true);
+      setError(null);
 
       // Fetch ROI summary
       const summaryResponse = await investorApi.getROISummary(timeRange);
       if (summaryResponse.success && summaryResponse.data?.summary) {
         setRoiSummary(summaryResponse.data.summary);
       } else {
-        const mock = getMockData(timeRange);
-        setRoiSummary(mock.summary);
+        setRoiSummary({ total_investments: 0, average_roi: 0, best_roi: 0, worst_roi: 0, profitable_count: 0 });
       }
 
       // Fetch ROI by category
@@ -100,22 +59,44 @@ const ROIAnalysis = () => {
       if (categoryResponse.success && categoryResponse.data?.categories) {
         setCategoryMetrics(categoryResponse.data.categories);
       } else {
-        const mock = getMockData(timeRange);
-        setCategoryMetrics(mock.categories);
+        setCategoryMetrics([]);
       }
 
-    } catch (error) {
-      console.error('Failed to load ROI data:', error);
-      const mock = getMockData(timeRange);
-      setCategoryMetrics(mock.categories);
-      setRoiSummary(mock.summary);
+      // Trend data comes from performance endpoint
+      try {
+        const perfResponse = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/investor/performance`, {
+          credentials: 'include',
+        });
+        if (perfResponse.ok) {
+          const perfResult = await perfResponse.json();
+          const timeline = perfResult.roiTimeline || [];
+          setTrendData(timeline.map((t: any) => ({
+            month: new Date(t.month + '-01').toLocaleString('default', { month: 'short' }),
+            roi: Number(t.value) > 0 && Number(t.invested) > 0
+              ? Math.round(((Number(t.value) - Number(t.invested)) / Number(t.invested)) * 100 * 10) / 10
+              : 0,
+            invested: Number(t.invested) || 0,
+            returned: Number(t.value) || 0,
+          })));
+        } else {
+          setTrendData([]);
+        }
+      } catch {
+        setTrendData([]);
+      }
+
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to load ROI data:', e);
+      setError(e.message);
+      setCategoryMetrics([]);
+      setRoiSummary(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const mock = getMockData(timeRange);
-  const monthlyROIData = mock.trendData;
+  const monthlyROIData = trendData;
 
   const pieColors = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899'];
 
@@ -154,6 +135,21 @@ const ROIAnalysis = () => {
       <div>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <div className="text-center py-12 bg-white rounded-lg">
+          <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to load ROI data</h3>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button onClick={loadROIData} variant="outline">
+            Retry
+          </Button>
         </div>
       </div>
     );
