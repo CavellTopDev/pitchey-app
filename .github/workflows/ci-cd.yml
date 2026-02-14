@@ -73,7 +73,7 @@ jobs:
 
       - name: 🔧 Type checking
         run: npm run type-check
-        continue-on-error: true  # TODO: Set to false after resolving pre-existing TS errors in dead-code files
+        continue-on-error: true  # ~934 type errors remain in active code (incomplete type definitions); fix in a follow-up PR
 
       - name: 🏗️ Build frontend
         run: npm run build
