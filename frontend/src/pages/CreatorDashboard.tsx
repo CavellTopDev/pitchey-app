@@ -150,10 +150,11 @@ function CreatorDashboard() {
         trackApiError('getCreatorFunding', new Error(msg));
         setSectionStatus(prev => ({ ...prev, funding: { loaded: true, error: msg } }));
       }
-    } catch (error) {
-      console.error('Error fetching funding data:', error);
-      trackApiError('getCreatorFunding', error as Error);
-      reportError(error, { context: 'fetchFundingData' });
+    } catch (err) {
+      console.error('Error fetching funding data:', err);
+      const fundingErr = err instanceof Error ? err : new Error(String(err));
+      trackApiError('getCreatorFunding', fundingErr);
+      reportError(fundingErr, { context: 'fetchFundingData' });
       setSectionStatus(prev => ({ ...prev, funding: { loaded: true, error: 'Funding data unavailable' } }));
     }
   };
@@ -267,8 +268,9 @@ function CreatorDashboard() {
       }
     } else {
       const reason = dashboardResult.reason;
-      trackApiError('/api/creator/dashboard', reason);
-      reportError(reason, { context: 'fetchDashboardData' });
+      const dashErr = reason instanceof Error ? reason : new Error(String(reason));
+      trackApiError('/api/creator/dashboard', dashErr);
+      reportError(dashErr, { context: 'fetchDashboardData' });
 
       const defaultStats = validateCreatorStats({});
       setStats({
