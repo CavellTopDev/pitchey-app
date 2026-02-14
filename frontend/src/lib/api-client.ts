@@ -60,7 +60,7 @@ interface ApiError {
 interface TypedApiResponse<T> {
   success: boolean;
   data?: T;
-  error?: ApiError | string;
+  error?: ApiError;
   message?: string;
   cached?: boolean;
 }

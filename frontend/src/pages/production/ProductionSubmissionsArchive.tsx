@@ -5,7 +5,7 @@ import {
   Eye, Download, MessageSquare, RotateCcw, Trash2,
   Database, History, Tag
 } from 'lucide-react';
-import { config } from '../../config';
+import { config, API_URL } from '../../config';
 
 interface ArchivedSubmission {
   id: string;

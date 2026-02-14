@@ -7,7 +7,7 @@ import {
   Bookmark, ThumbsUp, Play, Upload, Edit, Trash2
 } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { config } from '../../config';
+import { config, API_URL } from '../../config';
 
 interface ActivityItem {
   id: string;

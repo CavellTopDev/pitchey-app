@@ -5,7 +5,7 @@ import {
   Eye, Download, MessageSquare, RotateCcw, AlertTriangle,
   RefreshCw, Trash2, FileX
 } from 'lucide-react';
-import { config } from '../../config';
+import { config, API_URL } from '../../config';
 
 interface Submission {
   id: string;

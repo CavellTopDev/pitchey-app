@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { GitBranch, ArrowRight, Clock, TrendingUp, DollarSign, Calendar, Users, Filter, BarChart3, CheckCircle, AlertCircle } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { config } from '../../config';
+import { config, API_URL } from '../../config';
 
 interface PipelineProject {
   id: string;

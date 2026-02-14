@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { config } from '../../config';
+import { config, API_URL } from '../../config';
 
 interface PendingInvitation {
   id: string;

@@ -14,6 +14,7 @@ interface Investment {
   id: number;
   pitch_id: number;
   pitch_title: string;
+  pitchTitle?: string;
   pitch_genre?: string;
   creator_name?: string;
   company_name?: string;
@@ -22,6 +23,7 @@ interface Investment {
   created_at: string;
   updated_at: string;
   current_value?: number;
+  currentValue?: number;
   roi_percentage?: number;
   stage?: string;
   ownership_percentage?: number;

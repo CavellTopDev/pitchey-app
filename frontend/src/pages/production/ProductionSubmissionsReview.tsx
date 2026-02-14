@@ -5,7 +5,7 @@ import {
   Eye, Download, MessageSquare, ThumbsUp, ThumbsDown, 
   AlertCircle, Timer, Edit3, Bookmark
 } from 'lucide-react';
-import { config } from '../../config';
+import { config, API_URL } from '../../config';
 
 interface Submission {
   id: string;

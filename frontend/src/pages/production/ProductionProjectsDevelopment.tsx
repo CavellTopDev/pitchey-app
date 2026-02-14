@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FileText, Clock, CheckCircle, AlertTriangle, TrendingUp, DollarSign, Calendar, Users, MoreVertical, Eye, Edit, Trash2, PlusCircle, Filter, Search } from 'lucide-react';
-import { config } from '../../config';
+import { config, API_URL } from '../../config';
 
 interface Project {
   id: string;

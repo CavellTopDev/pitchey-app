@@ -10,10 +10,17 @@ export interface User {
   email: string;
   username: string;
   userType: UserType;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  role?: string;
   companyName?: string;
+  companyDetails?: any;
   profilePicture?: string;
+  profileImageUrl?: string;
   bio?: string;
   location?: string;
+  phone?: string;
   website?: string;
   socialMedia?: {
     twitter?: string;
@@ -21,10 +28,16 @@ export interface User {
     instagram?: string;
   };
   verified: boolean;
+  emailVerified?: boolean;
+  companyVerified?: boolean;
+  isActive?: boolean;
+  subscriptionTier?: string;
+  followersCount?: number;
+  followingCount?: number;
+  lastLoginAt?: string;
   createdAt: string;
   updatedAt: string;
-  // Additional fields from backend
-  password?: string; // Only included in auth responses, not regular API calls
+  password?: string; // Only included in auth responses
 }
 
 // ========== PITCH TYPES ==========
@@ -37,6 +50,7 @@ export type PitchGenre = 'action' | 'adventure' | 'comedy' | 'drama' | 'horror' 
 export interface Pitch {
   id: number;
   userId: number;
+  creatorId?: number;
   title: string;
   logline: string;
   genre: PitchGenre;
@@ -88,12 +102,32 @@ export interface Pitch {
   tags?: string[];
   archived: boolean;
   archivedAt?: string;
+  thumbnailUrl?: string;
+  mediaFiles?: any[];
+  rating?: number;
+  productionStage?: string;
+  isNew?: boolean;
+  isOwner?: boolean;
+  // Business plan fields
+  budget?: any;
+  budget_breakdown?: any;
+  financial_projections?: any;
+  revenue_model?: any;
+  marketing_strategy?: any;
+  distribution_plan?: any;
+  attached_talent?: any;
+  contact_details?: any;
+  private_attachments?: any[];
   metadata?: any;
+  hasNDA?: boolean;
+  isLiked?: boolean;
+  canEdit?: boolean;
+  commentCount?: number;
   createdAt: string;
   updatedAt: string;
-  
+
   // Relations
-  creator?: User;
+  creator?: User | { id: number; username: string; name?: string; profileImage?: string };
   ndas?: NDA[];
   comments?: Comment[];
   likes?: Like[];
@@ -119,25 +153,42 @@ export interface NDA {
   pitchId: number;
   userId: number;
   signerId: number;
+  requesterId?: number;
   status: NDAStatus;
   ndaType?: NDAType;
   signedAt?: string;
   expiresAt?: string;
   documentUrl?: string;
+  signedDocumentUrl?: string;
   requestMessage?: string;
+  message?: string;
   rejectionReason?: string;
+  customTerms?: string;
+  customNdaText?: string;
   companyInfo?: {
     companyName: string;
     position: string;
     intendedUse: string;
   };
+  accessGranted?: boolean;
+  requestedAt?: string;
+  respondedAt?: string;
+  revokedAt?: string;
+  requesterName?: string;
+  notes?: string;
+  // Denormalized display fields from API joins
+  pitchTitle?: string;
+  pitchOwner?: string;
+  signerName?: string;
+  creatorName?: string;
   createdAt: string;
   updatedAt: string;
-  
+
   // Relations
   pitch?: Pitch;
   user?: User;
   signer?: User;
+  requester?: User;
 }
 
 // ========== MESSAGE TYPES ==========
@@ -273,11 +324,13 @@ export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
   message?: string;
-  error?: string | ApiError;
+  error?: ApiError;
   metadata?: {
     timestamp: string;
     [key: string]: any;
   };
+  cached?: boolean;
+  [key: string]: any;
 }
 
 export interface ApiError {
@@ -398,26 +451,91 @@ export function transformUserForBackend(frontendUser: Partial<User>): any {
   };
 }
 
-export default {
-  // Re-export all types for convenience
-  User,
-  Pitch,
-  Character,
-  NDA,
-  Message,
-  Portfolio,
-  Follow,
-  WatchlistItem,
-  Comment,
-  Like,
-  Notification,
-  ApiResponse,
-  ApiError,
-  PaginatedResponse,
-  DashboardStats,
-  FilterState,
-  CreditBalance,
-  Subscription,
-  transformUserFromBackend,
-  transformUserForBackend
-};
+// ========== ANALYTICS TYPES ==========
+
+export interface PitchAnalytics {
+  totalViews: number;
+  totalLikes: number;
+  totalShares: number;
+  totalMessages: number;
+  viewsThisWeek: number;
+  viewsThisMonth: number;
+  engagement: {
+    rate: number;
+    trend: number;
+    [key: string]: any;
+  };
+  demographics: any;
+  viewerTypes: any;
+  topReferrers: any[];
+}
+
+// ========== INVESTMENT TYPES ==========
+
+export interface Investment {
+  id: number;
+  pitchId: number;
+  investorId: number;
+  amount: number;
+  percentage?: number;
+  status: 'pending' | 'active' | 'completed' | 'cancelled';
+  terms?: string;
+  contractUrl?: string;
+  investedAt?: string;
+  investmentDate?: string;
+  updatedAt: string;
+  pitch?: Pitch;
+  investor?: User;
+  returns?: number;
+  currentValue?: number;
+  // Display fields
+  initialAmount?: number;
+  totalReturn?: number;
+  roi?: number;
+  ownership?: number;
+  performance?: any;
+  lastValuation?: number;
+  nextMilestone?: string;
+  company?: string;
+  creator?: string;
+  genre?: string;
+}
+
+export interface InvestmentOpportunity {
+  id: number;
+  pitch?: Pitch;
+  title?: string;
+  logline?: string;
+  description?: string;
+  genre?: string;
+  status?: string;
+  thumbnailUrl?: string;
+  expectedROI?: number;
+  projectedROI?: number;
+  minInvestment?: number;
+  maxInvestment?: number;
+  targetAmount?: number;
+  raisedAmount?: number;
+  investors?: number;
+  deadline?: string;
+  terms?: string;
+  riskLevel?: 'low' | 'medium' | 'high';
+  matchScore?: number;
+}
+
+// ========== TEAM TYPES ==========
+
+export interface Team {
+  id: number;
+  name: string;
+  members: TeamMember[];
+  [key: string]: any;
+}
+
+export interface TeamMember {
+  id: number;
+  userId: number;
+  role: string;
+  user?: User;
+  [key: string]: any;
+}

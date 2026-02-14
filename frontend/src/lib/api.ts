@@ -106,16 +106,22 @@ export interface User {
 
 export interface Pitch {
   id: number;
+  userId?: number;
   title: string;
   logline: string;
   genre: string;
   format: string;
+  formatCategory?: string;
+  formatSubtype?: string;
+  customFormat?: string;
   shortSynopsis?: string;
   longSynopsis?: string;
-  creator: {
+  opener?: string;
+  premise?: string;
+  creator?: {
     id: number;
     username: string;
-    userType: 'creator' | 'production' | 'investor';
+    userType?: string;
     companyName?: string;
     name?: string;
     profileImage?: string;
@@ -123,49 +129,109 @@ export interface Pitch {
   viewCount: number;
   likeCount: number;
   ndaCount: number;
+  commentCount?: number;
+  shareCount?: number;
   createdAt: string;
-  status: 'draft' | 'published';
+  updatedAt?: string;
+  publishedAt?: string;
+  status: string;
   // Media assets
+  titleImage?: string;
+  thumbnailUrl?: string;
+  posterUrl?: string;
   lookbookUrl?: string;
   scriptUrl?: string;
   trailerUrl?: string;
   pitchDeckUrl?: string;
+  videoUrl?: string;
   additionalVideos?: string[];
-  // Enhanced info only visible after NDA
-  budget?: string;
-  budgetBreakdown?: {
-    development?: number;
-    preProduction?: number;
-    production?: number;
-    postProduction?: number;
-    marketing?: number;
-    distribution?: number;
-    contingency?: number;
-    total: number;
-  };
+  additionalMedia?: any[];
+  mediaFiles?: any[];
+  // Business/financial
+  budget?: any;
+  budgetBracket?: string;
+  estimatedBudget?: number | string;
+  budgetBreakdown?: any;
+  budget_breakdown?: any;
+  financial_projections?: any;
+  revenue_model?: any;
+  marketing_strategy?: any;
+  distribution_plan?: any;
+  attached_talent?: any;
+  contact_details?: any;
+  private_attachments?: any[];
   targetAudience?: string;
   comparableTitles?: string;
   productionTimeline?: string;
+  productionStage?: string;
   attachedTalent?: string;
   distributionStrategy?: string;
+  seekingInvestment?: boolean;
+  requireNda?: boolean;
+  requireNDA?: boolean;
+  // Viewer context
   hasSignedNDA?: boolean;
-  ndaStatus?: 'none' | 'pending' | 'signed' | 'expired';
+  hasNDA?: boolean;
+  ndaStatus?: string;
+  isLiked?: boolean;
+  canEdit?: boolean;
+  isOwner?: boolean;
+  isNew?: boolean;
+  rating?: number;
   // Tracking
   followersCount?: number;
   isFollowing?: boolean;
+  // Characters & themes
+  characters?: any;
+  themes?: any;
+  worldDescription?: string;
+  episodeBreakdown?: any;
+  visibilitySettings?: any;
+  aiUsed?: boolean;
+  aiTools?: string[];
+  aiDisclosure?: string;
+  tags?: string[];
+  archived?: boolean;
+  metadata?: any;
+  // Relations
+  ndas?: any[];
+  comments?: any[];
+  likes?: any[];
 }
 
 export interface NDA {
   id: number;
   pitchId: number;
-  requesterId: number;
-  creatorId: number;
-  status: 'pending' | 'signed' | 'rejected' | 'expired';
-  requestedAt: string;
+  userId?: number;
+  signerId?: number;
+  requesterId?: number;
+  creatorId?: number;
+  ndaType?: string;
+  status: string;
+  requestedAt?: string;
+  respondedAt?: string;
   signedAt?: string;
   expiresAt?: string;
   customTerms?: string;
+  requestMessage?: string;
+  message?: string;
+  rejectionReason?: string;
+  documentUrl?: string;
   uploadedNDAUrl?: string;
+  accessGranted?: boolean;
+  pitchTitle?: string;
+  pitchOwner?: string;
+  signerName?: string;
+  creatorName?: string;
+  requesterName?: string;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  // Relations
+  pitch?: Pitch;
+  user?: User;
+  signer?: User;
+  requester?: User;
 }
 
 export interface Session {

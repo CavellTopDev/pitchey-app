@@ -13,6 +13,7 @@ import { usePitchStore } from '../store/pitchStore';
 import { pitchAPI } from '../lib/api';
 import type { Pitch } from '../lib/api';
 import { ndaAPI, analyticsAPI, companyAPI, paymentsAPI, pitchServicesAPI } from '../lib/apiServices';
+import { API_URL } from '../config';
 import apiClient from '../lib/api-client';
 import { NotificationWidget } from '../components/Dashboard/NotificationWidget';
 import { NotificationBell } from '../components/NotificationBell';

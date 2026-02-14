@@ -1,10 +1,10 @@
 /**
-import { API_URL } from '../config';
  * Privacy Settings Component
  * User interface for managing data subject rights and privacy preferences
  */
 
 import React, { useState, useEffect } from 'react';
+import { API_URL } from '../../config';
 import { 
   Shield, Download, Trash2, Edit, Eye, Lock, 
   UserX, Settings, AlertTriangle, CheckCircle, 

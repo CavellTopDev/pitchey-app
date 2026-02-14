@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, Trophy, Star, TrendingUp, DollarSign, Calendar, Users, MoreVertical, Eye, Download, BarChart3, Award, Film } from 'lucide-react';
-import { config } from '../../config';
+import { config, API_URL } from '../../config';
 
 interface Project {
   id: string;

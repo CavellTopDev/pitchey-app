@@ -76,6 +76,7 @@ export interface VisibilitySettings {
 export interface Pitch {
   id: number;
   userId: number;
+  creatorId?: number;
   title: string;
   logline: string;
   genre: 'drama' | 'comedy' | 'thriller' | 'horror' | 'scifi' | 'fantasy' | 'documentary' | 'animation' | 'action' | 'romance' | 'other';
@@ -119,9 +120,33 @@ export interface Pitch {
     name?: string;
     profileImage?: string;
   };
-  hasNDA?: boolean; // For current viewer
-  isLiked?: boolean; // For current viewer
-  canEdit?: boolean; // For current viewer
+  hasNDA?: boolean;
+  isLiked?: boolean;
+  canEdit?: boolean;
+  isOwner?: boolean;
+  isNew?: boolean;
+  // Additional display fields
+  thumbnailUrl?: string;
+  posterUrl?: string;
+  videoUrl?: string;
+  mediaFiles?: any[];
+  rating?: number;
+  productionStage?: string;
+  seekingInvestment?: boolean;
+  commentCount?: number;
+  shareCount?: number;
+  // Business plan (snake_case from API)
+  budget?: any;
+  budget_breakdown?: any;
+  financial_projections?: any;
+  revenue_model?: any;
+  marketing_strategy?: any;
+  distribution_plan?: any;
+  attached_talent?: any;
+  contact_details?: any;
+  private_attachments?: any[];
+  tags?: string[];
+  metadata?: any;
 }
 
 // NDA Types
@@ -130,24 +155,37 @@ export interface NDA {
   pitchId: number;
   userId: number; // NDA creator (pitch owner)
   signerId: number; // NDA signer
+  requesterId?: number;
   ndaType: string; // 'basic', 'custom', etc.
   status: 'pending' | 'approved' | 'rejected' | 'signed' | 'expired' | 'revoked';
   documentUrl?: string;
   signedDocumentUrl?: string;
-  customNdaText?: string; // Added field from backend
+  customNdaText?: string;
+  customTerms?: string;
   requestMessage?: string;
+  message?: string;
   rejectionReason?: string;
   signedAt?: string;
   expiresAt?: string;
   revokedAt?: string;
+  requestedAt?: string;
+  respondedAt?: string;
+  accessGranted?: boolean;
   ipAddress?: string;
   userAgent?: string;
   notes?: string;
+  // Denormalized display fields
+  pitchTitle?: string;
+  pitchOwner?: string;
+  requesterName?: string;
+  signerName?: string;
+  creatorName?: string;
   createdAt: string;
   updatedAt: string;
-  
+
   // Related data
   requester?: User;
+  user?: User;
   signer?: User;
   pitch?: Pitch;
 }
@@ -256,32 +294,51 @@ export interface ProductionDashboardStats {
 export interface Investment {
   id: number;
   pitchId: number;
-  investorId: number; // Corrected field name (not userId)
+  investorId: number;
   amount: number;
-  percentage: number;
+  percentage?: number;
   status: 'pending' | 'active' | 'completed' | 'cancelled';
   terms?: string;
   contractUrl?: string;
-  investedAt: string;
+  investedAt?: string;
+  investmentDate?: string;
   updatedAt: string;
   pitch?: Pitch;
   investor?: User;
   returns?: number;
   currentValue?: number;
+  // Display fields
+  initialAmount?: number;
+  totalReturn?: number;
+  roi?: number;
+  ownership?: number;
+  performance?: any;
+  lastValuation?: number;
+  nextMilestone?: string;
+  company?: string;
+  creator?: string;
+  genre?: string;
 }
 
 export interface InvestmentOpportunity {
   id: number;
-  pitch: Pitch;
-  minInvestment: number;
-  maxInvestment: number;
-  targetAmount: number;
-  raisedAmount: number;
-  investors: number;
-  deadline: string;
-  terms: string;
+  pitch?: Pitch;
+  title?: string;
+  logline?: string;
+  description?: string;
+  genre?: string;
+  status?: string;
+  thumbnailUrl?: string;
+  expectedROI?: number;
+  minInvestment?: number;
+  maxInvestment?: number;
+  targetAmount?: number;
+  raisedAmount?: number;
+  investors?: number;
+  deadline?: string;
+  terms?: string;
   projectedROI?: number;
-  riskLevel: 'low' | 'medium' | 'high';
+  riskLevel?: 'low' | 'medium' | 'high';
   matchScore?: number;
 }
 

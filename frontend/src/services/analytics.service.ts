@@ -41,6 +41,17 @@ export interface PitchAnalytics {
     userType: { type: string; count: number }[];
     industry: { industry: string; count: number }[];
   };
+  // Aggregate fields used by PitchAnalytics page
+  totalViews?: number;
+  totalLikes?: number;
+  totalShares?: number;
+  totalMessages?: number;
+  viewsThisWeek?: number;
+  viewsThisMonth?: number;
+  engagement?: any;
+  demographics?: any;
+  viewerTypes?: any;
+  topReferrers?: any[];
 }
 
 export interface UserAnalytics {
