@@ -436,6 +436,28 @@ export const pitchAPI = {
     }
   },
 
+  async browse(tab: string, params?: { page?: number; limit?: number }) {
+    try {
+      const response = await api.get('/api/browse', {
+        params: { tab, ...params }
+      });
+
+      const data = response.data?.data || response.data;
+      const items = data?.items || data?.data || [];
+
+      return {
+        items: Array.isArray(items) ? items.map(transformPitchData) : [],
+        total: data?.total || 0,
+        page: data?.page || 1,
+        hasMore: data?.hasMore || false,
+        tab: data?.tab || tab
+      };
+    } catch (error) {
+      console.error('Failed to browse pitches:', error);
+      return { items: [], total: 0, page: 1, hasMore: false, tab };
+    }
+  },
+
   async getById(id: number) {
     const response = await api.get<Pitch>(`/api/pitches/${id}`);
     // Transform snake_case to camelCase

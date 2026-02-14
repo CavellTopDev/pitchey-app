@@ -6568,21 +6568,49 @@ pitchey_analytics_datapoints_per_minute 1250
     const params = (request as any).params;
 
     try {
+      // Parse optional customTerms and expiryDays from request body
+      let customTerms: string | undefined;
+      let expiryDays: number | undefined;
+      try {
+        const body = await request.clone().json() as Record<string, unknown>;
+        if (body.customTerms && typeof body.customTerms === 'string') {
+          customTerms = body.customTerms;
+        }
+        if (body.expiryDays && typeof body.expiryDays === 'number') {
+          expiryDays = body.expiryDays;
+        }
+      } catch { /* no body or invalid JSON */ }
+
+      // Build dynamic SET clause with optional custom_terms and expires_at
+      const setClauses = [
+        `status = 'approved'`,
+        `approved_at = NOW()`,
+        `approved_by = $2`,
+        `updated_at = NOW()`
+      ];
+      const queryParams: unknown[] = [params.id, authResult.user.id];
+
+      if (customTerms) {
+        queryParams.push(customTerms);
+        setClauses.push(`custom_terms = $${queryParams.length}`);
+      }
+      if (expiryDays && expiryDays > 0) {
+        queryParams.push(expiryDays);
+        setClauses.push(`expires_at = NOW() + INTERVAL '1 day' * $${queryParams.length}`);
+      }
+
       // Update the NDA in ndas table, checking ownership via pitches table
       // The ndas table stores pending NDA requests with signer_id = requester
       const [nda] = await this.db.query(`
         UPDATE ndas n SET
-          status = 'approved',
-          approved_at = NOW(),
-          approved_by = $2,
-          updated_at = NOW()
+          ${setClauses.join(',\n          ')}
         FROM pitches p
         WHERE n.id = $1
           AND n.pitch_id = p.id
           AND p.user_id = $2
           AND n.status = 'pending'
         RETURNING n.*, p.title as pitch_title
-      `, [params.id, authResult.user.id]);
+      `, queryParams);
 
       if (!nda) {
         return builder.error(ErrorCode.NOT_FOUND, 'NDA request not found or not authorized');
@@ -7070,45 +7098,44 @@ pitchey_analytics_datapoints_per_minute 1250
 
       switch (tab) {
         case 'trending':
-          // Trending: Content with high engagement in the past 7 days
-          // Uses view_count if available, otherwise uses recent activity
+          // Trending: Content weighted by engagement (views + likes + NDAs) within 30 days
           whereClause = `
-            WHERE p.status = 'published' 
+            WHERE p.status = 'published'
             AND p.created_at >= NOW() - INTERVAL '30 days'
-            AND (p.updated_at >= NOW() - INTERVAL '7 days' OR p.created_at >= NOW() - INTERVAL '7 days')
           `;
-          orderClause = `ORDER BY 
+          orderClause = `ORDER BY
+            (SELECT COUNT(*) FROM ndas n WHERE n.pitch_id = p.id) DESC,
+            LENGTH(COALESCE(p.description, '')) DESC,
             CASE WHEN p.updated_at >= NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END DESC,
-            p.updated_at DESC, 
+            p.updated_at DESC,
             p.created_at DESC`;
           break;
 
         case 'new':
-          // New: Only recently created content (last 30 days), purely chronological
-          // This is distinctly different from trending which considers engagement
+          // New: Pure chronological, only last 7 days — distinct from trending
           whereClause = `
             WHERE p.status = 'published'
-            AND p.created_at >= NOW() - INTERVAL '30 days'
+            AND p.created_at >= NOW() - INTERVAL '7 days'
           `;
           orderClause = `ORDER BY p.created_at DESC`;
           break;
 
         case 'popular':
-          // Popular: All-time best content based on description length and age
+          // Popular: All-time best content based on NDA count and description richness
           whereClause = `
             WHERE p.status = 'published'
           `;
-          orderClause = `ORDER BY 
-            LENGTH(p.description) DESC, 
-            EXTRACT(EPOCH FROM (NOW() - p.created_at)) / 86400 ASC,
+          orderClause = `ORDER BY
+            (SELECT COUNT(*) FROM ndas n WHERE n.pitch_id = p.id) DESC,
+            LENGTH(COALESCE(p.description, '')) DESC,
             p.id DESC`;
           break;
 
         default:
-          // Fallback to trending if invalid tab
+          // Fallback to trending
           whereClause = `
-            WHERE p.status = 'published' 
-            AND p.created_at >= NOW() - INTERVAL '7 days'
+            WHERE p.status = 'published'
+            AND p.created_at >= NOW() - INTERVAL '30 days'
           `;
           orderClause = `ORDER BY p.updated_at DESC, p.id DESC`;
           break;

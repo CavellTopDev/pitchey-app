@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Upload, X, FileText, Video, Image as ImageIcon, Shield, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Upload, X, FileText, Video, Image as ImageIcon, Shield, AlertCircle, WifiOff } from 'lucide-react';
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import { useToast } from '../components/Toast/ToastProvider';
 import LoadingSpinner from '../components/Loading/LoadingSpinner';
@@ -41,6 +41,19 @@ export default function CreatePitch() {
   const { success, error } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState<'form' | 'creating' | 'uploading' | 'complete'>('form');
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Track online/offline status
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
   const [genres, setGenres] = useState<string[]>([...(getGenresSync() || [])]);
   const [formats, setFormats] = useState<string[]>([...(getFormatsSync() || [])]);
 
@@ -298,6 +311,12 @@ export default function CreatePitch() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Prevent submission when offline
+    if (!navigator.onLine) {
+      error('You are offline', 'Please check your internet connection and try again.');
+      return;
+    }
+
     setIsSubmitting(true);
     setCurrentStep('form');
 
@@ -463,6 +482,16 @@ export default function CreatePitch() {
           </div>
         </div>
       </header>
+
+      {/* Connectivity Warning */}
+      {!isOnline && (
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+          <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg p-3">
+            <WifiOff className="w-4 h-4 text-red-600 shrink-0" />
+            <p className="text-red-700 text-sm">You are offline. You can fill out the form, but submission requires an internet connection.</p>
+          </div>
+        </div>
+      )}
 
       {/* Cost Overview Notice */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">

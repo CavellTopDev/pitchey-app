@@ -10,6 +10,7 @@ import DashboardHeader from '../../components/DashboardHeader';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { TeamService } from '../../services/team.service';
 import { useCurrentTeam } from '../../hooks/useCurrentTeam';
+import { Permission } from '../../hooks/usePermissions';
 
 interface TeamMember {
   id: string;
@@ -66,11 +67,27 @@ export default function TeamMembers() {
   }, [teamId]);
 
   const derivePermissions = (role: string): string[] => {
+    // Map team roles to backend RBAC permissions for consistency
     switch (role) {
-      case 'owner': return ['manage_projects', 'approve_budgets', 'manage_team', 'manage_roles'];
-      case 'editor': return ['manage_projects', 'edit_content'];
-      case 'viewer': return ['view_projects', 'view_content'];
-      default: return ['view_projects'];
+      case 'owner': return [
+        Permission.PRODUCTION_CREATE_PROJECT,
+        Permission.PRODUCTION_MANAGE_CREW,
+        Permission.PRODUCTION_SCHEDULE,
+        Permission.PRODUCTION_BUDGET,
+        Permission.PITCH_EDIT_OWN,
+        Permission.PITCH_DELETE_OWN,
+      ];
+      case 'editor': return [
+        Permission.PRODUCTION_CREATE_PROJECT,
+        Permission.PRODUCTION_SCHEDULE,
+        Permission.PITCH_EDIT_OWN,
+        Permission.DOCUMENT_UPLOAD,
+      ];
+      case 'viewer': return [
+        Permission.PITCH_VIEW_PUBLIC,
+        Permission.DOCUMENT_VIEW_PUBLIC,
+      ];
+      default: return [Permission.PITCH_VIEW_PUBLIC];
     }
   };
 

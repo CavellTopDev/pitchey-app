@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Share2, Eye, Calendar, User, Clock, Tag, Film, Heart, LogIn, FileText, Lock, Shield, Briefcase, DollarSign } from 'lucide-react';
+import { ArrowLeft, Share2, Eye, Calendar, User, Clock, Tag, Film, Heart, LogIn, FileText, Lock, Shield, Briefcase, DollarSign, WifiOff, RefreshCw } from 'lucide-react';
 import { pitchService } from '../services/pitch.service';
 import { createDownloadClickHandler } from '../utils/fileDownloads';
 import type { Pitch } from '../services/pitch.service';
@@ -20,6 +20,7 @@ export default function PitchDetail() {
   const [isLiking, setIsLiking] = useState(false);
   const [showEnhancedNDARequest, setShowEnhancedNDARequest] = useState(false);
   const [hasSignedNDA, setHasSignedNDA] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   // Check if current user owns this pitch
   // First check the isOwner flag from backend, then fallback to comparing IDs
@@ -76,6 +77,18 @@ export default function PitchDetail() {
       fetchPitch(parseInt(id));
     }
   }, [id, isAuthenticated]);
+
+  // Track online/offline status
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
 
   const hasValidSession = (): boolean => {
     const validAuth = isAuthenticated && user && (user.id || (user as any).data?.id || (user as any).user?.id);
@@ -207,8 +220,51 @@ export default function PitchDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className="min-h-screen bg-gray-50 animate-pulse">
+        {/* Skeleton header */}
+        <header className="bg-white shadow-sm border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="h-4 bg-gray-200 rounded w-24 mb-4" />
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+              <div className="flex-1 space-y-3">
+                <div className="h-8 bg-gray-200 rounded w-2/3" />
+                <div className="flex gap-4">
+                  <div className="h-4 bg-gray-200 rounded w-32" />
+                  <div className="h-4 bg-gray-200 rounded w-24" />
+                  <div className="h-4 bg-gray-200 rounded w-20" />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <div className="h-10 bg-gray-200 rounded-lg w-40" />
+                <div className="h-10 bg-gray-200 rounded-lg w-20" />
+              </div>
+            </div>
+          </div>
+        </header>
+        {/* Skeleton hero image */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+          <div className="aspect-[21/9] bg-gray-200 rounded-xl" />
+        </div>
+        {/* Skeleton content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-6">
+              <div className="bg-white rounded-xl shadow-sm p-6 space-y-4">
+                <div className="h-6 bg-gray-200 rounded w-1/2" />
+                <div className="h-4 bg-gray-200 rounded w-full" />
+                <div className="h-4 bg-gray-200 rounded w-5/6" />
+                <div className="h-4 bg-gray-200 rounded w-4/6" />
+              </div>
+            </div>
+            <div className="space-y-6">
+              <div className="bg-white rounded-xl shadow-sm p-6 space-y-3">
+                <div className="h-5 bg-gray-200 rounded w-1/2" />
+                <div className="h-4 bg-gray-200 rounded w-full" />
+                <div className="h-4 bg-gray-200 rounded w-full" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -226,12 +282,27 @@ export default function PitchDetail() {
         </header>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
           <p className="text-gray-600">{error}</p>
-          <button
-            onClick={() => navigate('/')}
-            className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
-          >
-            Back to Marketplace
-          </button>
+          <div className="flex items-center justify-center gap-3 mt-4">
+            <button
+              onClick={() => {
+                if (id) {
+                  setError(null);
+                  setLoading(true);
+                  fetchPitch(parseInt(id));
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Retry
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+            >
+              Back to Marketplace
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -239,6 +310,16 @@ export default function PitchDetail() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Connectivity Banner */}
+      {!isOnline && (
+        <div className="bg-red-50 border-b border-red-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center gap-2">
+            <WifiOff className="w-4 h-4 text-red-600 shrink-0" />
+            <p className="text-red-700 text-sm">You are offline. Some features may not work.</p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">

@@ -164,11 +164,11 @@ export class NDAService {
   }
 
   // Approve NDA request (for creators)
-  static async approveNDA(ndaId: number, notes?: string): Promise<NDA> {
+  static async approveNDA(ndaId: number, notes?: string, customTerms?: string, expiryDays?: number): Promise<NDA> {
     interface ApproveNDAResponse { nda: NDA }
     const response = await apiClient.post<ApproveNDAResponse>(
       `/api/ndas/${ndaId}/approve`,
-      { notes }
+      { notes, customTerms, expiryDays }
     );
 
     if (response.success !== true || response.data?.nda === undefined) {

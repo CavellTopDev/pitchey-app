@@ -1,17 +1,20 @@
-import React, { useState, useCallback } from 'react';
-import { 
-  Upload, 
-  X, 
-  FileText, 
-  Shield, 
-  CheckCircle, 
+import React, { useState, useCallback, useEffect } from 'react';
+import {
+  Upload,
+  X,
+  FileText,
+  Shield,
+  CheckCircle,
   AlertTriangle,
   Eye,
   Download,
-  Edit3
+  Edit3,
+  Library,
+  RefreshCw
 } from 'lucide-react';
 import { useToast } from '../Toast/ToastProvider';
 import { uploadService } from '../../services/upload.service';
+import { NDAService, type NDATemplate } from '../../services/nda.service';
 
 export interface NDADocument {
   id: string;
@@ -23,7 +26,8 @@ export interface NDADocument {
   uploadProgress: number;
   error?: string;
   isCustom: boolean; // true for custom NDA, false for standard NDA
-  ndaType: 'standard' | 'custom' | 'none';
+  ndaType: 'standard' | 'custom' | 'template' | 'none';
+  templateId?: number; // ID of selected NDA template
 }
 
 interface NDAUploadSectionProps {
@@ -43,9 +47,41 @@ export default function NDAUploadSection({
 }: NDAUploadSectionProps) {
   const [dragOver, setDragOver] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [templates, setTemplates] = useState<NDATemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [templatesError, setTemplatesError] = useState<string | null>(null);
   const { success, error } = useToast();
 
-  const handleNDATypeChange = useCallback((type: 'standard' | 'custom' | 'none') => {
+  // Load templates when "template" type is selected
+  const loadTemplates = useCallback(async () => {
+    if (templates.length > 0) return; // Already loaded
+    setTemplatesLoading(true);
+    setTemplatesError(null);
+    try {
+      const result = await NDAService.getNDATemplates();
+      setTemplates(result.templates);
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      setTemplatesError(e.message);
+    } finally {
+      setTemplatesLoading(false);
+    }
+  }, [templates.length]);
+
+  const handleTemplateSelect = useCallback((template: NDATemplate) => {
+    onChange({
+      id: `nda-template-${template.id}`,
+      title: template.name,
+      description: template.description || 'Saved NDA template',
+      uploadStatus: 'completed',
+      uploadProgress: 100,
+      isCustom: false,
+      ndaType: 'template',
+      templateId: template.id
+    });
+  }, [onChange]);
+
+  const handleNDATypeChange = useCallback((type: 'standard' | 'custom' | 'template' | 'none') => {
     if (type === 'none') {
       onChange(null);
     } else if (type === 'standard') {
@@ -58,6 +94,18 @@ export default function NDAUploadSection({
         isCustom: false,
         ndaType: 'standard'
       });
+    } else if (type === 'template') {
+      // Show template picker — temporarily set to idle until user picks one
+      onChange({
+        id: `nda-template-${Date.now()}`,
+        title: 'Select a Template',
+        description: 'Choose from your saved NDA templates',
+        uploadStatus: 'idle',
+        uploadProgress: 0,
+        isCustom: false,
+        ndaType: 'template'
+      });
+      loadTemplates();
     } else {
       // Custom NDA - prepare for file upload
       onChange({
@@ -70,7 +118,7 @@ export default function NDAUploadSection({
         ndaType: 'custom'
       });
     }
-  }, [onChange]);
+  }, [onChange, loadTemplates]);
 
   const handleFileSelect = useCallback(async (file: File) => {
     if (!file) return;
@@ -237,6 +285,25 @@ export default function NDAUploadSection({
               <Upload className="w-5 h-5 text-blue-500" />
             </label>
 
+            <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-purple-300 transition-colors">
+              <input
+                type="radio"
+                name="ndaType"
+                value="template"
+                checked={ndaDocument?.ndaType === 'template'}
+                onChange={() => handleNDATypeChange('template')}
+                disabled={disabled}
+                className="w-4 h-4 text-purple-600"
+              />
+              <div className="flex-1">
+                <div className="font-medium text-gray-900">Select from Your Templates</div>
+                <div className="text-sm text-gray-500">
+                  Choose from your previously saved NDA templates
+                </div>
+              </div>
+              <Library className="w-5 h-5 text-purple-500" />
+            </label>
+
             <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-red-300 transition-colors">
               <input
                 type="radio"
@@ -397,6 +464,92 @@ export default function NDAUploadSection({
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Template Selection */}
+        {ndaDocument?.ndaType === 'template' && !ndaDocument.templateId && (
+          <div className="mt-4 space-y-3">
+            {templatesLoading && (
+              <div className="flex items-center justify-center py-6 text-gray-500">
+                <RefreshCw className="w-5 h-5 animate-spin mr-2" />
+                Loading templates...
+              </div>
+            )}
+
+            {templatesError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                <AlertTriangle className="w-5 h-5 text-red-500 mx-auto mb-2" />
+                <p className="text-sm text-red-600 mb-2">{templatesError}</p>
+                <button
+                  onClick={loadTemplates}
+                  className="text-sm text-red-700 font-medium hover:underline"
+                >
+                  Try Again
+                </button>
+              </div>
+            )}
+
+            {!templatesLoading && !templatesError && templates.length === 0 && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+                <Library className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-600">No saved templates found.</p>
+                <p className="text-xs text-gray-400 mt-1">Create templates from the NDA management section.</p>
+              </div>
+            )}
+
+            {!templatesLoading && templates.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-700">Select a template:</p>
+                {templates.map(template => (
+                  <button
+                    key={template.id}
+                    onClick={() => handleTemplateSelect(template)}
+                    className="w-full text-left p-3 border border-gray-200 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-colors"
+                  >
+                    <div className="font-medium text-gray-900">{template.name}</div>
+                    {template.description && (
+                      <div className="text-sm text-gray-500 mt-1">{template.description}</div>
+                    )}
+                    {template.isDefault && (
+                      <span className="inline-block mt-1 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded">Default</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Selected Template Confirmation */}
+        {ndaDocument?.ndaType === 'template' && ndaDocument.templateId && (
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                <Library className="w-5 h-5 text-purple-600" />
+              </div>
+
+              <div className="flex-1">
+                <div className="font-medium text-purple-900">{ndaDocument.title}</div>
+                <div className="text-sm text-purple-600">
+                  {ndaDocument.description}
+                </div>
+              </div>
+
+              <button
+                onClick={removeDocument}
+                disabled={disabled}
+                className="p-2 text-red-500 hover:text-red-700 transition-colors"
+                title="Remove template selection"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1 mt-2">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              <span className="text-sm text-green-700">Ready to use</span>
+            </div>
           </div>
         )}
 

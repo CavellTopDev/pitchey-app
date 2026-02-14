@@ -1,5 +1,5 @@
 import { getDashboardRoute } from '../utils/navigation';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { pitchService } from '../services/pitch.service';
 import { pitchAPI } from '../lib/api';
@@ -16,13 +16,13 @@ import { configService } from '../services/config.service';
 import { BRAND } from '../constants/brand';
 import FormatDisplay from '../components/FormatDisplay';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Search, 
-  Filter, 
-  TrendingUp, 
-  Eye, 
-  Heart, 
-  Clock, 
+import {
+  Search,
+  Filter,
+  TrendingUp,
+  Eye,
+  Heart,
+  Clock,
   User,
   LogIn,
   UserPlus,
@@ -50,7 +50,10 @@ import {
   Users,
   Zap,
   PlayCircle,
-  Info
+  Info,
+  WifiOff,
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 
 // Get the best available image URL from a pitch (handles snake_case API + camelCase)
@@ -102,17 +105,35 @@ export default function MarketplaceEnhanced() {
   const toast = useToast();
   const { isMobile, isTablet } = useResponsive();
   
-  // State management
-  const [pitches, setPitches] = useState<Pitch[]>([]);
-  const [filteredPitches, setFilteredPitches] = useState<Pitch[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Per-tab state management to prevent content bleeding
+  interface TabState {
+    pitches: Pitch[];
+    loading: boolean;
+    error: string | null;
+    loaded: boolean;
+  }
+  const [tabStates, setTabStates] = useState<Record<string, TabState>>({});
   const [viewMode, setViewMode] = useState<keyof typeof VIEW_MODES>('grid');
   const [showFilters, setShowFilters] = useState(!isMobile);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'trending');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(16);
-  
+  const fetchRequestIdRef = useRef(0);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Track online/offline status
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
+
   // Enhanced filter state
   const [filters, setFilters] = useState<FilterState>({
     genres: searchParams.get('genres')?.split(',').filter(Boolean) || [],
@@ -145,10 +166,17 @@ export default function MarketplaceEnhanced() {
     configService.getConfiguration().then(setConfig).catch(console.error);
   }, []);
 
-  // Load pitches
+  // Derive current tab's pitches from per-tab state
+  const currentTabState = tabStates[sortBy];
+  const pitches = currentTabState?.pitches ?? [];
+  const loading = currentTabState?.loading ?? !currentTabState?.loaded;
+
+  // Load pitches for the current sort/tab — only fetch if not already loaded
   useEffect(() => {
-    fetchPitches();
-  }, []);
+    const tab = sortBy;
+    if (tabStates[tab]?.loaded) return;
+    fetchPitchesForTab(tab);
+  }, [sortBy]);
 
   // Update URL params when filters change
   useEffect(() => {
@@ -162,37 +190,48 @@ export default function MarketplaceEnhanced() {
     if (filters.budgetRange.max < 10000000) params.set('budgetMax', filters.budgetRange.max.toString());
     if (filters.hasNDA !== null) params.set('hasNDA', filters.hasNDA.toString());
     if (filters.hasInvestment !== null) params.set('hasInvestment', filters.hasInvestment.toString());
-    
+
     setSearchParams(params, { replace: true });
   }, [searchQuery, sortBy, filters]);
 
-  // Apply filters and sorting
+  // Apply filters and sorting whenever pitches or filter criteria change
+  const [filteredPitches, setFilteredPitches] = useState<Pitch[]>([]);
   useEffect(() => {
     applyFiltersAndSort();
   }, [pitches, debouncedSearch, sortBy, filters]);
 
-  const fetchPitches = async () => {
+  const fetchPitchesForTab = async (tab: string) => {
+    const requestId = ++fetchRequestIdRef.current;
+
+    setTabStates(prev => ({
+      ...prev,
+      [tab]: { pitches: prev[tab]?.pitches ?? [], loading: true, error: null, loaded: false }
+    }));
+
     try {
-      setLoading(true);
-      // Use the getAll method directly on pitchAPI (no browse object)
-      // pitchAPI.getAll() already returns a plain array after parsing the response
-      const pitchesData = await pitchAPI.getAll();
-      
-      console.log('MarketplaceEnhanced received pitches:', pitchesData.length);
-      
-      // Ensure we have an array
-      const validPitches = Array.isArray(pitchesData) ? pitchesData : [];
-      
-      setPitches(validPitches);
+      // Map sort options to browse API tabs
+      const browseTab = tab === 'newest' ? 'new' : tab === 'popular' || tab === 'views' ? 'popular' : 'trending';
+      const result = await pitchAPI.browse(browseTab, { limit: 100 });
+
+      // Guard against stale responses from rapid tab switching
+      if (requestId !== fetchRequestIdRef.current) return;
+
+      const validPitches = Array.isArray(result.items) ? result.items : [];
+
+      setTabStates(prev => ({
+        ...prev,
+        [tab]: { pitches: validPitches, loading: false, error: null, loaded: true }
+      }));
       calculateStats(validPitches);
     } catch (error) {
+      if (requestId !== fetchRequestIdRef.current) return;
       console.error('Error fetching pitches:', error);
       toast.error('Failed to load pitches');
-      // Set empty array on error to prevent iteration issues
-      setPitches([]);
+      setTabStates(prev => ({
+        ...prev,
+        [tab]: { pitches: [], loading: false, error: 'Failed to load pitches', loaded: true }
+      }));
       calculateStats([]);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -649,6 +688,36 @@ export default function MarketplaceEnhanced() {
           </div>
         </div>
       </div>
+
+      {/* Connectivity Banner */}
+      {!isOnline && (
+        <div className="bg-red-50 border-b border-red-200">
+          <div className="container mx-auto px-4 py-2 flex items-center gap-2">
+            <WifiOff className="w-4 h-4 text-red-600 shrink-0" />
+            <p className="text-red-700 text-sm">You are offline. Browse results may be outdated.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Per-tab error banner */}
+      {currentTabState?.error && (
+        <div className="bg-red-50 border-b border-red-200">
+          <div className="container mx-auto px-4 py-2 flex items-center gap-3">
+            <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+            <p className="text-red-700 text-sm flex-1">{currentTabState.error}</p>
+            <button
+              onClick={() => {
+                setTabStates(prev => ({ ...prev, [sortBy]: { ...prev[sortBy], loaded: false, error: null } }));
+                fetchPitchesForTab(sortBy);
+              }}
+              className="flex items-center gap-1 text-sm font-medium text-red-700 hover:text-red-800 bg-red-100 hover:bg-red-200 px-3 py-1 rounded transition"
+            >
+              <RefreshCw className="w-3 h-3" />
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Search and controls bar */}
       <div className="bg-white border-b">

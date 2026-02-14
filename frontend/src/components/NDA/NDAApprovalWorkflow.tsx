@@ -185,7 +185,7 @@ export default function NDAApprovalWorkflow({
       setProcessingIds(prev => new Set([...prev, request.id]));
       
       if (action === 'approve') {
-        await ndaService.approveNDA(request.id, notes);
+        await ndaService.approveNDA(request.id, notes, customTerms, expiryDays);
         success('NDA Approved', `NDA request from ${request.requesterName} has been approved.`);
       } else {
         await ndaService.rejectNDA(request.id, notes);

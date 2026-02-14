@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, useLocation, Link } from 'react-router-dom';
-import { TrendingUp, Star, Film, Search, Filter, Grid, List, ArrowLeft, Home, RefreshCw, AlertCircle } from 'lucide-react';
+import { TrendingUp, Star, Film, Search, Filter, Grid, List, ArrowLeft, Home, RefreshCw, AlertCircle, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { InvestorService, type InvestmentOpportunity } from '../../services/investor.service';
 
@@ -26,11 +26,34 @@ const InvestorDiscover = () => {
   const [selectedGenre, setSelectedGenre] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pitches, setPitches] = useState<PitchItem[]>([]);
-  
+  // Per-tab state to prevent content bleeding between tabs
+  interface TabState {
+    pitches: PitchItem[];
+    loaded: boolean;
+  }
+  const [tabStates, setTabStates] = useState<Record<string, TabState>>({});
+  const fetchRequestIdRef = useRef(0);
+
   // Get current tab from URL params or default to 'featured'
   const currentTab = searchParams.get('tab') || 'featured';
-  
+
+  // Derive pitches from per-tab state
+  const pitches = tabStates[currentTab]?.pitches ?? [];
+
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Track online/offline status
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
+
   // Check if we're on the genres page
   const isGenresPage = location.pathname.includes('/genres');
 
@@ -66,6 +89,10 @@ const InvestorDiscover = () => {
   }, [currentTab, selectedGenre]);
 
   const loadPitches = async () => {
+    const requestId = ++fetchRequestIdRef.current;
+    const tab = currentTab;
+
+    // Skip if already loaded for this tab (unless genre changed)
     try {
       setLoading(true);
       setError(null);
@@ -92,6 +119,9 @@ const InvestorDiscover = () => {
 
       const response = await InvestorService.getOpportunities(filters);
 
+      // Guard against stale responses from rapid tab switching
+      if (requestId !== fetchRequestIdRef.current) return;
+
       // Transform API response to match component interface
       const transformedPitches: PitchItem[] = response.opportunities.map((opp: InvestmentOpportunity) => ({
         id: opp.id,
@@ -105,13 +135,22 @@ const InvestorDiscover = () => {
         rating: opp.matchScore ? opp.matchScore / 20 : 4.5  // Convert match score to 5-star rating
       }));
 
-      setPitches(transformedPitches);
+      setTabStates(prev => ({
+        ...prev,
+        [tab]: { pitches: transformedPitches, loaded: true }
+      }));
     } catch (err) {
+      if (requestId !== fetchRequestIdRef.current) return;
       console.error('Failed to load pitches:', err);
       setError(err instanceof Error ? err.message : 'Failed to load pitches');
-      setPitches([]);
+      setTabStates(prev => ({
+        ...prev,
+        [tab]: { pitches: [], loaded: true }
+      }));
     } finally {
-      setLoading(false);
+      if (requestId === fetchRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -146,14 +185,24 @@ const InvestorDiscover = () => {
   );
 
   const renderContent = () => {
-    // Loading state
+    // Loading state — skeleton cards
     if (loading) {
       return (
-        <div className="flex items-center justify-center h-64">
-          <div className="flex items-center space-x-2">
-            <RefreshCw className="w-5 h-5 animate-spin text-blue-600" />
-            <span className="text-gray-600">Loading opportunities...</span>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="bg-white rounded-lg shadow-sm overflow-hidden animate-pulse">
+              <div className="w-full h-48 bg-gray-200" />
+              <div className="p-4 space-y-3">
+                <div className="h-5 bg-gray-200 rounded w-3/4" />
+                <div className="h-4 bg-gray-200 rounded w-1/2" />
+                <div className="h-4 bg-gray-200 rounded w-full" />
+                <div className="flex justify-between">
+                  <div className="h-4 bg-gray-200 rounded w-1/4" />
+                  <div className="h-4 bg-gray-200 rounded w-1/4" />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       );
     }
@@ -230,6 +279,16 @@ const InvestorDiscover = () => {
   return (
     <div>
             
+      {/* Connectivity Banner */}
+      {!isOnline && (
+        <div className="bg-red-50 border-b border-red-200">
+          <div className="container mx-auto px-4 py-2 flex items-center gap-2">
+            <WifiOff className="w-4 h-4 text-red-600 shrink-0" />
+            <p className="text-red-700 text-sm">You are offline. Results may be outdated.</p>
+          </div>
+        </div>
+      )}
+
       <div className="container mx-auto px-4 py-6">
         {/* Navigation Breadcrumb */}
         <div className="mb-4 flex items-center gap-4">

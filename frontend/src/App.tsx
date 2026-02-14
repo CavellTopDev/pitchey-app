@@ -16,6 +16,8 @@ import { AuthService } from './services/auth.service';
 import { AllCreatorRoutes, AllInvestorRoutes, AllProductionRoutes } from './components/routing/AllEnhancedRoutes';
 // Import new Portal Layout
 import { PortalLayout } from './components/layout/PortalLayout';
+import { PermissionRoute } from './components/PermissionGuard';
+import { Permission } from './hooks/usePermissions';
 
 // Log environment on app load (dev only)
 if (import.meta.env.DEV) {
@@ -439,31 +441,31 @@ function App() {
             {AllProductionRoutes({ isAuthenticated: true, userType: 'production' })}
           </Route>
           
-          {/* Admin Protected Routes */}
+          {/* Admin Protected Routes — requires admin.access permission */}
           <Route path="/admin/dashboard" element={
-            isAuthenticated && userType === 'admin' ? <AdminDashboard /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/admin" />
+            <PermissionRoute requires={Permission.ADMIN_ACCESS} redirectTo="/portals">
+              <AdminDashboard />
+            </PermissionRoute>
           } />
           <Route path="/admin/users" element={
-            isAuthenticated && userType === 'admin' ? <UserManagement /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/admin" />
+            <PermissionRoute requires={Permission.ADMIN_ACCESS} redirectTo="/portals">
+              <UserManagement />
+            </PermissionRoute>
           } />
           <Route path="/admin/content" element={
-            isAuthenticated && userType === 'admin' ? <ContentModeration /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/admin" />
+            <PermissionRoute requires={Permission.ADMIN_ACCESS} redirectTo="/portals">
+              <ContentModeration />
+            </PermissionRoute>
           } />
           <Route path="/admin/transactions" element={
-            isAuthenticated && userType === 'admin' ? <Transactions /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/admin" />
+            <PermissionRoute requires={Permission.ADMIN_ACCESS} redirectTo="/portals">
+              <Transactions />
+            </PermissionRoute>
           } />
           <Route path="/admin/settings" element={
-            isAuthenticated && userType === 'admin' ? <SystemSettings /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/admin" />
+            <PermissionRoute requiresAll={[Permission.ADMIN_ACCESS, Permission.ADMIN_SETTINGS]} redirectTo="/portals">
+              <SystemSettings />
+            </PermissionRoute>
           } />
           
           {/* Creator Profile Route - accessible to all authenticated users */}
@@ -524,9 +526,9 @@ function App() {
               <Navigate to="/portals" />
             } />
             <Route path="/pitch/new" element={
-              isAuthenticated && userType === 'creator' ? <CreatePitch /> : 
-              isAuthenticated ? <Navigate to={`/${userType}/dashboard`} /> :
-              <Navigate to="/portals" />
+              <PermissionRoute requires={Permission.PITCH_CREATE} redirectTo="/portals">
+                <CreatePitch />
+              </PermissionRoute>
             } />
           </Route>
           
