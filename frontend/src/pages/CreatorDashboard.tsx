@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { TrendingUp, Eye, MessageSquare, Upload, BarChart3, Calendar, Plus, Shield, CreditCard } from 'lucide-react';
+import { TrendingUp, Eye, MessageSquare, Upload, BarChart3, Calendar, Plus, Shield, CreditCard, Wifi, WifiOff, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import { paymentsAPI } from '../lib/apiServices';
 import apiClient from '../lib/api-client';
@@ -14,6 +14,7 @@ import { EnhancedCreatorAnalytics } from '../components/Analytics/EnhancedCreato
 import { NotificationBell } from '../components/NotificationBell';
 import { withPortalErrorBoundary } from '../components/ErrorBoundary/PortalErrorBoundary';
 import { useSentryPortal } from '../hooks/useSentryPortal';
+import { useWebSocket } from '../contexts/WebSocketContext';
 import {
   validateCreatorStats,
   safeArray,
@@ -37,6 +38,7 @@ function CreatorDashboard() {
     componentName: 'CreatorDashboard',
     trackPerformance: true
   });
+  const { isConnected, connectionQuality, isReconnecting } = useWebSocket();
 
   const [sessionChecked, setSessionChecked] = useState(false);
   const [user, setUser] = useState<any>(null);
@@ -45,8 +47,6 @@ function CreatorDashboard() {
   const [pitches, setPitches] = useState<any[]>([]);
   const [credits, setCredits] = useState<any>(null);
   const [subscription, setSubscription] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [socialStats, setSocialStats] = useState<any>(null);
   const [avgRating, setAvgRating] = useState<number>(0);
   const [totalViews, setTotalViews] = useState<number>(0);
@@ -54,7 +54,25 @@ function CreatorDashboard() {
 
   // Investment tracking state
   const [fundingMetrics, setFundingMetrics] = useState<any>(null);
-  const [investmentLoading, setInvestmentLoading] = useState(true);
+
+  // Per-section status tracking
+  interface SectionStatus { loaded: boolean; error: string | null; }
+  const [sectionStatus, setSectionStatus] = useState<{
+    dashboard: SectionStatus;
+    credits: SectionStatus;
+    subscription: SectionStatus;
+    followers: SectionStatus;
+    funding: SectionStatus;
+  }>({
+    dashboard:    { loaded: false, error: null },
+    credits:      { loaded: false, error: null },
+    subscription: { loaded: false, error: null },
+    followers:    { loaded: false, error: null },
+    funding:      { loaded: false, error: null },
+  });
+
+  const initialLoading = !sectionStatus.dashboard.loaded && !sectionStatus.dashboard.error;
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   // Check session on mount and redirect if not authenticated
   useEffect(() => {
@@ -68,6 +86,18 @@ function CreatorDashboard() {
     };
     validateSession();
   }, [checkSession]);
+
+  // Track online/offline status
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
 
   // Redirect to login if not authenticated after session check
   useEffect(() => {
@@ -101,10 +131,8 @@ function CreatorDashboard() {
   }, [authUser, sessionChecked, isAuthenticated]);
 
   const fetchFundingData = async () => {
+    setSectionStatus(prev => ({ ...prev, funding: { loaded: false, error: null } }));
     try {
-      setInvestmentLoading(true);
-      
-      // Fetch creator funding overview with safe data handling
       const fundingResponse = await InvestmentService.getCreatorFunding();
       if (safeAccess(fundingResponse, 'success', false)) {
         const fundingData = safeAccess(fundingResponse, 'data', {});
@@ -116,66 +144,81 @@ function CreatorDashboard() {
           recentInvestments: safeArray(safeAccess(fundingData, 'recentInvestments', []))
         };
         setFundingMetrics(safeFunding);
+        setSectionStatus(prev => ({ ...prev, funding: { loaded: true, error: null } }));
+      } else {
+        const msg = safeString(safeAccess(fundingResponse, 'error.message', 'Failed to load funding data'));
+        trackApiError('getCreatorFunding', new Error(msg));
+        setSectionStatus(prev => ({ ...prev, funding: { loaded: true, error: msg } }));
       }
-      
     } catch (error) {
       console.error('Error fetching funding data:', error);
-    } finally {
-      setInvestmentLoading(false);
+      trackApiError('getCreatorFunding', error as Error);
+      reportError(error, { context: 'fetchFundingData' });
+      setSectionStatus(prev => ({ ...prev, funding: { loaded: true, error: 'Funding data unavailable' } }));
     }
   };
 
+  const handleRetrySection = useCallback((section: string) => {
+    trackEvent('dashboard.retry', { section });
+    if (section === 'funding') {
+      fetchFundingData();
+    } else {
+      fetchDashboardData();
+    }
+  }, [isAuthenticated, authUser?.id]);
+
   const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Only fetch data if authenticated
-      if (!isAuthenticated || !authUser?.id) {
-        console.log('User not authenticated, skipping dashboard data fetch');
-        setLoading(false);
-        return;
-      }
-      
-      const token = localStorage.getItem('authToken');
-      const userId = user?.id || authUser?.id;
-      
-      // Fetch dashboard data, billing info and follows in parallel
-      const [dashboardResponse, creditsData, subscriptionData, followersResponse, followingResponse] = await Promise.all([
-        apiClient.get('/api/creator/dashboard'),
-        paymentsAPI.getCreditBalance(),
-        paymentsAPI.getSubscriptionStatus(),
-        userId ? apiClient.get(`/api/follows/followers?creatorId=${userId}`) : Promise.resolve({ success: false }),
-        userId ? apiClient.get('/api/follows/following') : Promise.resolve({ success: false })
-      ]);
-      
+    // Only fetch data if authenticated
+    if (!isAuthenticated || !authUser?.id) {
+      console.log('User not authenticated, skipping dashboard data fetch');
+      return;
+    }
+
+    const userId = user?.id || authUser?.id;
+
+    // Reset section statuses (except funding — handled separately)
+    setSectionStatus(prev => ({
+      ...prev,
+      dashboard:    { loaded: false, error: null },
+      credits:      { loaded: false, error: null },
+      subscription: { loaded: false, error: null },
+      followers:    { loaded: false, error: null },
+    }));
+
+    const [dashboardResult, creditsResult, subscriptionResult, followersResult, followingResult] = await Promise.allSettled([
+      apiClient.get('/api/creator/dashboard'),
+      paymentsAPI.getCreditBalance(),
+      paymentsAPI.getSubscriptionStatus(),
+      userId ? apiClient.get(`/api/follows/followers?creatorId=${userId}`) : Promise.resolve({ success: false }),
+      userId ? apiClient.get('/api/follows/following') : Promise.resolve({ success: false })
+    ]);
+
+    // --- Dashboard (primary) ---
+    if (dashboardResult.status === 'fulfilled') {
+      const dashboardResponse = dashboardResult.value;
       if (dashboardResponse.success) {
         const data = safeAccess(dashboardResponse, 'data', {});
-        
-        // Calculate actual stats from backend data with safe access
+
         const actualTotalViews = safeNumber(safeAccess(data, 'totalViews', 0));
         const actualTotalPitches = safeNumber(safeAccess(data, 'totalPitches', 0));
         const actualActivePitches = safeNumber(safeAccess(data, 'publishedPitches', 0));
         const actualTotalInterest = safeNumber(safeAccess(data, 'totalNDAs', 0));
-        
-        // Calculate average rating from pitches with safe array operations
+
         const pitchesArray = safeArray(safeAccess(data, 'pitches', []));
         const calculatedAvgRating = safeExecute(
           () => {
             if (pitchesArray.length === 0) return 0;
-            
             const ratingsSum = safeReduce(
               pitchesArray,
               (sum: number, pitch: any) => sum + safeNumber(safeAccess(pitch, 'rating', 0)),
               0
             );
-            
             return pitchesArray.length > 0 ? ratingsSum / pitchesArray.length : 0;
           },
           0,
           (error) => console.warn('Error calculating average rating:', error)
         );
-        
+
         const validatedStats = validateCreatorStats({
           total_pitches: actualTotalPitches,
           active_pitches: actualActivePitches,
@@ -185,7 +228,7 @@ function CreatorDashboard() {
           success_rate: safeNumber(safeAccess(data, 'successRate', 0)),
           average_rating: calculatedAvgRating
         });
-        
+
         setStats({
           totalPitches: validatedStats.total_pitches,
           activePitches: validatedStats.active_pitches,
@@ -195,35 +238,17 @@ function CreatorDashboard() {
           fundingReceived: validatedStats.funding_received,
           successRate: validatedStats.success_rate
         });
-        
+
         setTotalViews(validatedStats.views_count);
         setAvgRating(validatedStats.average_rating);
-        
-        // Safe array operations for activity and pitches
         setRecentActivity(safeArray(safeAccess(data, 'recentActivity', [])));
         setPitches(safeArray(safeAccess(data, 'pitches', [])));
-        
-        // Safe followers count calculation
-        const followersData = safeAccess(followersResponse, 'data.followers', []);
-        const followingData = safeAccess(followingResponse, 'data.following', []);
-        
-        const followersCount = followersResponse.success ? safeArray(followersData).length : 0;
-        const followingCount = followingResponse.success ? safeArray(followingData).length : 0;
-        
-        setFollowers(followersCount);
-        setSocialStats({
-          followers: followersCount,
-          following: followingCount
-        });
-        
-        // Safe credits handling
-        const safeCredits = creditsData || safeAccess(data, 'credits', null);
-        setCredits(safeCredits);
+
+        setSectionStatus(prev => ({ ...prev, dashboard: { loaded: true, error: null } }));
       } else {
-        // Set default empty states with validation
-        const errorMessage = safeAccess(dashboardResponse, 'error.message', 'Unknown error');
-        console.error('Failed to fetch dashboard data:', errorMessage);
-        
+        const errorMessage = safeString(safeAccess(dashboardResponse, 'error.message', 'Failed to load dashboard'));
+        trackApiError('/api/creator/dashboard', new Error(errorMessage));
+
         const defaultStats = validateCreatorStats({});
         setStats({
           totalPitches: defaultStats.total_pitches,
@@ -234,20 +259,17 @@ function CreatorDashboard() {
           fundingReceived: defaultStats.funding_received,
           successRate: defaultStats.success_rate
         });
-        
-        setSocialStats({ followers: 0, following: 0 });
         setRecentActivity([]);
         setTotalViews(0);
         setAvgRating(0);
-        setFollowers(0);
+
+        setSectionStatus(prev => ({ ...prev, dashboard: { loaded: true, error: errorMessage } }));
       }
-      
-      setSubscription(subscriptionData);
-    } catch (error) {
-      console.error('Failed to fetch dashboard data:', error);
-      setError('Failed to load dashboard data. Please try refreshing the page.');
-      
-      // Set fallback empty states with validation
+    } else {
+      const reason = dashboardResult.reason;
+      trackApiError('/api/creator/dashboard', reason);
+      reportError(reason, { context: 'fetchDashboardData' });
+
       const defaultStats = validateCreatorStats({});
       setStats({
         totalPitches: defaultStats.total_pitches,
@@ -258,11 +280,49 @@ function CreatorDashboard() {
         fundingReceived: defaultStats.funding_received,
         successRate: defaultStats.success_rate
       });
-      
-      setSocialStats({ followers: 0, following: 0 });
       setRecentActivity([]);
-    } finally {
-      setLoading(false);
+      setTotalViews(0);
+      setAvgRating(0);
+
+      setSectionStatus(prev => ({
+        ...prev,
+        dashboard: { loaded: true, error: 'Failed to load dashboard data. Please try again.' }
+      }));
+    }
+
+    // --- Credits ---
+    if (creditsResult.status === 'fulfilled') {
+      setCredits(creditsResult.value);
+      setSectionStatus(prev => ({ ...prev, credits: { loaded: true, error: null } }));
+    } else {
+      trackApiError('getCreditBalance', creditsResult.reason);
+      setSectionStatus(prev => ({ ...prev, credits: { loaded: true, error: 'Credits unavailable' } }));
+    }
+
+    // --- Subscription ---
+    if (subscriptionResult.status === 'fulfilled') {
+      setSubscription(subscriptionResult.value);
+      setSectionStatus(prev => ({ ...prev, subscription: { loaded: true, error: null } }));
+    } else {
+      trackApiError('getSubscriptionStatus', subscriptionResult.reason);
+      setSectionStatus(prev => ({ ...prev, subscription: { loaded: true, error: 'Subscription status unavailable' } }));
+    }
+
+    // --- Followers / Following ---
+    if (followersResult.status === 'fulfilled' && followingResult.status === 'fulfilled') {
+      const followersData = safeAccess(followersResult.value, 'data.followers', []);
+      const followingData = safeAccess(followingResult.value, 'data.following', []);
+      const followersCount = followersResult.value.success ? safeArray(followersData).length : 0;
+      const followingCount = followingResult.value.success ? safeArray(followingData).length : 0;
+      setFollowers(followersCount);
+      setSocialStats({ followers: followersCount, following: followingCount });
+      setSectionStatus(prev => ({ ...prev, followers: { loaded: true, error: null } }));
+    } else {
+      const reason = followersResult.status === 'rejected' ? followersResult.reason : followingResult.status === 'rejected' ? followingResult.reason : new Error('Unknown');
+      trackApiError('/api/follows/followers', reason);
+      setFollowers(0);
+      setSocialStats({ followers: 0, following: 0 });
+      setSectionStatus(prev => ({ ...prev, followers: { loaded: true, error: 'Follower data unavailable' } }));
     }
   };
 
@@ -270,10 +330,21 @@ function CreatorDashboard() {
     logout(); // This will automatically clear storage and navigate to appropriate login page
   };
 
-  if (loading) {
+  if (initialLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className="w-full animate-pulse">
+        {/* Skeleton hero zone */}
+        <div className="mb-6 h-7 w-48 bg-gray-200 rounded" />
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
+          <div className="lg:col-span-3 bg-gradient-to-br from-purple-300 to-indigo-300 rounded-xl h-56" />
+          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm h-56" />
+        </div>
+        {/* Skeleton KPI cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-6 mb-8">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-xl shadow-sm p-6 h-24" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -285,10 +356,43 @@ function CreatorDashboard() {
         <h1 className="text-2xl font-bold text-gray-900">Creator Dashboard</h1>
       </div>
 
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-          <p className="text-red-700 text-sm">{error}</p>
+      {/* Connectivity Banners */}
+      {!isOnline && (
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+          <WifiOff className="w-4 h-4 text-red-600 shrink-0" />
+          <p className="text-red-700 text-sm">You are offline. Dashboard data may be outdated.</p>
+        </div>
+      )}
+      {isOnline && !isConnected && !isReconnecting && (
+        <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+          <Wifi className="w-4 h-4 text-yellow-600 shrink-0" />
+          <p className="text-yellow-700 text-sm">Real-time updates are unavailable.</p>
+        </div>
+      )}
+      {isReconnecting && (
+        <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+          <RefreshCw className="w-4 h-4 text-yellow-600 shrink-0 animate-spin" />
+          <p className="text-yellow-700 text-sm">Reconnecting to real-time services...</p>
+        </div>
+      )}
+      {isOnline && isConnected && connectionQuality?.strength === 'poor' && (
+        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+          <Wifi className="w-4 h-4 text-amber-600 shrink-0" />
+          <p className="text-amber-700 text-sm">Connection quality is poor. Some updates may be delayed.</p>
+        </div>
+      )}
+
+      {/* Dashboard Error */}
+      {sectionStatus.dashboard.error && (
+        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+          <p className="text-red-700 text-sm flex-1">{sectionStatus.dashboard.error}</p>
+          <button
+            onClick={() => handleRetrySection('dashboard')}
+            className="flex items-center gap-1 text-sm font-medium text-red-700 hover:text-red-800 bg-red-100 hover:bg-red-200 px-3 py-1 rounded transition"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Retry
+          </button>
         </div>
       )}
 
@@ -467,7 +571,18 @@ function CreatorDashboard() {
           <QuickNDAStatus userType="creator" />
 
           <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl shadow-sm p-6">
-            {(() => {
+            {sectionStatus.subscription.error ? (
+              <div className="text-center">
+                <AlertTriangle className="w-6 h-6 text-purple-200 mx-auto mb-2" />
+                <p className="text-purple-100 text-sm mb-3">Subscription status unavailable</p>
+                <button
+                  onClick={() => handleRetrySection('subscription')}
+                  className="flex items-center gap-1 mx-auto text-sm font-medium text-white bg-white/20 hover:bg-white/30 px-3 py-1 rounded transition"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" /> Retry
+                </button>
+              </div>
+            ) : (() => {
               const tier = getSubscriptionTier(subscription?.tier || '');
               const tierName = tier?.name || 'The Watcher';
               const isActive = subscription?.status === 'active';
@@ -588,12 +703,32 @@ function CreatorDashboard() {
       </div>
 
       {/* ===== FUNDING OVERVIEW ===== */}
-      {fundingMetrics && !investmentLoading && (
+      {sectionStatus.funding.error ? (
+        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
+          <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+          <p className="text-red-700 text-sm flex-1">{sectionStatus.funding.error}</p>
+          <button
+            onClick={() => handleRetrySection('funding')}
+            className="flex items-center gap-1 text-sm font-medium text-red-700 hover:text-red-800 bg-red-100 hover:bg-red-200 px-3 py-1 rounded transition"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Retry
+          </button>
+        </div>
+      ) : !sectionStatus.funding.loaded ? (
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-8 animate-pulse">
+          <div className="h-5 w-40 bg-gray-200 rounded mb-4" />
+          <div className="grid grid-cols-3 gap-4">
+            <div className="h-20 bg-gray-100 rounded" />
+            <div className="h-20 bg-gray-100 rounded" />
+            <div className="h-20 bg-gray-100 rounded" />
+          </div>
+        </div>
+      ) : fundingMetrics ? (
         <FundingOverview
           metrics={fundingMetrics}
           className="mb-8"
         />
-      )}
+      ) : null}
 
       {/* ===== ENHANCED ANALYTICS ===== */}
       <div className="mb-8">
