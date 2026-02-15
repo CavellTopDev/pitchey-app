@@ -16,6 +16,7 @@ import { AuthService } from './services/auth.service';
 import { AllCreatorRoutes, AllInvestorRoutes, AllProductionRoutes } from './components/routing/AllEnhancedRoutes';
 // Import new Portal Layout
 import { PortalLayout } from './components/layout/PortalLayout';
+import { ProfileGuard } from './components/guards/CreatorProfileGuard';
 import { PermissionRoute } from './components/PermissionGuard';
 import { Permission } from './hooks/usePermissions';
 
@@ -56,6 +57,7 @@ const InvestorDashboard = lazy(() => import('./pages/InvestorDashboard'));
 const InvestorDashboardDebug = lazy(() => import('./pages/InvestorDashboardDebug'));
 const ProductionDashboard = lazy(() => import('./pages/ProductionDashboard'));
 const CreatorProfile = lazy(() => import('./pages/CreatorProfile'));
+const OnboardingPage = lazy(() => import('./pages/creator/CreatorOnboardingPage'));
 
 // Public Pages
 const Marketplace = lazy(() => import('./pages/MarketplaceEnhanced'));
@@ -385,12 +387,13 @@ function App() {
             <Navigate to={userType ? `/${userType}/dashboard` : '/'} />
           } />
           
-          {/* Creator Portal Routes - with PortalLayout */}
+          {/* Creator Portal Routes - with profile guard + PortalLayout */}
           <Route path="/creator/*" element={
-            isAuthenticated && userType === 'creator' ? <PortalLayout userType="creator" /> :
+            isAuthenticated && userType === 'creator' ? <ProfileGuard userType="creator" /> :
             <Navigate to="/login/creator" />
           }>
             <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="onboarding" element={<OnboardingPage />} />
             <Route path="dashboard" element={<CreatorDashboard />} />
             <Route path="pitch/new" element={<CreatePitch />} />
             <Route path="pitches" element={<ManagePitches />} />
@@ -409,12 +412,13 @@ function App() {
             {/* Enhanced Creator Routes */}
             {AllCreatorRoutes({ isAuthenticated: true, userType: 'creator' })}
           </Route>
-          {/* Investor Portal Routes - with PortalLayout */}
+          {/* Investor Portal Routes - with profile guard + PortalLayout */}
           <Route path="/investor/*" element={
-            isAuthenticated && userType === 'investor' ? <PortalLayout userType="investor" /> :
+            isAuthenticated && userType === 'investor' ? <ProfileGuard userType="investor" /> :
             <Navigate to="/login/investor" />
           }>
             <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="onboarding" element={<OnboardingPage />} />
             <Route path="dashboard" element={<InvestorDashboard />} />
             <Route path="dashboard/debug" element={<InvestorDashboardDebug />} />
             <Route path="following" element={<Following />} />
@@ -424,12 +428,13 @@ function App() {
             {/* Enhanced Investor Routes */}
             {AllInvestorRoutes({ isAuthenticated: true, userType: 'investor' })}
           </Route>
-          {/* Production Portal Routes - with PortalLayout */}
+          {/* Production Portal Routes - with profile guard + PortalLayout */}
           <Route path="/production/*" element={
-            isAuthenticated && userType === 'production' ? <PortalLayout userType="production" /> :
+            isAuthenticated && userType === 'production' ? <ProfileGuard userType="production" /> :
             <Navigate to="/login/production" />
           }>
             <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="onboarding" element={<OnboardingPage />} />
             <Route path="dashboard" element={<ProductionDashboard />} />
             <Route path="following" element={<Following />} />
             <Route path="pitch/:id" element={<ProductionPitchView />} />

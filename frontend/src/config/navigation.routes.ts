@@ -22,6 +22,9 @@ export const CREATOR_ROUTES = {
   teamRoles: '/creator/team/roles',
   collaborations: '/creator/collaborations',
   
+  // Onboarding
+  onboarding: '/creator/onboarding',
+
   // Other
   portfolio: '/creator/portfolio',
   ndas: '/creator/ndas',
@@ -40,6 +43,9 @@ export const CREATOR_ROUTES = {
 };
 
 export const INVESTOR_ROUTES = {
+  // Onboarding
+  onboarding: '/investor/onboarding',
+
   // Main Dashboard
   dashboard: '/investor/dashboard',
   portfolio: '/investor/portfolio',
@@ -86,6 +92,9 @@ export const INVESTOR_ROUTES = {
 };
 
 export const PRODUCTION_ROUTES = {
+  // Onboarding
+  onboarding: '/production/onboarding',
+
   // Main Dashboard
   dashboard: '/production/dashboard',
   analytics: '/production/analytics',

@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import './onboarding.css';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { useOnboardingStore } from '../../store/onboardingStore';
@@ -20,7 +21,11 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
   showProgressWidget = false,
   forceShow = false
 }) => {
+  const location = useLocation();
   const { user, isAuthenticated } = useBetterAuthStore();
+
+  // Don't show modal onboarding when full-page onboarding is active
+  if (location.pathname.endsWith('/onboarding')) return null;
   const {
     currentFlow,
     isOnboardingActive,
