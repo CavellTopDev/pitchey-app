@@ -49,7 +49,7 @@ async function verifyAuth(request: Request, env: Env): Promise<any> {
 
   // Try Better Auth session cookie
   const cookieHeader = request.headers.get('Cookie') || '';
-  const sessionMatch = cookieHeader.match(/better-auth-session=([^;]+)/);
+  const sessionMatch = cookieHeader.match(/pitchey-session=([^;]+)/);
   if (!sessionMatch) return null;
 
   const sessionToken = sessionMatch[1];
