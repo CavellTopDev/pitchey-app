@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import './onboarding.css';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { CreatorOnboarding } from './CreatorOnboarding';
 import { InvestorOnboarding } from './InvestorOnboarding';
@@ -20,7 +20,7 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
   showProgressWidget = false,
   forceShow = false
 }) => {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated } = useBetterAuthStore();
   const {
     currentFlow,
     isOnboardingActive,
@@ -99,7 +99,7 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
 
 // Hook for easy onboarding management
 export const useOnboarding = () => {
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   const {
     currentFlow,
     isOnboardingActive,

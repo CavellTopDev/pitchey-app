@@ -332,8 +332,9 @@ export const validateProductionRegistration = (data: any): ValidationResult => {
   optionalUrlFields.forEach(field => {
     if (data[field] && data[field].trim() !== '') {
       schema[field] = [validationRules.url()];
+    } else {
+      delete schema[field];
     }
-    // Don't delete - just skip in validation if not present
   });
 
   const validator = new FormValidator(schema);

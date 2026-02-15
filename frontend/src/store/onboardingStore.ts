@@ -116,8 +116,6 @@ interface OnboardingState {
   markFeatureDiscovered: (featureId: string) => void;
   addFeaturePrompt: (featureId: string) => void;
   dismissFeaturePrompt: (featureId: string) => void;
-  queueFeatureSpotlight: (featureId: string) => void;
-  
   // Preference Actions
   updatePreferences: (preferences: Partial<OnboardingState['preferences']>) => void;
   
@@ -129,7 +127,6 @@ interface OnboardingState {
   
   // Reset Actions
   resetOnboarding: () => void;
-  resetTutorials: () => void;
   resetAchievements: () => void;
 }
 
@@ -660,13 +657,6 @@ export const useOnboardingStore = create<OnboardingState>()(
         });
       },
 
-      queueFeatureSpotlight: (featureId) => {
-        const queue = get().featureSpotlightQueue;
-        if (!queue.includes(featureId)) {
-          set({ featureSpotlightQueue: [...queue, featureId] });
-        }
-      },
-
       // Preference Actions
       updatePreferences: (newPreferences) => {
         set({
@@ -730,15 +720,6 @@ export const useOnboardingStore = create<OnboardingState>()(
           currentFlow: null,
           flows: createDefaultFlows(),
           isOnboardingActive: false
-        });
-      },
-
-      resetTutorials: () => {
-        set({
-          activeTutorial: null,
-          tutorialSteps: [],
-          currentTutorialStep: 0,
-          tutorialHistory: []
         });
       },
 

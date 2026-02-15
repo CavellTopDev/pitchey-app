@@ -102,19 +102,6 @@ const mockPitchStore = {
 }
 
 // Mock stores
-vi.mock('../store/authStore', () => ({
-  useAuthStore: () => mockAuthStore,
-}))
-
-// Enhanced auth store with login methods
-Object.assign(mockAuthStore, {
-  loginCreator: vi.fn(),
-  loginInvestor: vi.fn(), 
-  loginProduction: vi.fn(),
-  loading: false,
-  error: null,
-})
-
 vi.mock('../store/pitchStore', () => ({
   usePitchStore: () => mockPitchStore,
 }))

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOnboardingStore } from '../../store/onboardingStore';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { GuidedTour } from './GuidedTour';
 import { OnboardingWelcome } from './OnboardingWelcome';
 import { Card } from '../ui/card';
@@ -13,7 +13,7 @@ import type { TutorialStep } from '../../store/onboardingStore';
 
 export const InvestorOnboarding: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   const {
     currentFlow,
     isOnboardingActive,
