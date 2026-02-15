@@ -46,12 +46,14 @@ Detailed context split by domain to keep LLM context focused:
 
 ## Current Status (February 2026)
 - 117+ API endpoints operational
-- 31 test files, 921 tests, zero failures
+- 34 test files, 961 tests, zero failures
 - TypeScript type-check blocking in CI (zero errors)
 - All 3 dashboards hardened (per-section errors, connectivity awareness, skeleton loading)
+- Connectivity awareness on all key pages (Messages, PitchEdit, SearchPage)
+- Portfolio analytics use real SQL aggregation (no mock data)
+- Team invite emails wired via Resend API
 - Frontend RBAC: 50 permissions, 5 roles
 
 ### Known Gaps
-- Several pages (Messages, PitchEdit, SearchPage) still lack connectivity awareness
-- Portfolio calculations return mock data on backend
-- Team invite emails not sent
+- SearchPage still uses simulated results (not wired to real backend search API)
+- Playwright E2E tests exist but are not run in CI
