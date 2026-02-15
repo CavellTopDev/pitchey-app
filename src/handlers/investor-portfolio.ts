@@ -681,18 +681,24 @@ export class InvestorPortfolioHandler {
         }
       }
 
-      // Generate mock data if no historical data exists
-      if (historical.length === 0) {
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-        historical = months.map((month, i) => ({
-          period: month,
-          period_start: new Date(2024, i, 1).toISOString(),
-          period_end: new Date(2024, i + 1, 0).toISOString(),
-          total_invested: Math.floor(Math.random() * 50000) + 10000,
-          total_returns: Math.floor(Math.random() * 10000),
-          roi: (Math.random() * 5 - 1).toFixed(2),
-          investment_count: Math.floor(Math.random() * 5) + 1
-        }));
+      // If no analytics table data, aggregate from investments table
+      if (historical.length === 0 && investmentsTableCheck && investmentsTableCheck[0]?.exists) {
+        historical = await this.db.query(
+          `SELECT
+            TO_CHAR(DATE_TRUNC('month', ${dateCol}), 'Mon') as period,
+            DATE_TRUNC('month', ${dateCol}) as period_start,
+            (DATE_TRUNC('month', ${dateCol}) + INTERVAL '1 month' - INTERVAL '1 day') as period_end,
+            COALESCE(SUM(amount), 0) as total_invested,
+            COALESCE(SUM(CASE WHEN roi_percentage > 0 THEN amount * (roi_percentage / 100) ELSE 0 END), 0) as total_returns,
+            COALESCE(AVG(roi_percentage), 0) as roi,
+            COUNT(*) as investment_count
+           FROM investments
+           WHERE investor_id = $1 OR user_id = $1
+           GROUP BY DATE_TRUNC('month', ${dateCol})
+           ORDER BY period_start DESC
+           LIMIT 12`,
+          [userId]
+        ) || [];
       }
 
       return {

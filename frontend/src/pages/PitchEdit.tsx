@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, X, Upload, FileText, Video, Image as ImageIcon, Shield } from 'lucide-react';
+import { ArrowLeft, Save, X, Upload, FileText, Video, Image as ImageIcon, Shield, WifiOff } from 'lucide-react';
 import { pitchService } from '../services/pitch.service';
 import { uploadService } from '../services/upload.service';
 import type { Pitch, UpdatePitchInput } from '../types/api';
@@ -42,6 +42,20 @@ export default function PitchEdit() {
   const [error, setError] = useState<string | null>(null);
   const [genres] = useState<readonly string[] | string[]>(getGenresSync());
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Online/offline detection
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   const [formData, setFormData] = useState<PitchFormData>({
     title: '',
     genre: '',
@@ -252,7 +266,12 @@ export default function PitchEdit() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    if (!isOnline) {
+      setError('You are offline. Please check your internet connection and try again.');
+      return;
+    }
+
     if (!validateForm()) {
       alert('Please fill in all required fields');
       return;
@@ -356,6 +375,17 @@ export default function PitchEdit() {
 
       {/* Form */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Offline banner */}
+        {!isOnline && (
+          <div className="mb-6 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-3">
+            <WifiOff className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-yellow-800">You are offline</p>
+              <p className="text-xs text-yellow-600">Changes cannot be saved until your connection is restored.</p>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Basic Information */}
           <div className="bg-white rounded-xl shadow-sm p-6">

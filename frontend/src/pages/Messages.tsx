@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  ArrowLeft, Send, Search, Filter, MessageSquare, Paperclip, MoreVertical, 
+import {
+  ArrowLeft, Send, Search, Filter, MessageSquare, Paperclip, MoreVertical,
   RefreshCw, Users, Circle, Smile, FileText, Image, Video, Music,
-  Lock, Unlock, Check, CheckCheck, Clock, AlertCircle, X, Plus
+  Lock, Unlock, Check, CheckCheck, Clock, AlertCircle, X, Plus, WifiOff
 } from 'lucide-react';
 import { useMessaging } from '../hooks/useWebSocket';
 import { getUserId } from '../lib/apiServices';
@@ -76,7 +76,20 @@ export default function Messages() {
   const [isEncryptionEnabled, setIsEncryptionEnabled] = useState(false);
   const [conversations, setConversations] = useState<EnhancedConversation[]>([]);
   const [currentMessages, setCurrentMessages] = useState<EnhancedMessage[]>([]);
-  
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Online/offline detection
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -412,6 +425,21 @@ export default function Messages() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Offline banner */}
+        {(!isOnline || !isConnected) && (
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-3">
+            <WifiOff className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-yellow-800">
+                {!isOnline ? 'You are offline' : 'Disconnected from messaging server'}
+              </p>
+              <p className="text-xs text-yellow-600">
+                {!isOnline ? 'Check your internet connection to send and receive messages.' : 'Attempting to reconnect...'}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Notifications */}
         <div className="fixed top-4 right-4 space-y-2 z-50">
           {notifications.map((notification) => (
@@ -1026,14 +1054,15 @@ export default function Messages() {
                         {/* Send button */}
                         <button
                           onClick={sendMessage}
-                          disabled={((!newMessage.trim() && selectedFiles.length === 0) || sendingMessage)}
+                          disabled={((!newMessage.trim() && selectedFiles.length === 0) || sendingMessage || !isOnline)}
                           className={`p-3 rounded-lg transition min-w-[60px] flex items-center justify-center ${
-                            sendingMessage
+                            sendingMessage || !isOnline
                               ? 'bg-gray-400 cursor-not-allowed'
                               : (newMessage.trim() || selectedFiles.length > 0)
                                 ? 'bg-purple-600 hover:bg-purple-700 text-white'
                                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                           }`}
+                          title={!isOnline ? 'Cannot send while offline' : undefined}
                         >
                           {sendingMessage ? (
                             <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

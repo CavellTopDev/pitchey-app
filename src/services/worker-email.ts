@@ -167,6 +167,14 @@ export class WorkerEmailService {
         <p>Investment amount: ${data.amount}</p>
         <p><a href="${data.detailsUrl}">View Details</a></p>
       `,
+
+      teamInvite: (data) => `
+        <h2>Team Invitation</h2>
+        <p>${data.inviterName} has invited you to join "<strong>${data.teamName}</strong>" on Pitchey as a <strong>${data.role}</strong>.</p>
+        ${data.message ? `<p>Message: "${data.message}"</p>` : ''}
+        <p><a href="${data.acceptUrl}">Accept Invitation</a></p>
+        <p>This invitation expires in 7 days.</p>
+      `,
     };
 
     const renderFn = templates[template];

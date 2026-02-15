@@ -8,6 +8,7 @@ import type { Env } from '../db/connection';
 import { getCorsHeaders } from '../utils/response';
 import * as teamQueries from '../db/queries/teams';
 import { verifyAuth } from '../utils/auth';
+import { sendTeamInviteEmail } from '../services/email/index';
 
 // GET /api/teams - Get user's teams
 export async function getTeamsHandler(request: Request, env: Env): Promise<Response> {
@@ -424,15 +425,37 @@ export async function inviteToTeamHandler(request: Request, env: Env): Promise<R
     }
 
     const invitation = await teamQueries.inviteToTeam(
-      sql, 
-      teamId, 
-      authResult.user.id.toString(), 
+      sql,
+      teamId,
+      authResult.user.id.toString(),
       {
         email,
         role: role || 'viewer',
         message
       }
     );
+
+    // Send invite email (fire-and-forget — don't block invitation creation)
+    try {
+      const team = await teamQueries.getTeamById(sql, teamId, authResult.user.id.toString());
+      const teamName = team?.name || 'a team';
+      const inviterName = authResult.user.name || authResult.user.email;
+      const acceptUrl = `https://pitchey.com/teams/invites/${invitation.token || invitation.id}`;
+
+      sendTeamInviteEmail(email as string, {
+        inviterName,
+        teamName,
+        role: (role as string) || 'viewer',
+        message: message as string | undefined,
+        acceptUrl
+      }).catch((err: unknown) => {
+        const e = err instanceof Error ? err : new Error(String(err));
+        console.error('Failed to send team invite email:', e.message);
+      });
+    } catch (emailErr: unknown) {
+      const e = emailErr instanceof Error ? emailErr : new Error(String(emailErr));
+      console.error('Failed to prepare team invite email:', e.message);
+    }
 
     return new Response(JSON.stringify({
       success: true,
@@ -441,7 +464,7 @@ export async function inviteToTeamHandler(request: Request, env: Env): Promise<R
       }
     }), {
       status: 201,
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
         ...corsHeaders
       }

@@ -45,9 +45,26 @@ export async function sendNDARequestEmail(to: string, data: any) {
 export async function sendNDAResponseEmail(to: string, data: any) {
   const service = getEmailService();
   const template = data.approved ? 'ndaApproved' : 'ndaRejected';
-  
+
   return await service.sendTemplate(to, template, {
     ...data,
     pitchUrl: data.actionUrl // Map template variable
+  });
+}
+
+/**
+ * Send Team Invite Email
+ */
+export async function sendTeamInviteEmail(to: string, data: {
+  inviterName: string;
+  teamName: string;
+  role: string;
+  message?: string;
+  acceptUrl: string;
+}) {
+  const service = getEmailService();
+  return await service.sendTemplate(to, 'teamInvite', {
+    ...data,
+    subject: `You've been invited to join "${data.teamName}" on Pitchey`
   });
 }

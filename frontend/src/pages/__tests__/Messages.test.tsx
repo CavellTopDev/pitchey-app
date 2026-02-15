@@ -251,7 +251,8 @@ describe('Messages', () => {
     it('shows disconnected warning when not connected', () => {
       mockMessaging.isConnected = false
       render(<Messages />)
-      expect(screen.getByText(/disconnected|reconnecting|connection/i)).toBeInTheDocument()
+      const matches = screen.getAllByText(/disconnected|reconnecting|connection/i)
+      expect(matches.length).toBeGreaterThan(0)
     })
   })
 })

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { 
-  Search, Filter, Film, Users, Briefcase, DollarSign, 
+import {
+  Search, Filter, Film, Users, Briefcase, DollarSign,
   Calendar, TrendingUp, Star, Clock, ChevronDown,
-  Grid, List, SortAsc, SortDesc
+  Grid, List, SortAsc, SortDesc, WifiOff
 } from 'lucide-react';
 import DashboardHeader from '../components/DashboardHeader';
 import { useBetterAuthStore } from '../store/betterAuthStore';
@@ -51,6 +51,19 @@ export default function SearchPage() {
   const [selectedBudget, setSelectedBudget] = useState('Any Budget');
   const [selectedTimeframe, setSelectedTimeframe] = useState('All Time');
   const [sortBy, setSortBy] = useState('relevance');
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Online/offline detection
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     if (searchQuery) {
@@ -59,6 +72,11 @@ export default function SearchPage() {
   }, [searchQuery, selectedType, selectedGenre, selectedBudget, selectedTimeframe, sortBy]);
 
   const performSearch = () => {
+    if (!isOnline) {
+      setResults([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     // Simulate search
     setTimeout(() => {
@@ -158,6 +176,17 @@ export default function SearchPage() {
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Offline banner */}
+        {!isOnline && (
+          <div className="mb-6 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-3">
+            <WifiOff className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-yellow-800">You are offline</p>
+              <p className="text-xs text-yellow-600">Search requires an internet connection. Please check your connection.</p>
+            </div>
+          </div>
+        )}
+
         {/* Search Bar */}
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
           <form onSubmit={handleSearch}>
