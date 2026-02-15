@@ -44,7 +44,6 @@ const Register = lazy(() => import('./pages/Register' /* webpackPrefetch: true *
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 
 // Onboarding Components (lazy-loaded to defer onboarding CSS)
-const OnboardingManager = lazy(() => import('./components/Onboarding/OnboardingManager').then((m) => ({ default: (m as any).OnboardingManager }))) as React.LazyExoticComponent<React.ComponentType<any>>;
 const OnboardingSettings = lazy(() => import('./components/Onboarding/OnboardingSettings').then((m: any) => ({ default: m.default || m })));
 
 // Multi-Portal Pages
@@ -573,10 +572,6 @@ function App() {
                 <Route path="*" element={<NotFound />} />
               </Routes>
               
-              {/* Global Onboarding Manager */}
-              <OnboardingManager
-                showProgressWidget={isAuthenticated && window.location.pathname.includes('dashboard')}
-              />
             </Suspense>
           </Router>
         </ToastProvider>
