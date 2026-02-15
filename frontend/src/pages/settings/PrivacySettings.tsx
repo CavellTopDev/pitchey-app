@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Lock, Shield, Eye, EyeOff, Download, Trash2, 
-  Save, X, Smartphone, Globe, Users, 
-  AlertTriangle, Calendar, MapPin, Key
+import {
+  Lock, Shield, Eye, Download, Trash2,
+  Save, X, Smartphone, Globe, Users,
+  AlertTriangle, MapPin, AlertCircle, RefreshCw
 } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { UserService } from '../../services/user.service';
 import { toast } from 'react-hot-toast';
 
 interface ProfileVisibility {
@@ -27,21 +28,14 @@ interface DataSharing {
 interface TwoFactorAuth {
   enabled: boolean;
   method: 'sms' | 'app' | 'email';
-  backupCodes: string[];
-}
-
-interface ActiveSession {
-  id: string;
-  device: string;
-  location: string;
-  lastActive: string;
-  current: boolean;
 }
 
 export default function PrivacySettings() {
   const navigate = useNavigate();
   const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [activeTab, setActiveTab] = useState<'privacy' | 'security' | 'data'>('privacy');
 
@@ -62,36 +56,38 @@ export default function PrivacySettings() {
 
   const [twoFactorAuth, setTwoFactorAuth] = useState<TwoFactorAuth>({
     enabled: false,
-    method: 'app',
-    backupCodes: []
+    method: 'app'
   });
-
-  const [activeSessions] = useState<ActiveSession[]>([
-    {
-      id: '1',
-      device: 'Chrome on Windows',
-      location: 'Los Angeles, CA',
-      lastActive: '2025-12-08T10:30:00Z',
-      current: true
-    },
-    {
-      id: '2',
-      device: 'Safari on iPhone',
-      location: 'Los Angeles, CA',
-      lastActive: '2025-12-07T22:15:00Z',
-      current: false
-    },
-    {
-      id: '3',
-      device: 'Firefox on MacOS',
-      location: 'San Francisco, CA',
-      lastActive: '2025-12-06T14:20:00Z',
-      current: false
-    }
-  ]);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+
+  // Fetch settings from backend on mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      setInitialLoading(true);
+      setLoadError(null);
+      try {
+        const settings = await UserService.getSettings();
+        if (settings) {
+          setProfileVisibility(prev => ({
+            ...prev,
+            publicProfile: settings.publicProfile ?? prev.publicProfile
+          }));
+          setTwoFactorAuth(prev => ({
+            ...prev,
+            enabled: settings.twoFactorEnabled ?? prev.enabled
+          }));
+        }
+      } catch (err) {
+        const e = err instanceof Error ? err : new Error(String(err));
+        setLoadError(e.message);
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+    loadSettings();
+  }, []);
 
   const updateProfileVisibility = (field: keyof ProfileVisibility, value: boolean) => {
     setProfileVisibility(prev => ({
@@ -120,12 +116,16 @@ export default function PrivacySettings() {
   const handleSave = async () => {
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await UserService.updateSettings({
+        publicProfile: profileVisibility.publicProfile,
+        allowMessages: profileVisibility.publicProfile,
+        twoFactorEnabled: twoFactorAuth.enabled
+      });
       toast.success('Privacy settings updated successfully!');
       setHasChanges(false);
-    } catch (error) {
-      toast.error('Failed to update settings');
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      toast.error(e.message || 'Failed to update settings');
     } finally {
       setLoading(false);
     }
@@ -134,8 +134,9 @@ export default function PrivacySettings() {
   const handleDownloadData = async () => {
     try {
       toast.success('Data export started. You will receive an email when ready.');
-    } catch (error) {
-      toast.error('Failed to start data export');
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      toast.error(e.message || 'Failed to start data export');
     }
   };
 
@@ -146,29 +147,19 @@ export default function PrivacySettings() {
     }
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await UserService.deleteAccount(deleteConfirmText);
       toast.success('Account deletion request submitted');
       logout();
-    } catch (error) {
-      toast.error('Failed to delete account');
-    }
-  };
-
-  const handleEndSession = async (sessionId: string) => {
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      toast.success('Session ended successfully');
-    } catch (error) {
-      toast.error('Failed to end session');
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      toast.error(e.message || 'Failed to delete account');
     }
   };
 
   const ToggleSwitch = ({ enabled, onToggle, size = 'md' }: { enabled: boolean; onToggle: () => void; size?: 'sm' | 'md' }) => {
     const sizeClasses = size === 'sm' ? 'w-8 h-4' : 'w-11 h-6';
     const knobClasses = size === 'sm' ? 'w-3 h-3' : 'w-5 h-5';
-    
+
     return (
       <button
         onClick={onToggle}
@@ -183,16 +174,55 @@ export default function PrivacySettings() {
     );
   };
 
-  const formatLastActive = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
-    if (diffHours === 0) return 'Just now';
-    if (diffHours === 1) return '1 hour ago';
-    if (diffHours < 24) return `${diffHours} hours ago`;
-    return date.toLocaleDateString();
-  };
+  if (initialLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-50">
+        <DashboardHeader
+          user={user}
+          userType={(user?.userType || 'creator') as 'creator' | 'investor' | 'production'}
+          title="Privacy & Security"
+          onLogout={logout}
+        />
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-white rounded-lg shadow-lg p-6 animate-pulse">
+            <div className="h-6 w-48 bg-gray-200 rounded mb-4" />
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-16 bg-gray-100 rounded mb-3" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-50">
+        <DashboardHeader
+          user={user}
+          userType={(user?.userType || 'creator') as 'creator' | 'investor' | 'production'}
+          title="Privacy & Security"
+          onLogout={logout}
+        />
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 flex items-center gap-4">
+            <AlertCircle className="w-6 h-6 text-red-500 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-red-800 font-medium">Failed to load privacy settings</p>
+              <p className="text-red-600 text-sm mt-1">{loadError}</p>
+            </div>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-50">
@@ -217,13 +247,13 @@ export default function PrivacySettings() {
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8 px-6">
               {[
-                { id: 'privacy', label: 'Privacy', icon: Eye },
-                { id: 'security', label: 'Security', icon: Lock },
-                { id: 'data', label: 'Data Management', icon: Download }
+                { id: 'privacy' as const, label: 'Privacy', icon: Eye },
+                { id: 'security' as const, label: 'Security', icon: Lock },
+                { id: 'data' as const, label: 'Data Management', icon: Download }
               ].map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
+                  onClick={() => setActiveTab(tab.id)}
                   className={`py-4 px-2 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${
                     activeTab === tab.id
                       ? 'border-purple-500 text-purple-600'
@@ -245,36 +275,11 @@ export default function PrivacySettings() {
                   <h3 className="text-lg font-medium text-gray-900 mb-4">Profile Visibility</h3>
                   <div className="space-y-4">
                     {[
-                      {
-                        key: 'publicProfile' as keyof ProfileVisibility,
-                        title: 'Public Profile',
-                        description: 'Allow others to view your profile publicly',
-                        icon: Globe
-                      },
-                      {
-                        key: 'searchable' as keyof ProfileVisibility,
-                        title: 'Searchable Profile',
-                        description: 'Allow your profile to appear in search results',
-                        icon: Users
-                      },
-                      {
-                        key: 'showEmail' as keyof ProfileVisibility,
-                        title: 'Show Email Address',
-                        description: 'Display email address on public profile',
-                        icon: Globe
-                      },
-                      {
-                        key: 'showPhone' as keyof ProfileVisibility,
-                        title: 'Show Phone Number',
-                        description: 'Display phone number on public profile',
-                        icon: Smartphone
-                      },
-                      {
-                        key: 'showLocation' as keyof ProfileVisibility,
-                        title: 'Show Location',
-                        description: 'Display location on public profile',
-                        icon: MapPin
-                      }
+                      { key: 'publicProfile' as keyof ProfileVisibility, title: 'Public Profile', description: 'Allow others to view your profile publicly', icon: Globe },
+                      { key: 'searchable' as keyof ProfileVisibility, title: 'Searchable Profile', description: 'Allow your profile to appear in search results', icon: Users },
+                      { key: 'showEmail' as keyof ProfileVisibility, title: 'Show Email Address', description: 'Display email address on public profile', icon: Globe },
+                      { key: 'showPhone' as keyof ProfileVisibility, title: 'Show Phone Number', description: 'Display phone number on public profile', icon: Smartphone },
+                      { key: 'showLocation' as keyof ProfileVisibility, title: 'Show Location', description: 'Display location on public profile', icon: MapPin }
                     ].map((setting) => (
                       <div key={setting.key} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                         <div className="flex items-start gap-3">
@@ -297,26 +302,10 @@ export default function PrivacySettings() {
                   <h3 className="text-lg font-medium text-gray-900 mb-4">Data Sharing Preferences</h3>
                   <div className="space-y-4">
                     {[
-                      {
-                        key: 'analytics' as keyof DataSharing,
-                        title: 'Usage Analytics',
-                        description: 'Help improve the platform by sharing anonymized usage data'
-                      },
-                      {
-                        key: 'marketing' as keyof DataSharing,
-                        title: 'Marketing Communications',
-                        description: 'Receive personalized recommendations and marketing content'
-                      },
-                      {
-                        key: 'thirdParty' as keyof DataSharing,
-                        title: 'Third-Party Integrations',
-                        description: 'Allow data sharing with integrated third-party services'
-                      },
-                      {
-                        key: 'performance' as keyof DataSharing,
-                        title: 'Performance Monitoring',
-                        description: 'Share performance data to help identify and fix issues'
-                      }
+                      { key: 'analytics' as keyof DataSharing, title: 'Usage Analytics', description: 'Help improve the platform by sharing anonymized usage data' },
+                      { key: 'marketing' as keyof DataSharing, title: 'Marketing Communications', description: 'Receive personalized recommendations and marketing content' },
+                      { key: 'thirdParty' as keyof DataSharing, title: 'Third-Party Integrations', description: 'Allow data sharing with integrated third-party services' },
+                      { key: 'performance' as keyof DataSharing, title: 'Performance Monitoring', description: 'Share performance data to help identify and fix issues' }
                     ].map((setting) => (
                       <div key={setting.key} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                         <div>
@@ -350,19 +339,19 @@ export default function PrivacySettings() {
                         onToggle={toggleTwoFactor}
                       />
                     </div>
-                    
+
                     {twoFactorAuth.enabled && (
                       <div className="border-t border-gray-200 pt-4">
                         <h5 className="font-medium text-gray-900 mb-3">Authentication Method</h5>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           {[
-                            { value: 'app', label: 'Authenticator App', description: 'Use Google Authenticator or similar' },
-                            { value: 'sms', label: 'SMS', description: 'Receive codes via text message' },
-                            { value: 'email', label: 'Email', description: 'Receive codes via email' }
+                            { value: 'app' as const, label: 'Authenticator App', description: 'Use Google Authenticator or similar' },
+                            { value: 'sms' as const, label: 'SMS', description: 'Receive codes via text message' },
+                            { value: 'email' as const, label: 'Email', description: 'Receive codes via email' }
                           ].map((method) => (
                             <button
                               key={method.value}
-                              onClick={() => setTwoFactorAuth(prev => ({ ...prev, method: method.value as any }))}
+                              onClick={() => { setTwoFactorAuth(prev => ({ ...prev, method: method.value })); setHasChanges(true); }}
                               className={`p-3 rounded-lg border text-left transition-colors ${
                                 twoFactorAuth.method === method.value
                                   ? 'border-purple-500 bg-purple-50 text-purple-600'
@@ -380,30 +369,18 @@ export default function PrivacySettings() {
                 </div>
 
                 <div className="border-t border-gray-200 pt-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Active Sessions</h3>
-                  <div className="space-y-3">
-                    {activeSessions.map((session) => (
-                      <div key={session.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                        <div className="flex items-start gap-3">
-                          <div className={`w-2 h-2 rounded-full mt-2 ${session.current ? 'bg-green-500' : 'bg-gray-400'}`} />
-                          <div>
-                            <h4 className="font-medium text-gray-900">{session.device}</h4>
-                            <p className="text-sm text-gray-600">{session.location}</p>
-                            <p className="text-xs text-gray-500">
-                              {session.current ? 'Current session' : formatLastActive(session.lastActive)}
-                            </p>
-                          </div>
-                        </div>
-                        {!session.current && (
-                          <button
-                            onClick={() => handleEndSession(session.id)}
-                            className="px-3 py-1.5 text-sm text-red-600 hover:text-red-500 border border-red-300 hover:border-red-400 rounded transition-colors"
-                          >
-                            End Session
-                          </button>
-                        )}
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Current Session</h3>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-2 h-2 rounded-full mt-2 bg-green-500" />
+                      <div>
+                        <h4 className="font-medium text-gray-900">Active Session</h4>
+                        <p className="text-sm text-gray-600">
+                          Logged in as {user?.email || 'unknown'}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">Current session</p>
                       </div>
-                    ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -463,7 +440,7 @@ export default function PrivacySettings() {
                         <p className="text-sm text-gray-600 mb-4">
                           This action cannot be undone. All your data, pitches, and account information will be permanently deleted.
                         </p>
-                        
+
                         {!showDeleteConfirm ? (
                           <button
                             onClick={() => setShowDeleteConfirm(true)}
@@ -529,7 +506,7 @@ export default function PrivacySettings() {
                     </>
                   )}
                 </button>
-                
+
                 <button
                   onClick={() => navigate(-1)}
                   className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"

@@ -1,12 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  User, Camera, Mail, Phone, MapPin, Globe, 
-  Briefcase, Calendar, Save, X, Upload,
+import {
+  Camera, Save, X,
   Twitter, Linkedin, Instagram, Youtube
 } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { UserService } from '../../services/user.service';
 import { toast } from 'react-hot-toast';
 
 interface ProfileData {
@@ -32,26 +32,44 @@ interface ProfileData {
 
 export default function SettingsProfile() {
   const navigate = useNavigate();
-  const { user, logout } = useBetterAuthStore();
+  const { user, logout, checkSession } = useBetterAuthStore();
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [profileData, setProfileData] = useState<ProfileData>({
-    firstName: user?.username?.split(' ')[0] || '',
-    lastName: user?.username?.split(' ')[1] || '',
-    username: user?.username || '',
-    email: user?.email || '',
+    firstName: '',
+    lastName: '',
+    username: '',
+    email: '',
     phone: '',
-    bio: 'Passionate filmmaker with over 10 years of experience in the industry. Specializing in psychological thrillers and science fiction narratives.',
-    company: 'Stellar Productions',
-    position: 'Executive Producer',
-    location: 'Los Angeles, CA',
-    website: 'https://example.com',
-    socialLinks: {
-      twitter: '@username',
-      linkedin: 'linkedin.com/in/username',
-      instagram: '@username',
-      youtube: 'youtube.com/@username'
-    }
+    bio: '',
+    company: '',
+    position: '',
+    location: '',
+    website: '',
+    socialLinks: {}
   });
+
+  // Pre-populate form from user store data
+  useEffect(() => {
+    if (user) {
+      const nameParts = (user.name || user.username || '').split(' ');
+      setProfileData({
+        firstName: (user as any).firstName || nameParts[0] || '',
+        lastName: (user as any).lastName || nameParts.slice(1).join(' ') || '',
+        username: user.username || '',
+        email: user.email || '',
+        phone: '',
+        bio: (user as any).bio || '',
+        company: (user as any).professionalInfo?.company || (user as any).companyName || '',
+        position: (user as any).professionalInfo?.position || '',
+        location: (user as any).location || '',
+        website: (user as any).website || '',
+        socialLinks: (user as any).socialLinks || {},
+        avatar: (user as any).profileImage || (user as any).image || undefined,
+        coverImage: (user as any).coverImage || undefined
+      });
+    }
+  }, [user]);
 
   const handleInputChange = (field: keyof ProfileData | string, value: string) => {
     if (field.includes('.')) {
@@ -74,32 +92,55 @@ export default function SettingsProfile() {
   const handleSave = async () => {
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const fullName = `${profileData.firstName} ${profileData.lastName}`.trim();
+      await UserService.updateProfile({
+        name: fullName || undefined,
+        username: profileData.username || undefined,
+        bio: profileData.bio || undefined,
+        location: profileData.location || undefined,
+        website: profileData.website || undefined,
+        socialLinks: profileData.socialLinks,
+        professionalInfo: {
+          company: profileData.company || undefined,
+          position: profileData.position || undefined
+        }
+      });
+      // Refresh session store so other pages see the updated data
+      await checkSession();
       toast.success('Profile updated successfully!');
-    } catch (error) {
-      toast.error('Failed to update profile');
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      toast.error(e.message || 'Failed to update profile');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleImageUpload = (type: 'avatar' | 'cover') => {
-    // Handle image upload
+  const handleImageUpload = async (type: 'avatar' | 'cover') => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          setProfileData(prev => ({
-            ...prev,
-            [type === 'avatar' ? 'avatar' : 'coverImage']: e.target?.result as string
-          }));
-        };
-        reader.readAsDataURL(file);
+      if (!file) return;
+
+      setUploading(true);
+      try {
+        const imageUrl = type === 'avatar'
+          ? await UserService.uploadProfileImage(file)
+          : await UserService.uploadCoverImage(file);
+
+        setProfileData(prev => ({
+          ...prev,
+          [type === 'avatar' ? 'avatar' : 'coverImage']: imageUrl
+        }));
+        await checkSession();
+        toast.success(`${type === 'avatar' ? 'Profile' : 'Cover'} image updated!`);
+      } catch (err) {
+        const e = err instanceof Error ? err : new Error(String(err));
+        toast.error(e.message || `Failed to upload ${type} image`);
+      } finally {
+        setUploading(false);
       }
     };
     input.click();
@@ -123,7 +164,8 @@ export default function SettingsProfile() {
             )}
             <button
               onClick={() => handleImageUpload('cover')}
-              className="absolute bottom-4 right-4 px-4 py-2 bg-white/90 backdrop-blur text-gray-700 rounded-lg hover:bg-white transition flex items-center gap-2"
+              disabled={uploading}
+              className="absolute bottom-4 right-4 px-4 py-2 bg-white/90 backdrop-blur text-gray-700 rounded-lg hover:bg-white transition flex items-center gap-2 disabled:opacity-50"
             >
               <Camera className="w-4 h-4" />
               Change Cover
@@ -145,7 +187,8 @@ export default function SettingsProfile() {
                 </div>
                 <button
                   onClick={() => handleImageUpload('avatar')}
-                  className="absolute bottom-0 right-0 p-1.5 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition"
+                  disabled={uploading}
+                  className="absolute bottom-0 right-0 p-1.5 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition disabled:opacity-50"
                 >
                   <Camera className="w-3 h-3" />
                 </button>
@@ -167,7 +210,7 @@ export default function SettingsProfile() {
                       className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
                     <input
@@ -177,7 +220,7 @@ export default function SettingsProfile() {
                       className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
                     <input
@@ -187,28 +230,17 @@ export default function SettingsProfile() {
                       className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                     <input
                       type="email"
                       value={profileData.email}
-                      onChange={(e) => handleInputChange('email', e.target.value)}
-                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                      disabled
+                      className="w-full px-4 py-2 border rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
                     />
                   </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                    <input
-                      type="tel"
-                      value={profileData.phone}
-                      onChange={(e) => handleInputChange('phone', e.target.value)}
-                      placeholder="+1 (555) 000-0000"
-                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
-                    />
-                  </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
                     <input
@@ -219,7 +251,7 @@ export default function SettingsProfile() {
                     />
                   </div>
                 </div>
-                
+
                 <div className="mt-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
                   <textarea
@@ -245,7 +277,7 @@ export default function SettingsProfile() {
                       className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
                     <input
@@ -255,7 +287,7 @@ export default function SettingsProfile() {
                       className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
                     />
                   </div>
-                  
+
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
                     <input
@@ -280,13 +312,13 @@ export default function SettingsProfile() {
                     </label>
                     <input
                       type="text"
-                      value={profileData.socialLinks.twitter}
+                      value={profileData.socialLinks.twitter || ''}
                       onChange={(e) => handleInputChange('socialLinks.twitter', e.target.value)}
                       placeholder="@username"
                       className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       <Linkedin className="inline w-4 h-4 mr-1" />
@@ -294,13 +326,13 @@ export default function SettingsProfile() {
                     </label>
                     <input
                       type="text"
-                      value={profileData.socialLinks.linkedin}
+                      value={profileData.socialLinks.linkedin || ''}
                       onChange={(e) => handleInputChange('socialLinks.linkedin', e.target.value)}
                       placeholder="linkedin.com/in/username"
                       className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       <Instagram className="inline w-4 h-4 mr-1" />
@@ -308,13 +340,13 @@ export default function SettingsProfile() {
                     </label>
                     <input
                       type="text"
-                      value={profileData.socialLinks.instagram}
+                      value={profileData.socialLinks.instagram || ''}
                       onChange={(e) => handleInputChange('socialLinks.instagram', e.target.value)}
                       placeholder="@username"
                       className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       <Youtube className="inline w-4 h-4 mr-1" />
@@ -322,7 +354,7 @@ export default function SettingsProfile() {
                     </label>
                     <input
                       type="text"
-                      value={profileData.socialLinks.youtube}
+                      value={profileData.socialLinks.youtube || ''}
                       onChange={(e) => handleInputChange('socialLinks.youtube', e.target.value)}
                       placeholder="youtube.com/@username"
                       className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
@@ -347,7 +379,7 @@ export default function SettingsProfile() {
                     </>
                   )}
                 </button>
-                
+
                 <button
                   onClick={() => navigate(-1)}
                   className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition flex items-center gap-2"
