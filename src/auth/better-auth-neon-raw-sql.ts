@@ -50,6 +50,7 @@ function createRawSQLAdapter(sql: ReturnType<typeof neon>) {
       const result = await sql`
         SELECT id, email, username, user_type,
                first_name, last_name, company_name, profile_image, subscription_tier,
+               bio,
                COALESCE(name, username, email) as name
         FROM users
         WHERE id = ${id}
@@ -74,7 +75,9 @@ function createRawSQLAdapter(sql: ReturnType<typeof neon>) {
         SELECT s.id, s.user_id, s.expires_at,
                u.id as user_id, u.email, u.username, u.user_type,
                u.first_name, u.last_name, u.company_name,
-               u.profile_image, u.subscription_tier
+               u.profile_image, u.subscription_tier,
+               u.bio,
+               COALESCE(u.name, u.username, u.email) as name
         FROM sessions s
         JOIN users u ON s.user_id = u.id
         WHERE s.id = ${sessionId}

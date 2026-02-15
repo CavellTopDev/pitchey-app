@@ -4226,9 +4226,11 @@ pitchey_analytics_datapoints_per_minute 1250
                         id: String(userResult.id),
                         email: userResult.email,
                         username: userResult.username,
+                        name: userResult.name,
                         userType: userResult.user_type,
                         firstName: userResult.first_name,
                         lastName: userResult.last_name,
+                        bio: userResult.bio,
                         companyName: userResult.company_name,
                         profileImage: userResult.profile_image,
                         subscriptionTier: userResult.subscription_tier
@@ -4257,9 +4259,11 @@ pitchey_analytics_datapoints_per_minute 1250
                   id: String(sessionData.user_id),
                   email: sessionData.email,
                   username: sessionData.username,
+                  name: sessionData.name,
                   userType: sessionData.user_type,
                   firstName: sessionData.first_name,
                   lastName: sessionData.last_name,
+                  bio: sessionData.bio,
                   companyName: sessionData.company_name,
                   profileImage: sessionData.profile_image,
                   subscriptionTier: sessionData.subscription_tier
