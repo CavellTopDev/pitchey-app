@@ -76,8 +76,8 @@ Key tables:
 
 - [ ] Backup current data
 - [ ] Create Neon branch for testing
-- [ ] Generate migration with Drizzle Kit
-- [ ] Review generated SQL
+- [ ] Write raw SQL migration script
+- [ ] Review SQL for correctness and safety
 - [ ] Test on branch with sample data
 - [ ] Verify application compatibility
 - [ ] Apply to production

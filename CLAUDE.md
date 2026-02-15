@@ -38,6 +38,21 @@ Movie pitch platform connecting creators, investors, and production companies. E
 - Defensive utils (`safeAccess`, `safeNumber`, `safeArray`) for runtime safety
 - In `catch` blocks: `const e = err instanceof Error ? err : new Error(String(err))`
 
+## Subagent Routing
+
+When delegating tasks, use the Task tool with these subagent types:
+
+| User Request | Subagent |
+|---|---|
+| Deploy backend or frontend | `cloudflare-deployer` |
+| Debug frontend / React / component / build | `frontend-debugger` |
+| Debug API / Worker / 4xx / 5xx / CORS | `worker-debugger` |
+| Debug database / query / connection | `db-debugger` (READ-ONLY) |
+| Migrate / schema change | `database-migrator` |
+| Review code / PR | `code-reviewer` |
+
+Available slash commands: `/deploy`, `/test`, `/migrate`
+
 ## Domain Context Docs
 Detailed context split by domain to keep LLM context focused:
 - **[Frontend](docs/context-frontend.md)** — React, Zustand, routing, testing patterns, dashboard architecture

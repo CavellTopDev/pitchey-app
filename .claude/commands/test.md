@@ -1,6 +1,6 @@
 ---
 description: Run comprehensive tests for Pitchey platform
-allowed-tools: Bash(npm run:*), Bash(curl:*), Bash(deno run:*), Read
+allowed-tools: Bash(npm run:*), Bash(npx vitest:*), Bash(curl:*), Read
 argument-hint: [test-type]
 ---
 
@@ -11,8 +11,8 @@ Requested test type: $ARGUMENTS
 ## Your Task
 
 ### If no specific test type provided:
-1. Run TypeScript type checking: `npm run type-check`
-2. Run frontend tests: `cd frontend && npm test`
+1. Run TypeScript type checking: `cd frontend && npx tsc --noEmit -p tsconfig.app.json`
+2. Run frontend tests: `cd frontend && npx vitest run`
 3. Test API health: `curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health`
 4. Test demo accounts login
 

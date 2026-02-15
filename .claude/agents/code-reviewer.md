@@ -98,16 +98,16 @@ Code Quality:
 
 ```bash
 # TypeScript
-npm run type-check
+cd frontend && npx tsc --noEmit -p tsconfig.app.json
 
 # Linting
-npm run lint
+cd frontend && npx eslint .
 
 # Tests
-npm run test
+cd frontend && npx vitest run
 
 # Bundle analysis
-npm run build && npm run analyze
+cd frontend && npm run build && npm run analyze
 ```
 
 Always provide constructive feedback with specific examples of improvements.
