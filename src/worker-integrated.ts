@@ -3646,8 +3646,15 @@ class RouteRegistry {
             user: {
               id: user.id.toString(),
               email: user.email,
-              name: userName,
-              userType: portal
+              name: user.name || userName,
+              username: user.username,
+              userType: portal,
+              firstName: user.first_name,
+              lastName: user.last_name,
+              bio: user.bio,
+              companyName: user.company_name,
+              profileImage: user.profile_image,
+              subscriptionTier: user.subscription_tier
             },
             session: {
               id: sessionId,

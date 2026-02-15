@@ -37,6 +37,7 @@ function createRawSQLAdapter(sql: ReturnType<typeof neon>) {
       const result = await sql`
         SELECT id, email, username, user_type, password_hash,
                first_name, last_name, company_name, profile_image, subscription_tier,
+               bio,
                COALESCE(name, username, email) as name
         FROM users
         WHERE email = ${email}
