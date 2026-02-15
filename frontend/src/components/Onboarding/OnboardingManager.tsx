@@ -23,9 +23,6 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
 }) => {
   const location = useLocation();
   const { user, isAuthenticated } = useBetterAuthStore();
-
-  // Don't show modal onboarding when full-page onboarding is active
-  if (location.pathname.endsWith('/onboarding')) return null;
   const {
     currentFlow,
     isOnboardingActive,
@@ -39,23 +36,26 @@ export const OnboardingManager: React.FC<OnboardingManagerProps> = ({
   useEffect(() => {
     if (isAuthenticated && user && !currentFlow) {
       const userType = user.userType as 'creator' | 'investor' | 'production';
-      
+
       // Check if user should see onboarding
-      const shouldShowOnboarding = forceShow || 
+      const shouldShowOnboarding = forceShow ||
         !localStorage.getItem(`onboarding-completed-${userType}`) ||
         localStorage.getItem(`onboarding-skipped-${userType}`) !== 'true';
 
       if (shouldShowOnboarding && userType) {
         initializeOnboarding(userType);
-        
+
         // Award first login achievement
         unlockAchievement('first-login');
       }
-      
+
       // Update daily streak
       updateStreak();
     }
   }, [isAuthenticated, user, currentFlow, initializeOnboarding, forceShow, updateStreak, unlockAchievement]);
+
+  // Don't show modal onboarding when full-page onboarding is active
+  if (location.pathname.endsWith('/onboarding')) return null;
 
   // Don't render if user is not authenticated
   if (!isAuthenticated || !user) {
