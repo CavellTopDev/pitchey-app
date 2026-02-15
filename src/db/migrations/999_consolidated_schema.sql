@@ -189,6 +189,18 @@ CREATE INDEX IF NOT EXISTS idx_nda_requests_owner ON nda_requests(pitch_owner_id
 CREATE INDEX IF NOT EXISTS idx_nda_requests_status ON nda_requests(status);
 CREATE INDEX IF NOT EXISTS idx_nda_requests_created ON nda_requests(created_at DESC);
 
+-- Add columns present in deployed Neon schema but missing from original migration
+ALTER TABLE nda_requests ADD COLUMN IF NOT EXISTS owner_id INTEGER;
+ALTER TABLE nda_requests ADD COLUMN IF NOT EXISTS creator_id INTEGER;
+ALTER TABLE nda_requests ADD COLUMN IF NOT EXISTS company_info JSONB;
+ALTER TABLE nda_requests ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+ALTER TABLE nda_requests ADD COLUMN IF NOT EXISTS nda_type VARCHAR(50) DEFAULT 'standard';
+ALTER TABLE nda_requests ADD COLUMN IF NOT EXISTS requested_access TEXT;
+ALTER TABLE nda_requests ADD COLUMN IF NOT EXISTS access_level VARCHAR(50);
+ALTER TABLE nda_requests ADD COLUMN IF NOT EXISTS custom_terms TEXT;
+ALTER TABLE nda_requests ADD COLUMN IF NOT EXISTS watermark_enabled BOOLEAN DEFAULT TRUE;
+ALTER TABLE nda_requests ADD COLUMN IF NOT EXISTS download_enabled BOOLEAN DEFAULT FALSE;
+
 -- ===== PORTFOLIO TABLE =====
 CREATE TABLE IF NOT EXISTS portfolio (
     id SERIAL PRIMARY KEY,
@@ -214,33 +226,28 @@ CREATE INDEX IF NOT EXISTS idx_portfolio_status ON portfolio(status);
 CREATE INDEX IF NOT EXISTS idx_portfolio_date ON portfolio(investment_date DESC);
 
 -- ===== INVESTMENTS TABLE =====
+-- Aligned with deployed Neon schema (Feb 2026)
 CREATE TABLE IF NOT EXISTS investments (
     id SERIAL PRIMARY KEY,
     investor_id INTEGER NOT NULL,
     pitch_id INTEGER NOT NULL,
-    amount DECIMAL(15, 2) NOT NULL CHECK (amount > 0),
-    investment_type VARCHAR(50) DEFAULT 'equity',
-    equity_percentage DECIMAL(5, 2),
-    terms JSONB DEFAULT '{}',
-    status VARCHAR(50) DEFAULT 'pending',
-    payment_method VARCHAR(50),
-    payment_reference VARCHAR(255),
-    contract_url TEXT,
+    amount NUMERIC NOT NULL,
+    status TEXT DEFAULT 'pending',
+    terms TEXT,
+    current_value NUMERIC,
+    documents JSONB DEFAULT '[]',
     notes TEXT,
-    approved_by INTEGER,
-    approved_at TIMESTAMP WITH TIME ZONE,
-    completed_at TIMESTAMP WITH TIME ZONE,
-    cancelled_at TIMESTAMP WITH TIME ZONE,
-    cancellation_reason TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(investor_id, pitch_id)
+    roi_percentage NUMERIC DEFAULT 0,
+    invested_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_investments_investor ON investments(investor_id);
 CREATE INDEX IF NOT EXISTS idx_investments_pitch ON investments(pitch_id);
 CREATE INDEX IF NOT EXISTS idx_investments_status ON investments(status);
 CREATE INDEX IF NOT EXISTS idx_investments_created ON investments(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_investments_invested_at ON investments(invested_at DESC);
 
 -- ===== MESSAGES TABLE =====
 CREATE TABLE IF NOT EXISTS messages (

@@ -11269,7 +11269,10 @@ pitchey_analytics_datapoints_per_minute 1250
           p.title as pitch_title,
           p.user_id as pitch_owner_id,
           u.username as requester_name,
-          u.email as requester_email
+          u.email as requester_email,
+          u.first_name as requester_first_name,
+          u.last_name as requester_last_name,
+          u.company_name as requester_company_name
         FROM ndas n
         JOIN pitches p ON n.pitch_id = p.id
         LEFT JOIN users u ON n.signer_id = u.id
@@ -11321,7 +11324,10 @@ pitchey_analytics_datapoints_per_minute 1250
           p.title as pitch_title,
           p.user_id as pitch_owner_id,
           u.username as creator_name,
-          u.email as creator_email
+          u.email as creator_email,
+          u.first_name as creator_first_name,
+          u.last_name as creator_last_name,
+          u.company_name as creator_company_name
         FROM ndas n
         JOIN pitches p ON n.pitch_id = p.id
         LEFT JOIN users u ON p.user_id = u.id

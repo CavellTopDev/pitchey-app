@@ -85,12 +85,32 @@ export class InvestmentService {
     error?: string;
   }> {
     try {
-      const response = await apiClient.get<PortfolioMetrics>('/api/investor/portfolio/summary');
-      return {
-        success: response.success,
-        data: response.data ?? undefined,
-        error: response.error?.message
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await apiClient.get<any>('/api/investor/portfolio/summary');
+      if (!response.success || !response.data) {
+        return {
+          success: response.success,
+          data: response.data ?? undefined,
+          error: response.error?.message
+        };
+      }
+
+      // Transform snake_case API response to camelCase PortfolioMetrics
+      const raw = response.data.summary ?? response.data;
+      const data: PortfolioMetrics = {
+        totalInvested: raw.total_invested ?? raw.totalInvested ?? 0,
+        currentValue: raw.portfolio_value ?? raw.currentValue ?? 0,
+        totalReturn: raw.total_returns ?? raw.totalReturn ?? 0,
+        returnPercentage: raw.average_roi ?? raw.returnPercentage ?? 0,
+        activeInvestments: raw.active_investments ?? raw.activeInvestments ?? 0,
+        completedInvestments: raw.completed_investments ?? raw.completedInvestments ?? 0,
+        roi: raw.average_roi ?? raw.roi ?? 0,
+        monthlyGrowth: raw.monthly_growth ?? raw.monthlyGrowth,
+        quarterlyGrowth: raw.quarterly_growth ?? raw.quarterlyGrowth,
+        ytdGrowth: raw.ytd_growth ?? raw.ytdGrowth,
       };
+
+      return { success: true, data };
     } catch (error: unknown) {
       console.error('Error fetching investor portfolio:', error);
       return {
@@ -131,22 +151,47 @@ export class InvestmentService {
       if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
       if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
 
-      const response = await apiClient.get<{
-        investments: Investment[];
-        total: number;
-        totalPages: number;
-        currentPage: number;
-        summary?: {
-          totalInvested: number;
-          totalCurrentValue: number;
-          activeCount: number;
-          completedCount: number;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await apiClient.get<any>(`/api/investor/investments?${queryParams.toString()}`);
+      if (!response.success || !response.data) {
+        return {
+          success: response.success,
+          data: response.data ?? undefined,
+          error: response.error?.message
         };
-      }>(`/api/investor/investments?${queryParams.toString()}`);
+      }
+
+      // Transform snake_case investment rows to camelCase
+      const rawInvestments: unknown[] = response.data.investments ?? [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const investments: Investment[] = rawInvestments.map((row: any) => ({
+        id: row.id,
+        investorId: row.investor_id ?? row.investorId,
+        pitchId: row.pitch_id ?? row.pitchId,
+        amount: Number(row.amount) || 0,
+        status: row.status ?? 'pending',
+        terms: row.terms,
+        currentValue: Number(row.current_value ?? row.currentValue ?? row.amount) || 0,
+        documents: row.documents,
+        notes: row.notes,
+        createdAt: row.created_at ?? row.createdAt ?? '',
+        updatedAt: row.updated_at ?? row.updatedAt ?? '',
+        pitchTitle: row.pitch_title ?? row.pitchTitle,
+        pitchGenre: row.genre ?? row.pitchGenre,
+        creatorName: row.creator_name ?? row.creatorName,
+        investmentDate: row.invested_at ?? row.investmentDate ?? row.created_at ?? row.createdAt,
+        returnPercentage: Number(row.roi_percentage ?? row.returnPercentage) || 0,
+      }));
+
       return {
-        success: response.success,
-        data: response.data ?? undefined,
-        error: response.error?.message
+        success: true,
+        data: {
+          investments,
+          total: response.data.total ?? investments.length,
+          totalPages: response.data.totalPages ?? response.data.total_pages ?? 1,
+          currentPage: response.data.currentPage ?? response.data.current_page ?? 1,
+          summary: response.data.summary,
+        },
       };
     } catch (error: unknown) {
       console.error('Error fetching investment history:', error);

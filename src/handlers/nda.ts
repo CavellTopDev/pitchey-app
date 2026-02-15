@@ -61,7 +61,13 @@ export async function ndaHandler(request: Request, env: Env): Promise<Response> 
           p.title as pitch_title,
           p.genre as pitch_genre,
           u1.username as requester_username,
-          u2.username as creator_username
+          u1.first_name as requester_first_name,
+          u1.last_name as requester_last_name,
+          u1.company_name as requester_company_name,
+          u2.username as creator_username,
+          u2.first_name as creator_first_name,
+          u2.last_name as creator_last_name,
+          u2.company_name as creator_company_name
         FROM ndas n
         JOIN pitches p ON n.pitch_id = p.id
         JOIN users u1 ON n.signer_id = u1.id
@@ -86,7 +92,13 @@ export async function ndaHandler(request: Request, env: Env): Promise<Response> 
           p.title as pitch_title,
           p.genre as pitch_genre,
           u1.username as requester_username,
-          u2.username as creator_username
+          u1.first_name as requester_first_name,
+          u1.last_name as requester_last_name,
+          u1.company_name as requester_company_name,
+          u2.username as creator_username,
+          u2.first_name as creator_first_name,
+          u2.last_name as creator_last_name,
+          u2.company_name as creator_company_name
         FROM ndas n
         JOIN pitches p ON n.pitch_id = p.id
         JOIN users u1 ON n.signer_id = u1.id
@@ -112,7 +124,13 @@ export async function ndaHandler(request: Request, env: Env): Promise<Response> 
           p.title as pitch_title,
           p.genre as pitch_genre,
           u1.username as requester_username,
-          u2.username as creator_username
+          u1.first_name as requester_first_name,
+          u1.last_name as requester_last_name,
+          u1.company_name as requester_company_name,
+          u2.username as creator_username,
+          u2.first_name as creator_first_name,
+          u2.last_name as creator_last_name,
+          u2.company_name as creator_company_name
         FROM ndas n
         JOIN pitches p ON n.pitch_id = p.id
         JOIN users u1 ON n.signer_id = u1.id

@@ -116,8 +116,8 @@ export class InvestorPortfolioHandler {
         `SELECT 
           DATE_TRUNC('month', invested_at) as month,
           SUM(amount) as invested,
-          SUM(CASE WHEN roi > 0 THEN amount * (roi/100) ELSE 0 END) as returns,
-          AVG(roi) as avg_roi
+          SUM(CASE WHEN roi_percentage > 0 THEN amount * (roi_percentage/100) ELSE 0 END) as returns,
+          AVG(roi_percentage) as avg_roi
          FROM investments
          WHERE investor_id = $1
          GROUP BY DATE_TRUNC('month', invested_at)
@@ -129,8 +129,8 @@ export class InvestorPortfolioHandler {
       const totals = await this.db.query(
         `SELECT 
           SUM(amount) as total_invested,
-          SUM(CASE WHEN roi > 0 THEN amount * (roi/100) ELSE 0 END) as total_returns,
-          AVG(roi) as overall_roi,
+          SUM(CASE WHEN roi_percentage > 0 THEN amount * (roi_percentage/100) ELSE 0 END) as total_returns,
+          AVG(roi_percentage) as overall_roi,
           COUNT(DISTINCT pitch_id) as unique_investments
          FROM investments
          WHERE investor_id = $1`,
@@ -303,17 +303,17 @@ export class InvestorPortfolioHandler {
   // Update investment
   async updateInvestment(userId: number, investmentId: number, data: any) {
     try {
-      const { status, roi, notes } = data;
+      const { status, roi_percentage, notes } = data;
 
       const investment = await this.db.query(
-        `UPDATE investments 
+        `UPDATE investments
          SET status = COALESCE($1, status),
-             roi = COALESCE($2, roi),
+             roi_percentage = COALESCE($2, roi_percentage),
              notes = COALESCE($3, notes),
              completed_at = CASE WHEN $1 = 'completed' THEN NOW() ELSE completed_at END
          WHERE id = $4 AND investor_id = $5
          RETURNING *`,
-        [status, roi, notes, investmentId, userId]
+        [status, roi_percentage, notes, investmentId, userId]
       );
 
       if (investment.length === 0) {
@@ -669,7 +669,7 @@ export class InvestorPortfolioHandler {
             COALESCE(AVG(amount), 0) as avg_investment,
             COALESCE(MAX(amount), 0) as max_investment,
             COALESCE(MIN(amount), 0) as min_investment,
-            COALESCE(AVG(CASE WHEN roi IS NOT NULL THEN roi ELSE 0 END), 0) as avg_roi
+            COALESCE(AVG(CASE WHEN roi_percentage IS NOT NULL THEN roi_percentage ELSE 0 END), 0) as avg_roi
            FROM investments
            WHERE (investor_id = $1 OR user_id = $1)
              AND ${dateCol} >= DATE_TRUNC('month', CURRENT_DATE)`,

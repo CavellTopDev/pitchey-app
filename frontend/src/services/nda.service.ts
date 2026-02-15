@@ -91,6 +91,92 @@ export interface NDAStats {
   approvalRate?: number;
 }
 
+// Transform flat snake_case NDA API response to camelCase NDA type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function transformNDAFromApi(raw: any): NDA {
+  // If already transformed (has camelCase fields), pass through
+  if (raw.pitchId !== undefined && raw.createdAt !== undefined && raw.pitch_id === undefined) {
+    return raw as NDA;
+  }
+
+  return {
+    id: raw.id,
+    pitchId: raw.pitch_id ?? raw.pitchId,
+    userId: raw.pitch_owner_id ?? raw.userId ?? 0,
+    signerId: raw.signer_id ?? raw.requester_id ?? raw.signerId ?? 0,
+    requesterId: raw.requester_id ?? raw.requesterId,
+    ndaType: raw.nda_type ?? raw.ndaType ?? 'basic',
+    status: raw.status ?? 'pending',
+    documentUrl: raw.document_url ?? raw.documentUrl,
+    signedDocumentUrl: raw.signed_document_url ?? raw.signedDocumentUrl,
+    customNdaText: raw.custom_nda_text ?? raw.customNdaText,
+    customTerms: raw.custom_terms ?? raw.customTerms,
+    requestMessage: raw.request_message ?? raw.requestMessage ?? raw.message,
+    message: raw.message,
+    rejectionReason: raw.rejection_reason ?? raw.rejectionReason,
+    signedAt: raw.signed_at ?? raw.signedAt,
+    expiresAt: raw.expires_at ?? raw.expiresAt,
+    revokedAt: raw.revoked_at ?? raw.revokedAt,
+    requestedAt: raw.requested_at ?? raw.requestedAt ?? raw.created_at ?? raw.createdAt,
+    respondedAt: raw.responded_at ?? raw.respondedAt,
+    accessGranted: raw.access_granted ?? raw.accessGranted,
+    notes: raw.notes,
+    pitchTitle: raw.pitch_title ?? raw.pitchTitle,
+    pitchOwner: raw.creator_username ?? raw.creator_name ?? raw.pitchOwner,
+    requesterName: raw.requester_username ?? raw.requester_name ?? raw.requesterName,
+    signerName: raw.requester_username ?? raw.signerName,
+    creatorName: raw.creator_username ?? raw.creator_name ?? raw.creatorName,
+    createdAt: raw.created_at ?? raw.createdAt ?? '',
+    updatedAt: raw.updated_at ?? raw.updatedAt ?? raw.created_at ?? raw.createdAt ?? '',
+  } as unknown as NDA;
+}
+
+// Transform flat snake_case NDA request API response to camelCase NDARequest type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function transformNDARequestFromApi(raw: any): NDARequest {
+  // If already transformed, pass through
+  if (raw.pitchId !== undefined && raw.requestedAt !== undefined && raw.pitch_id === undefined) {
+    return raw as NDARequest;
+  }
+
+  return {
+    id: raw.id,
+    pitchId: raw.pitch_id ?? raw.pitchId,
+    requesterId: raw.requester_id ?? raw.signer_id ?? raw.requesterId ?? 0,
+    ownerId: raw.owner_id ?? raw.pitch_owner_id ?? raw.ownerId ?? 0,
+    ndaType: raw.nda_type ?? raw.ndaType ?? 'basic',
+    status: raw.status ?? 'pending',
+    requestMessage: raw.request_message ?? raw.requestMessage ?? raw.message,
+    rejectionReason: raw.rejection_reason ?? raw.rejectionReason,
+    companyInfo: raw.company_info ?? raw.companyInfo,
+    requestedAt: raw.requested_at ?? raw.requestedAt ?? raw.created_at ?? raw.createdAt ?? '',
+    respondedAt: raw.responded_at ?? raw.respondedAt,
+    expiresAt: raw.expires_at ?? raw.expiresAt,
+    // Construct nested objects from flat API fields
+    requester: raw.requester ?? {
+      id: raw.requester_id ?? raw.signer_id ?? 0,
+      username: raw.requester_username ?? raw.requester_name ?? '',
+      firstName: raw.requester_first_name ?? '',
+      lastName: raw.requester_last_name ?? '',
+      companyName: raw.requester_company_name ?? '',
+      email: raw.requester_email ?? '',
+    } as unknown as User,
+    owner: raw.owner ?? {
+      id: raw.owner_id ?? raw.pitch_owner_id ?? 0,
+      username: raw.creator_username ?? raw.creator_name ?? '',
+      firstName: raw.creator_first_name ?? '',
+      lastName: raw.creator_last_name ?? '',
+      companyName: raw.creator_company_name ?? '',
+      email: raw.creator_email ?? '',
+    } as unknown as User,
+    pitch: raw.pitch ?? {
+      id: raw.pitch_id ?? raw.pitchId ?? 0,
+      title: raw.pitch_title ?? raw.pitchTitle ?? '',
+      genre: raw.pitch_genre ?? raw.genre ?? '',
+    },
+  } as unknown as NDARequest;
+}
+
 export class NDAService {
   // Request NDA for a pitch
   static async requestNDA(request: NDARequestInput): Promise<NDA> {
@@ -249,8 +335,9 @@ export class NDAService {
       throw new Error(errorMessage ?? 'Failed to fetch NDAs');
     }
 
+    const rawNdas = response.data?.ndas ?? [];
     return {
-      ndas: response.data?.ndas ?? [],
+      ndas: rawNdas.map(transformNDAFromApi),
       total: response.data?.total ?? 0
     };
   }
@@ -667,7 +754,8 @@ export class NDAService {
       throw new Error(errorMessage ?? 'Failed to fetch active NDAs');
     }
 
-    const ndaRequests = response.data?.ndaRequests ?? [];
+    const rawRequests = response.data?.ndaRequests ?? [];
+    const ndaRequests = rawRequests.map(transformNDARequestFromApi);
     return {
       ndaRequests,
       total: response.data?.total ?? ndaRequests.length
@@ -690,7 +778,8 @@ export class NDAService {
       throw new Error(errorMessage ?? 'Failed to fetch signed NDAs');
     }
 
-    const ndaRequests = response.data?.ndaRequests ?? [];
+    const rawRequests = response.data?.ndaRequests ?? [];
+    const ndaRequests = rawRequests.map(transformNDARequestFromApi);
     return {
       ndaRequests,
       total: response.data?.total ?? ndaRequests.length
@@ -713,7 +802,8 @@ export class NDAService {
       throw new Error(errorMessage ?? 'Failed to fetch incoming NDA requests');
     }
 
-    const ndaRequests = response.data?.ndaRequests ?? [];
+    const rawRequests = response.data?.ndaRequests ?? [];
+    const ndaRequests = rawRequests.map(transformNDARequestFromApi);
     return {
       ndaRequests,
       total: response.data?.total ?? ndaRequests.length
@@ -736,7 +826,8 @@ export class NDAService {
       throw new Error(errorMessage ?? 'Failed to fetch outgoing NDA requests');
     }
 
-    const ndaRequests = response.data?.ndaRequests ?? [];
+    const rawRequests = response.data?.ndaRequests ?? [];
+    const ndaRequests = rawRequests.map(transformNDARequestFromApi);
     return {
       ndaRequests,
       total: response.data?.total ?? ndaRequests.length
