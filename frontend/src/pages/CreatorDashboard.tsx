@@ -171,7 +171,6 @@ function CreatorDashboard() {
   const fetchDashboardData = async () => {
     // Only fetch data if authenticated
     if (!isAuthenticated || !authUser?.id) {
-      console.log('User not authenticated, skipping dashboard data fetch');
       return;
     }
 

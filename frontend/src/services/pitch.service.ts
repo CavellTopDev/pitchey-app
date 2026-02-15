@@ -426,8 +426,6 @@ export class PitchService {
 
   // Get pitch with authenticated access for protected content
   static async getByIdAuthenticated(id: number): Promise<Pitch> {
-    console.log('🔐 [PitchService] Fetching authenticated pitch data for ID:', id);
-
     interface AuthPitchResponse {
       pitch?: RawPitchData;
     }
@@ -440,11 +438,8 @@ export class PitchService {
       throw new Error(errorMessage ?? 'Failed to fetch authenticated pitch data');
     }
 
-    console.log('🔐 [PitchService] Authenticated endpoint response:', response.data);
-
     // Extract the pitch object from the response
     const rawPitch = response.data?.pitch ?? (response.data as unknown as RawPitchData);
-    console.log('🔐 [PitchService] Extracted pitch object:', rawPitch);
 
     // Transform snake_case to camelCase and ensure proper types
     const pitch = transformPitchData(rawPitch);

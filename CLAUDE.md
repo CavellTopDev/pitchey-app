@@ -174,14 +174,23 @@ These endpoints still work but internally use Better Auth:
 - **API**: 117+ endpoints documented and operational
 
 ### Known Issues & Priorities
-1. **Browse Section**: Tab content separation (Trending/New tabs mixed)
-2. **Document Upload**: Multiple files and custom NDA support needed
-3. **NDA Workflow**: Complete approval flow implementation
-4. **Access Control**: Granular role-based permissions
+1. **Error Handling**: Several pages (Messages, PitchEdit, SearchPage) still lack connectivity awareness and skeleton loading
+2. **Backend TODOs**: Portfolio calculations return mock data, team invite emails not sent
+3. **Test Coverage**: ~8% (11 test files for 137 pages) — critical paths need coverage
 
-### Recent Fixes (December 2024)
+### Recent Fixes (February 2026)
+- **Browse Tab Separation**: Per-tab state isolation with stale request guards (MarketplaceEnhanced, InvestorDiscover)
+- **NDA Workflow**: Custom terms and expiry days now flow from approval UI to backend DB
+- **NDA Templates**: Template selection UI integrated into NDA upload section
+- **Error/Connectivity Hardening**: PitchDetail, MarketplaceEnhanced, InvestorDiscover, CreatePitch — skeleton loading, offline banners, per-section retry
+- **Frontend RBAC**: `usePermissions` hook + `PermissionGuard` component mirroring backend rbac.service.ts (50 permissions, 5 roles)
+- **Dashboard Hardening**: All 3 dashboards (Creator, Investor, Production) have per-section error handling, connectivity awareness, skeleton loading
+- **Dead Code Cleanup**: Removed 107 files / 44,771 lines of confirmed dead code
+- **CI/CD Cleanup**: Reduced from 61 to 12 workflow files, TypeScript type-check now blocking
+
+### Previous Fixes (December 2024)
 - Migrated from JWT to Better Auth session-based authentication
-- Fixed all production console errors and self-reference issues  
+- Fixed all production console errors and self-reference issues
 - Resolved notification polling with proper 404 handling
 - Connected frontend to production API via local proxy server
 - Fixed 37 failing frontend tests

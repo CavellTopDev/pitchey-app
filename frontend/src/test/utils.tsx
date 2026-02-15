@@ -293,6 +293,29 @@ export const expectElementToHaveAccessibleName = (
   expect(element).toHaveAccessibleName(name)
 }
 
+// RBAC test helpers
+export const createMockPermissions = (role: 'admin' | 'creator' | 'investor' | 'production' | 'viewer' = 'viewer') => {
+  return { role }
+}
+
+/**
+ * Set up localStorage with a specific userType for RBAC tests.
+ * Call in beforeEach and clean up in afterEach.
+ */
+export const setMockUserType = (userType: string) => {
+  (localStorage.getItem as ReturnType<typeof vi.fn>).mockImplementation((key: string) => {
+    if (key === 'userType') return userType
+    return null
+  })
+}
+
+/**
+ * Configure the betterAuthStore mock for permission/guard testing.
+ */
+export const setMockAuthenticated = (authenticated: boolean) => {
+  mockAuthStore.isAuthenticated = authenticated
+}
+
 // Store getters for testing
 export const getMockAuthStore = () => mockAuthStore
 export const getMockPitchStore = () => mockPitchStore

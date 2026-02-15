@@ -820,8 +820,7 @@ export default function Messages() {
                                           <span>{formatFileSize(attachment.fileSize)}</span>
                                           <button
                                             onClick={() => {
-                                              // Download attachment handler - not implemented
-                                              console.log('Download attachment', attachment.id);
+                                              // TODO: implement attachment download
                                             }}
                                             className="hover:bg-black hover:bg-opacity-20 p-1 rounded"
                                             title="Download"

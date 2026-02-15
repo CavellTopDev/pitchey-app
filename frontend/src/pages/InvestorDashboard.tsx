@@ -177,7 +177,6 @@ function InvestorDashboard() {
   const fetchDashboardData = async () => {
     // Only fetch data if authenticated
     if (!isAuthenticated || !user?.id) {
-      console.log('User not authenticated, skipping dashboard data fetch');
       return;
     }
 

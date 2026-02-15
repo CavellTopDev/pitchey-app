@@ -147,7 +147,6 @@ export default function ComprehensiveNDAManagement({
     } catch (error: any) {
       // Handle authentication errors silently - user might not be logged in yet
       if (error?.response?.status === 401 || error?.message?.includes('401')) {
-        console.log('User not authenticated - skipping NDA data fetch');
         // Clear any stale data
         setIncomingNDAs([]);
         setOutgoingNDAs([]);

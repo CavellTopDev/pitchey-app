@@ -255,13 +255,10 @@ function App() {
     const initApp = async () => {
       if (!sessionChecked && mounted) {
         try {
-          console.log('🔐 [App] Performing initial session check...');
-          
-          // CRITICAL FIX: Actually check session to ensure authentication state is correct
+          // Check session to ensure authentication state is correct
           // The session manager handles rate limiting, so this is safe to call
           await checkSession();
           
-          console.log('✅ [App] Session check completed');
           setSessionChecked(true);
           setProfileFetched(true);
           

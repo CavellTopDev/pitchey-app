@@ -165,7 +165,6 @@ const BrowseTabsFixed: React.FC = () => {
 
       // Check if this response is still valid (no newer request has been made)
       if (requestId !== fetchRequestIdRef.current[tab]) {
-        console.log(`Ignoring stale response for ${tab} tab (requestId: ${requestId})`);
         return;
       }
 

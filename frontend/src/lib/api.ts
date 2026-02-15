@@ -397,8 +397,6 @@ export const pitchAPI = {
       // Use the public endpoint which is what the marketplace needs
       const response = await api.get('/api/pitches/public', { params });
       
-      console.log('Raw API response:', response.data); // Debug log
-      
       // Handle various response formats from the backend
       // The backend may return data in different structures
       let pitches = [];
@@ -422,8 +420,6 @@ export const pitchAPI = {
         }
       }
       
-      console.log('Extracted pitches count:', pitches.length); // Debug log
-
       // Transform each pitch to ensure camelCase fields
       const transformedPitches = Array.isArray(pitches)
         ? pitches.map(transformPitchData)
