@@ -4,7 +4,7 @@
 The Pitchey API provides endpoints for a three-portal entertainment industry marketplace connecting creators, investors, and production companies.
 
 **Base URL:** `http://localhost:8001/api` (development)  
-**Production URL:** `https://pitchey-backend-fresh.deno.dev/api`
+**Production URL:** `https://pitchey-api-prod.ndlovucavelle.workers.dev/api`
 
 ## Authentication
 

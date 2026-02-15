@@ -5,9 +5,8 @@ This directory contains a comprehensive end-to-end testing suite for the Pitchey
 ## Quick Start
 
 ```bash
-# 1. Start the backend proxy server
-cd /home/supremeisbeing/pitcheymovie/pitchey_v0.2
-PORT=8001 deno run --allow-all working-server.ts
+# 1. Start the backend (Cloudflare Worker)
+wrangler dev
 
 # 2. Start the frontend development server
 cd frontend
@@ -151,9 +150,9 @@ All demo accounts use the password: **Demo123**
 ## Technical Requirements
 
 ### Prerequisites
-- **Backend**: Must be running on port 8001
+- **Backend**: Must be running locally
   ```bash
-  PORT=8001 deno run --allow-all working-server.ts
+  wrangler dev
   ```
 - **Frontend**: Must be running on port 5173
   ```bash
@@ -219,8 +218,8 @@ The test suite is designed for CI/CD integration with:
 
 1. **Backend Not Running**
    ```
-   Error: Backend proxy not running on port 8001
-   Solution: PORT=8001 deno run --allow-all working-server.ts
+   Error: Backend not running
+   Solution: wrangler dev
    ```
 
 2. **Authentication Failures**

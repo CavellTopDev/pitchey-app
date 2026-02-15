@@ -2,13 +2,13 @@
 
 ## System Overview
 
-Pitchey is a modern JAMstack application built with a React frontend, Deno backend, and PostgreSQL database, designed to support a three-portal marketplace for the entertainment industry.
+Pitchey is a modern edge-first application built with a React frontend, Cloudflare Workers backend, and PostgreSQL database, designed to support a three-portal marketplace for the entertainment industry.
 
 ### Architecture Diagram
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Frontend      │    │    Backend      │    │    Database     │
-│   React/Vite    │◄──►│   Deno/Oak      │◄──►│   PostgreSQL    │
+│   React/Vite    │◄──►│   CF Workers    │◄──►│   PostgreSQL    │
 │   Port 5173     │    │   Port 8001     │    │   Port 5432     │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
@@ -119,11 +119,11 @@ const ProtectedRoute = ({ children, requiredUserType }) => {
 ## Backend Architecture
 
 ### Technology Stack
-- **Deno** runtime with TypeScript
-- **Oak** framework for HTTP handling
-- **Drizzle ORM** for database operations
-- **JWT** for authentication
-- **Redis** for caching and sessions
+- **Cloudflare Workers** runtime with TypeScript
+- **Hono/custom routing** for HTTP handling
+- **Raw SQL** for database operations (no ORM)
+- **Better Auth** for session-based authentication
+- **Upstash Redis** for caching and sessions
 - **WebSocket** for real-time features
 
 ### Project Structure
@@ -476,7 +476,7 @@ CREATE TABLE portfolio (
 ```bash
 # Local development setup
 Frontend: http://localhost:5173 (Vite dev server)
-Backend:  http://localhost:8001 (Deno server)
+Backend:  http://localhost:8787 (Wrangler dev server)
 Database: postgresql://postgres:password@localhost:5432/pitchey
 Redis:    localhost:6379 (Docker container)
 ```
@@ -485,7 +485,7 @@ Redis:    localhost:6379 (Docker container)
 ```bash
 # Production deployment
 Frontend: https://pitchey-5o8.pages.dev (cloudflare-pages)
-Backend:  https://pitchey-backend-fresh.deno.dev (Deno Deploy)
+Backend:  https://pitchey-api-prod.ndlovucavelle.workers.dev (Cloudflare Workers)
 Database: Neon PostgreSQL (cloud-hosted)
 Redis:    Upstash Redis (cloud-hosted)
 ```

@@ -403,8 +403,9 @@ echo -e "\n=== Portal Switching Test Complete ==="
 
 1. **Fix Demo User Authentication**:
 ```bash
-# Update all demo passwords
-deno run --allow-all scripts/reset-demo-passwords.ts
+# Update all demo passwords via the Worker API or direct SQL
+# (run from project root with wrangler)
+wrangler dev
 ```
 
 2. **Test Logout Functionality**:

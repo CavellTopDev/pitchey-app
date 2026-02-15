@@ -18,8 +18,8 @@ localStorage.removeItem('pitchey_last_ws_attempt');
 **File**: `/home/supremeisbeing/pitcheymovie/pitchey_v0.2/frontend/public/_headers`
 - **REMOVED**: `https://pitchey-api-prod.ndlovucavelle.workers.dev`
 - **REMOVED**: `wss://pitchey-api-prod.ndlovucavelle.workers.dev`
-- **KEPT**: `https://pitchey-backend-fresh.deno.dev` (working backend)
-- **KEPT**: `wss://pitchey-backend-fresh.deno.dev` (working WebSocket)
+- **KEPT**: `https://pitchey-api-prod.ndlovucavelle.workers.dev` (Cloudflare Workers backend)
+- **KEPT**: `wss://pitchey-api-prod.ndlovucavelle.workers.dev` (Cloudflare Workers WebSocket)
 
 ### 3. Implemented Circuit Breaker Pattern
 **File**: `/home/supremeisbeing/pitcheymovie/pitchey_v0.2/frontend/src/hooks/useWebSocketAdvanced.ts`
@@ -48,12 +48,11 @@ localStorage.removeItem('pitchey_last_ws_attempt');
 
 ### Environment Variables ✅
 - **Local**: `.env` points to `localhost:8001` (correct)
-- **Production**: `.env.production` points to `pitchey-backend-fresh.deno.dev` (correct)
-- **No Cloudflare Workers URLs** found in environment files
+- **Production**: `.env.production` uses same-origin via Pages Functions proxy (correct)
 
 ### Current WebSocket Endpoints ✅
-- **Development**: `ws://localhost:8001/ws`
-- **Production**: `wss://pitchey-backend-fresh.deno.dev/ws`
+- **Development**: `ws://localhost:8787/ws`
+- **Production**: `wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws`
 
 ## EMERGENCY PROCEDURES
 

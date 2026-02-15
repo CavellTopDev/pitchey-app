@@ -308,8 +308,8 @@ async def find_comparables(genre, themes, budget_range):
 
 ### Local Development
 ```bash
-# Start backend proxy (MUST use port 8001)
-PORT=8001 deno run --allow-all working-server.ts
+# Start backend (Cloudflare Worker)
+wrangler dev
 
 # Start frontend
 cd frontend && npm run dev

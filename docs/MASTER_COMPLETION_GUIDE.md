@@ -158,8 +158,8 @@ Each fix includes:
 
 ### Local Development
 ```bash
-# Backend (MUST use port 8001)
-PORT=8001 deno run --allow-all working-server.ts
+# Backend (Cloudflare Worker)
+wrangler dev
 
 # Frontend
 cd frontend && npm run dev

@@ -247,7 +247,7 @@ export default defineConfig({
     },
     // Ensure backend proxy is running
     {
-      command: 'cd .. && PORT=8001 deno run --allow-all working-server.ts',
+      command: 'cd .. && npx wrangler dev',
       port: 8001,
       reuseExistingServer: true,
       timeout: 60000,

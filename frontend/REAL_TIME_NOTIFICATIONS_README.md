@@ -97,8 +97,7 @@ A test component is available in development mode:
 
 1. **Start the backend server**:
    ```bash
-   cd /home/supremeisbeing/pitcheymovie/pitchey_v0.2
-   PORT=8001 deno run --allow-all working-server.ts
+   npx wrangler dev
    ```
 
 2. **Start the frontend**:

@@ -41,13 +41,7 @@ Pitchey is a comprehensive movie pitch marketplace platform connecting creators,
 │  │  • File Upload Handling (R2)                               │ │
 │  │  • Edge Caching & Optimization                             │ │
 │  └────────────────────┬───────────────────────────────────────┘ │
-│                       │ (Legacy endpoints proxy)                │
-│  ┌────────────────────▼───────────────────────────────────────┐ │
-│  │          Deno Deploy (Legacy - Being Migrated)             │ │
-│  │  • Complex Business Logic                                  │ │
-│  │  • Background Jobs                                         │ │
-│  │  • WebSocket Handling (temporary)                          │ │
-│  └────────────────────────────────────────────────────────────┘ │
+│                       │                                         │
 └─────────────────────────┬───────────────────────────────────────┘
                           │ SQL Queries
                           ▼
@@ -94,26 +88,21 @@ Pitchey is a comprehensive movie pitch marketplace platform connecting creators,
   - Request validation and rate limiting
   - File uploads to R2 storage
   - Edge caching with KV namespace
-  - Proxying legacy endpoints to Deno backend
+  - Processing all API endpoints natively
 - **Bindings**:
   - `KV`: Session and cache storage
   - `R2_BUCKET`: File storage
   - `HYPERDRIVE`: Database connection pooling
   - `EMAIL_QUEUE`: Async email processing
 
-### Backend Services (Mixed Architecture)
+### Backend Services (Cloudflare Workers)
 
-#### Cloudflare Worker (New - Primary)
+#### Cloudflare Worker (Primary)
 - Handles authentication via Better Auth
 - Processes file uploads to R2
 - Manages edge caching
 - Implements rate limiting for free tier
-
-#### Deno Deploy (Legacy - Being Migrated)
-- Complex business logic
-- WebSocket connections (temporary)
-- Background job processing
-- Legacy JWT authentication endpoints
+- All business logic, WebSocket handling, and background jobs
 
 ### Database (Neon PostgreSQL)
 
@@ -165,9 +154,7 @@ Pitchey is a comprehensive movie pitch marketplace platform connecting creators,
    a. Check KV cache → Return if hit
    b. Validate session (Better Auth)
    c. Apply rate limiting
-   d. Route request:
-      - Native endpoint → Process directly
-      - Legacy endpoint → Proxy to Deno
+   d. Route request → Process directly
 4. Database Query via Hyperdrive
 5. Cache response in KV
 6. Return response with CORS headers
@@ -249,10 +236,10 @@ class PollingService {
 - **Implementation**: Cloudflare Workers at 200+ locations
 - **Benefits**: <50ms response times globally
 
-### 2. Progressive Migration Strategy
-- **From**: Monolithic Deno backend
-- **To**: Distributed Worker functions
-- **Approach**: Route-by-route migration with zero downtime
+### 2. Completed Migration
+- **From**: Monolithic Deno backend (fully removed)
+- **To**: Cloudflare Workers (single integrated Worker)
+- **Result**: All endpoints migrated, Deno dependency fully removed
 
 ### 3. Better Auth over JWT
 - **Previous**: JWT with manual token management
@@ -306,7 +293,7 @@ Scaling Thresholds:
 - **TypeScript**: 5.3
 
 ### Backend
-- **Runtime**: Cloudflare Workers + Deno 1.38
+- **Runtime**: Cloudflare Workers
 - **Database**: PostgreSQL 15 (Neon)
 - **Cache**: Cloudflare KV + Upstash Redis
 - **Auth**: Better Auth 1.0
@@ -328,25 +315,24 @@ Scaling Thresholds:
 
 ### Phase 0: Foundation (✅ Complete)
 - Frontend on Cloudflare Pages
-- Worker proxy to Deno backend
 - Basic authentication working
 
-### Phase 1: Edge Services (🔄 In Progress)
-- Move read-heavy endpoints to Worker
-- Implement edge caching
-- Add rate limiting
+### Phase 1: Edge Services (✅ Complete)
+- All endpoints running on Cloudflare Worker
+- Edge caching implemented
+- Rate limiting active
 
-### Phase 2: Authentication (📋 Planned)
-- Complete Better Auth migration
-- Remove JWT dependencies
-- Add OAuth providers
+### Phase 2: Authentication (✅ Complete)
+- Better Auth migration complete
+- JWT dependencies removed
+- Session-based cookies only
 
-### Phase 3: Full Migration (📋 Planned)
-- Move all endpoints to Worker
-- Implement Durable Objects (paid tier)
-- Remove Deno dependency
+### Phase 3: Full Migration (✅ Complete)
+- All endpoints migrated to Worker
+- Deno dependency fully removed
 
 ### Phase 4: Enhancement (🔮 Future)
+- Implement Durable Objects (paid tier)
 - GraphQL API layer
 - Real-time collaboration
 - Advanced analytics
@@ -398,7 +384,6 @@ GET /api/health
 
 ### Prerequisites
 - Node.js 18+ and npm
-- Deno 1.38+
 - PostgreSQL (or Neon account)
 - Wrangler CLI
 
@@ -416,21 +401,17 @@ FRONTEND_URL=http://localhost:5173
 
 ### Starting Development
 ```bash
-# Terminal 1: Backend (MUST be port 8001)
-PORT=8001 deno run --allow-all working-server.ts
+# Terminal 1: Backend
+wrangler dev
 
 # Terminal 2: Frontend
 cd frontend && npm run dev
-
-# Terminal 3: Worker (optional)
-wrangler dev --local --persist
 ```
 
 ## Production URLs
 
 - **Frontend**: https://pitchey-5o8.pages.dev
 - **API**: https://pitchey-api-prod.ndlovucavelle.workers.dev
-- **Legacy Backend**: https://pitchey-backend-fresh.deno.dev
 
 ## Key Architectural Patterns
 
@@ -463,8 +444,6 @@ wrangler dev --local --persist
 - Database connection limits
 
 ### Technical Debt
-- Mixed authentication systems (Better Auth + JWT)
-- Partial migration (Worker + Deno)
 - WebSocket polling instead of true WebSocket
 - Some missing database tables
 
@@ -486,5 +465,5 @@ wrangler dev --local --persist
 
 **Document Version**: 2.0.0  
 **Last Updated**: December 30, 2024  
-**Architecture Status**: Production Active with Progressive Migration  
+**Architecture Status**: Production Active — Cloudflare Workers Only (Deno fully removed)  
 **Next Review**: January 2025

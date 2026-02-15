@@ -18,9 +18,9 @@ This document provides a comprehensive overview of the Pitchey platform's techni
 - **Primary API**: Cloudflare Workers (Edge-first serverless)
   - Production: `https://pitchey-api-prod.ndlovucavelle.workers.dev`
   - Entry Point: `worker-integrated.ts`
-- **Local Development Proxy**: Deno server on port 8001
-  - File: `working-server.ts`
-  - Purpose: Proxies local requests to production Worker API
+- **Local Development**: Wrangler dev server
+  - Command: `wrangler dev`
+  - Purpose: Runs the Cloudflare Worker locally for development
 
 ### Database Layer
 - **Primary Database**: Neon PostgreSQL
@@ -171,7 +171,7 @@ wrangler deploy
 ## 🛠️ Development Tools
 
 ### Local Development
-- **Proxy Server**: Port 8001 (Deno-based)
+- **Worker Dev**: Wrangler dev server
 - **Frontend Dev**: Vite dev server on 5173
 - **Worker Dev**: Wrangler dev on 8787
 

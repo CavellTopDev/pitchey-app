@@ -32,7 +32,7 @@ This document describes the comprehensive CI/CD pipeline for the Pitchey platfor
 
 #### Comprehensive Testing Stages
 1. **Lint & Format Check** (10 min timeout)
-   - Backend: Deno lint and format validation
+   - Backend: ESLint and TypeScript validation
    - Frontend: ESLint, TypeScript compilation
    - TODO/FIXME comment scanning
 
@@ -43,7 +43,7 @@ This document describes the comprehensive CI/CD pipeline for the Pitchey platfor
    - OSSF Scorecard security assessment
 
 3. **Unit Testing** (20 min timeout)
-   - Backend: Deno test with coverage reporting
+   - Backend: Vitest with coverage reporting
    - Frontend: Vitest with coverage validation
    - Coverage threshold enforcement (80%+)
 
