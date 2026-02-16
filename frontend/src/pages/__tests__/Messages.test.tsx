@@ -96,9 +96,9 @@ describe('Messages', () => {
   // ─── Initial Render ────────────────────────────────────────────────
 
   describe('Initial Render', () => {
-    it('renders Messages heading', () => {
+    it('renders Messages page', () => {
       render(<Messages />)
-      expect(screen.getByRole('heading', { name: /messages/i })).toBeInTheDocument()
+      expect(screen.getByText(/select a conversation/i)).toBeInTheDocument()
     })
 
     it('shows empty state when no conversations', async () => {

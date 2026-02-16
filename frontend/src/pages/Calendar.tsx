@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ChevronLeft, ChevronRight, Plus, Clock, MapPin, Users, Video, Calendar as CalendarIcon, X } from 'lucide-react';
 import { API_URL } from '../config';
 
@@ -32,7 +31,6 @@ const MONTHS = [
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function Calendar() {
-  const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -322,25 +320,37 @@ export default function Calendar() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
+    <div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="bg-white rounded-xl shadow-sm">
+          {/* Calendar Header */}
+          <div className="flex items-center justify-between p-6 border-b">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => navigate('/creator/dashboard')}
+                onClick={() => navigateMonth('prev')}
                 className="p-2 text-gray-500 hover:text-gray-700 transition rounded-lg hover:bg-gray-100"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ChevronLeft className="w-5 h-5" />
               </button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Calendar</h1>
-                <p className="text-sm text-gray-500">Manage your meetings and deadlines</p>
-              </div>
+
+              <h2 className="text-xl font-semibold text-gray-900">
+                {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
+                {events.length > 0 && (
+                  <span className="ml-2 text-sm text-purple-600">
+                    ({events.length} events)
+                  </span>
+                )}
+              </h2>
+
+              <button
+                onClick={() => navigateMonth('next')}
+                className="p-2 text-gray-500 hover:text-gray-700 transition rounded-lg hover:bg-gray-100"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
             </div>
-            
-            <div className="flex items-center gap-4">
+
+            <div className="flex items-center gap-3">
               <div className="flex items-center bg-gray-100 rounded-lg p-1">
                 {(['month', 'week', 'day'] as const).map((viewType) => (
                   <button
@@ -356,7 +366,14 @@ export default function Calendar() {
                   </button>
                 ))}
               </div>
-              
+
+              <button
+                onClick={() => setCurrentDate(new Date())}
+                className="px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg transition"
+              >
+                Today
+              </button>
+
               <button
                 onClick={() => setShowEventModal(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
@@ -364,59 +381,6 @@ export default function Calendar() {
                 <Plus className="w-4 h-4" />
                 New Event
               </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="bg-white rounded-xl shadow-sm">
-          {/* Calendar Header */}
-          <div className="flex items-center justify-between p-6 border-b">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigateMonth('prev')}
-                className="p-2 text-gray-500 hover:text-gray-700 transition rounded-lg hover:bg-gray-100"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              
-              <h2 className="text-xl font-semibold text-gray-900">
-                {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
-                {events.length > 0 && (
-                  <span className="ml-2 text-sm text-purple-600">
-                    ({events.length} events)
-                  </span>
-                )}
-              </h2>
-              
-              <button
-                onClick={() => navigateMonth('next')}
-                className="p-2 text-gray-500 hover:text-gray-700 transition rounded-lg hover:bg-gray-100"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setCurrentDate(new Date())}
-                className="px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg transition"
-              >
-                Today
-              </button>
-              {currentDate.getMonth() !== 9 && ( // October is month 9 (0-indexed)
-                <button
-                  onClick={() => {
-                    const october2025 = new Date(2025, 9, 1);
-                    setCurrentDate(october2025);
-                  }}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center gap-2"
-                >
-                  <span>Go to October</span>
-                  <span className="bg-white/20 px-2 py-1 rounded text-xs">6 events</span>
-                </button>
-              )}
             </div>
           </div>
 
@@ -470,20 +434,19 @@ export default function Calendar() {
                       </div>
                       
                       {/* Event indicators */}
-                      <div className="space-y-1">
-                        {dayEvents.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {dayEvents.slice(0, 3).map((event, idx) => (
-                              <div
-                                key={event.id}
-                                className="w-2 h-2 rounded-full"
-                                style={{ backgroundColor: event.color || '#8b5cf6' }}
-                              />
-                            ))}
-                            {dayEvents.length > 3 && (
-                              <span className="text-xs text-gray-500">+{dayEvents.length - 3}</span>
-                            )}
+                      <div className="space-y-0.5 mt-1">
+                        {dayEvents.slice(0, 3).map((event, idx) => (
+                          <div
+                            key={idx}
+                            className="text-xs px-1.5 py-0.5 rounded truncate text-white leading-tight"
+                            style={{ backgroundColor: event.color || '#8b5cf6' }}
+                            title={event.title}
+                          >
+                            {event.title}
                           </div>
+                        ))}
+                        {dayEvents.length > 3 && (
+                          <span className="text-xs text-gray-500 pl-1">+{dayEvents.length - 3} more</span>
                         )}
                       </div>
                       

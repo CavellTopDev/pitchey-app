@@ -224,6 +224,12 @@ function PitchRouter() {
   }
 }
 
+function LegalLayoutWrapper() {
+  const { user } = useBetterAuthStore();
+  const userType = (user?.userType as 'creator' | 'investor' | 'production') || 'creator';
+  return <PortalLayout userType={userType} />;
+}
+
 function App() {
   const { isAuthenticated, user, loading, checkSession } = useBetterAuthStore();
   const [profileFetched, setProfileFetched] = useState(false);
@@ -558,15 +564,17 @@ function App() {
           <Route path="/team/members" element={isAuthenticated ? <TeamMembers /> : <Navigate to="/portals" />} />
           <Route path="/team/invite" element={isAuthenticated ? <TeamInvite /> : <Navigate to="/portals" />} />
           
-          {/* Legal Document Automation Routes - Available to all authenticated users */}
-          <Route path="/legal" element={isAuthenticated ? <LegalDocumentDashboard /> : <Navigate to="/portals" />} />
-          <Route path="/legal/dashboard" element={isAuthenticated ? <LegalDocumentDashboard /> : <Navigate to="/portals" />} />
-          <Route path="/legal/wizard" element={isAuthenticated ? <LegalDocumentWizard /> : <Navigate to="/portals" />} />
-          <Route path="/legal/library" element={isAuthenticated ? <LegalLibrary /> : <Navigate to="/portals" />} />
-          <Route path="/legal/compare" element={isAuthenticated ? <DocumentComparisonTool /> : <Navigate to="/portals" />} />
-          <Route path="/legal/templates" element={isAuthenticated ? <TemplateEditor /> : <Navigate to="/portals" />} />
-          <Route path="/legal/templates/new" element={isAuthenticated ? <TemplateEditor /> : <Navigate to="/portals" />} />
-          <Route path="/legal/templates/:id" element={isAuthenticated ? <TemplateEditor /> : <Navigate to="/portals" />} />
+          {/* Legal Document Automation Routes - Available to all authenticated users, wrapped in PortalLayout */}
+          <Route path="/legal" element={isAuthenticated ? <LegalLayoutWrapper /> : <Navigate to="/portals" />}>
+            <Route index element={<LegalDocumentDashboard />} />
+            <Route path="dashboard" element={<LegalDocumentDashboard />} />
+            <Route path="wizard" element={<LegalDocumentWizard />} />
+            <Route path="library" element={<LegalLibrary />} />
+            <Route path="compare" element={<DocumentComparisonTool />} />
+            <Route path="templates" element={<TemplateEditor />} />
+            <Route path="templates/new" element={<TemplateEditor />} />
+            <Route path="templates/:id" element={<TemplateEditor />} />
+          </Route>
           
                 {/* 404 - Must be last */}
                 <Route path="*" element={<NotFound />} />

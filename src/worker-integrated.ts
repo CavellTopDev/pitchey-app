@@ -14187,7 +14187,7 @@ Signatures: [To be completed upon signing]
 
         if (result.success) {
           return new Response(JSON.stringify(result), {
-            headers: getCorsHeaders(origin),
+            headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
             status: 200
           });
         }
@@ -14227,7 +14227,7 @@ Signatures: [To be completed upon signing]
             topPitches: []
           }
         }), {
-          headers: getCorsHeaders(origin),
+          headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
           status: 200
         });
       } catch (fallbackError) {
@@ -14254,7 +14254,7 @@ Signatures: [To be completed upon signing]
           topPitches: []
         }
       }), {
-        headers: getCorsHeaders(origin),
+        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
         status: 200
       });
     } catch (error) {

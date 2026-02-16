@@ -142,16 +142,13 @@ export class CreatorService {
     if (options?.endDate) params.append('endDate', options.endDate);
     if (options?.pitchId) params.append('pitchId', options.pitchId.toString());
 
-    const response = await apiClient.get<{
-      success: boolean;
-      analytics: CreatorAnalytics;
-    }>(`/api/creator/analytics?${params}`);
+    const response = await apiClient.get<CreatorAnalytics>(`/api/creator/analytics?${params}`);
 
     if (!response.success) {
       throw new Error(response.error?.message || 'Failed to fetch analytics');
     }
 
-    return response.data?.analytics || {
+    return response.data || {
       viewsOverTime: [],
       likesOverTime: [],
       topPitches: [],
