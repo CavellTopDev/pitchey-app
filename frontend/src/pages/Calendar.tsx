@@ -75,16 +75,29 @@ export default function Calendar() {
         
         // Handle the response structure - it's wrapped in data property
         const eventsArray = data.data?.events || data.events || [];
-        
-        // Filter out any null/undefined events
-        const validEvents = eventsArray.filter((event: any) => event && event.date);
 
-        // Map events to the correct format
-        const formattedEvents = validEvents.map((e: any) => ({
-          title: e.title,
-          date: e.date
-        }));
-        
+        // Map events preserving all fields; normalize date from multiple possible sources
+        const formattedEvents: CalendarEvent[] = eventsArray
+          .filter((e: any) => e != null)
+          .map((e: any) => {
+            const dateStr = e.date || (e.start_date ? new Date(e.start_date).toISOString().split('T')[0] : null)
+              || (e.start_time ? new Date(e.start_time).toISOString().split('T')[0] : null)
+              || (e.start ? new Date(e.start).toISOString().split('T')[0] : null);
+            return {
+              id: e.id,
+              title: e.title,
+              type: e.type || 'meeting',
+              date: dateStr,
+              start: e.start || e.start_time || e.start_date || undefined,
+              end: e.end || e.end_time || e.end_date || undefined,
+              description: e.description || undefined,
+              color: e.color || '#8b5cf6',
+              location: e.location || undefined,
+              attendees: e.attendees || undefined,
+            } as CalendarEvent;
+          })
+          .filter((e: CalendarEvent) => e.date != null);
+
         setEvents(formattedEvents);
       }
     } catch (error) {

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { TeamService, type TeamInvitation as TeamInvite_ } from '../../services/team.service';
 
 interface Invitation {
   id: string;
@@ -77,65 +78,33 @@ export default function TeamInvite() {
   const fetchInvitations = async () => {
     try {
       setLoading(true);
-      
-      // Mock data for development - replace with actual API calls
-      setTimeout(() => {
-        setInvitations([
-          {
-            id: '1',
-            email: 'new.member@company.com',
-            name: 'John Smith',
-            role: 'Video Editor',
-            department: 'Production',
-            invitedBy: 'Sarah Johnson',
-            invitedAt: '2024-01-10T10:30:00Z',
-            expiresAt: '2024-01-17T10:30:00Z',
-            status: 'pending',
-            lastReminderSent: '2024-01-12T14:00:00Z',
-            message: 'Welcome to our production team! Looking forward to working with you.',
-            permissions: ['manage_projects', 'creative_control']
-          },
-          {
-            id: '2',
-            email: 'jane.doe@company.com',
-            name: 'Jane Doe',
-            role: 'Sound Engineer',
-            department: 'Technical',
-            invitedBy: 'Michael Chen',
-            invitedAt: '2024-01-12T15:20:00Z',
-            expiresAt: '2024-01-19T15:20:00Z',
-            status: 'pending',
-            permissions: ['manage_audio', 'view_analytics']
-          },
-          {
-            id: '3',
-            email: 'alex.martinez@company.com',
-            name: 'Alex Martinez',
-            role: 'VFX Artist',
-            department: 'Technical',
-            invitedBy: 'Emma Rodriguez',
-            invitedAt: '2024-01-08T09:15:00Z',
-            expiresAt: '2024-01-15T09:15:00Z',
-            status: 'expired',
-            permissions: ['manage_vfx']
-          },
-          {
-            id: '4',
-            email: 'lisa.chen@company.com',
-            name: 'Lisa Chen',
-            role: 'Marketing Specialist',
-            department: 'Marketing',
-            invitedBy: 'Lisa Park',
-            invitedAt: '2024-01-14T11:45:00Z',
-            expiresAt: '2024-01-21T11:45:00Z',
-            status: 'accepted',
-            permissions: ['manage_campaigns']
-          }
-        ]);
-        setLoading(false);
-      }, 1000);
-    } catch (error) {
-      console.error('Failed to fetch invitations:', error);
+
+      // Fetch teams first, then get invitations
+      const [teams, apiInvites] = await Promise.all([
+        TeamService.getTeams().catch(() => []),
+        TeamService.getInvitations().catch(() => [])
+      ]);
+
+      // Map API invitations to local Invitation type
+      const mapped: Invitation[] = apiInvites.map((inv: TeamInvite_) => ({
+        id: inv.id,
+        email: inv.email,
+        name: inv.email.split('@')[0],
+        role: inv.role || 'member',
+        department: '',
+        invitedBy: inv.invitedByName || inv.invitedBy || '',
+        invitedAt: inv.createdAt,
+        expiresAt: inv.expiresAt,
+        status: inv.status === 'rejected' ? 'cancelled' : inv.status as Invitation['status'],
+        message: inv.message,
+        permissions: []
+      }));
+
+      setInvitations(mapped);
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to fetch invitations:', e.message);
+    } finally {
       setLoading(false);
     }
   };
@@ -162,62 +131,121 @@ export default function TeamInvite() {
     
     try {
       setSubmitting(true);
-      
-      // Mock API call - replace with actual implementation
-      setTimeout(() => {
-        const newInvitation: Invitation = {
-          id: Date.now().toString(),
-          ...form,
-          invitedBy: user?.name || 'Current User',
-          invitedAt: new Date().toISOString(),
-          expiresAt: new Date(Date.now() + form.expiryDays * 24 * 60 * 60 * 1000).toISOString(),
-          status: 'pending'
-        };
-        
-        setInvitations(prev => [newInvitation, ...prev]);
-        
-        // Reset form
-        setForm({
-          email: '',
-          name: '',
-          role: '',
-          department: '',
-          permissions: [],
-          message: '',
-          expiryDays: 7
-        });
-        
-        setErrors({});
-        setActiveTab('pending');
-        setSubmitting(false);
-        
-        // Show success message (you can implement a toast notification)
-      }, 1500);
-    } catch (error) {
-      console.error('Failed to send invitation:', error);
+
+      // Get the user's first team (or create one if needed)
+      let teams = await TeamService.getTeams().catch(() => []);
+      let teamId = teams[0]?.id;
+
+      if (!teamId) {
+        const newTeam = await TeamService.createTeam({ name: `${user?.name || 'My'}'s Team` });
+        teamId = newTeam.id;
+      }
+
+      // Send invitation via API
+      const apiInvite = await TeamService.inviteToTeam(teamId, {
+        email: form.email,
+        role: form.role || 'member',
+        message: form.message || undefined
+      });
+
+      // Map API response to local Invitation type
+      const newInvitation: Invitation = {
+        id: apiInvite.id,
+        email: form.email,
+        name: form.name,
+        role: form.role,
+        department: form.department,
+        invitedBy: user?.name || 'Current User',
+        invitedAt: apiInvite.createdAt || new Date().toISOString(),
+        expiresAt: apiInvite.expiresAt || new Date(Date.now() + form.expiryDays * 24 * 60 * 60 * 1000).toISOString(),
+        status: 'pending',
+        permissions: form.permissions,
+        message: form.message
+      };
+
+      setInvitations(prev => [newInvitation, ...prev]);
+
+      // Reset form
+      setForm({
+        email: '',
+        name: '',
+        role: '',
+        department: '',
+        permissions: [],
+        message: '',
+        expiryDays: 7
+      });
+
+      setErrors({});
+      setActiveTab('pending');
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to send invitation:', e.message);
+      setErrors({ email: e.message });
+    } finally {
       setSubmitting(false);
     }
   };
 
-  const handleBulkInvite = () => {
+  const handleBulkInvite = async () => {
     const emails = bulkEmails.split('\n').filter(email => email.trim());
-    // Process bulk invitations
-    setBulkEmails('');
-    setShowBulkInvite(false);
+    if (emails.length === 0) return;
+
+    try {
+      let teams = await TeamService.getTeams().catch(() => []);
+      let teamId = teams[0]?.id;
+
+      if (!teamId) {
+        const newTeam = await TeamService.createTeam({ name: `${user?.name || 'My'}'s Team` });
+        teamId = newTeam.id;
+      }
+
+      // Send invitations in parallel
+      const results = await Promise.allSettled(
+        emails.map(email => TeamService.inviteToTeam(teamId!, { email: email.trim(), role: 'member' }))
+      );
+
+      // Refresh the invitations list
+      await fetchInvitations();
+      setBulkEmails('');
+      setShowBulkInvite(false);
+      setActiveTab('pending');
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Bulk invite failed:', e.message);
+    }
   };
 
-  const handleResendInvitation = (inviteId: string) => {
-    // Implement resend logic
+  const handleResendInvitation = async (inviteId: string) => {
+    try {
+      await TeamService.resendInvitation(inviteId);
+      setInvitations(prev =>
+        prev.map(inv =>
+          inv.id === inviteId
+            ? { ...inv, lastReminderSent: new Date().toISOString() }
+            : inv
+        )
+      );
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to resend invitation:', e.message);
+    }
   };
 
-  const handleCancelInvitation = (inviteId: string) => {
-    setInvitations(prev => 
-      prev.map(inv => 
-        inv.id === inviteId 
-          ? { ...inv, status: 'cancelled' as const }
-          : inv
-      )
-    );
+  const handleCancelInvitation = async (inviteId: string) => {
+    try {
+      await TeamService.cancelInvitation(inviteId);
+      setInvitations(prev =>
+        prev.map(inv =>
+          inv.id === inviteId
+            ? { ...inv, status: 'cancelled' as const }
+            : inv
+        )
+      );
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to cancel invitation:', e.message);
+    }
   };
 
   const handleSelectInvitation = (inviteId: string) => {

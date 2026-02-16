@@ -7,7 +7,7 @@ import {
 import { NotificationBell } from './NotificationBell';
 import { useRealTimeNotifications } from '../hooks/useRealTimeNotifications';
 import { getDashboardRoute } from '../utils/navigation';
-import { BRAND } from '../constants/brand';
+
 
 interface LayoutProps {
   children?: React.ReactNode;
@@ -35,8 +35,7 @@ export default function Layout({ children }: LayoutProps) {
             <div className="flex justify-between h-16">
               <div className="flex">
                 {/* Logo */}
-                <Link to="/" className="flex-shrink-0 flex items-center gap-2" data-testid="logo-link">
-                  <img src={BRAND.logo} alt={BRAND.logoAlt} className="h-8 w-auto" />
+                <Link to="/" className="flex-shrink-0 flex items-center" data-testid="logo-link">
                   <span className="text-2xl font-bold text-purple-600">Pitchey</span>
                 </Link>
 

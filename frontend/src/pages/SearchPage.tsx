@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import DashboardHeader from '../components/DashboardHeader';
 import { useBetterAuthStore } from '../store/betterAuthStore';
+import { apiClient } from '../lib/api-client';
 
 interface SearchResult {
   id: string;
@@ -71,75 +72,75 @@ export default function SearchPage() {
     }
   }, [searchQuery, selectedType, selectedGenre, selectedBudget, selectedTimeframe, sortBy]);
 
-  const performSearch = () => {
+  const performSearch = async () => {
     if (!isOnline) {
       setResults([]);
       setLoading(false);
       return;
     }
     setLoading(true);
-    // Simulate search
-    setTimeout(() => {
-      setResults([
-        {
-          id: '1',
-          type: 'pitch',
-          title: 'Quantum Dreams',
-          subtitle: 'Science Fiction Epic',
-          description: 'A scientist discovers how to enter people\'s dreams and must navigate the subconscious to save humanity from a digital plague.',
-          genre: 'Sci-Fi',
-          budget: 5000000,
-          rating: 4.8,
-          date: '2024-12-01',
-          tags: ['Sci-Fi', 'Thriller', 'Mind-bending'],
-          stats: { views: 1523, likes: 342 }
-        },
-        {
-          id: '2',
-          type: 'creator',
-          title: 'Sarah Mitchell',
-          subtitle: 'Award-winning Screenwriter',
-          description: 'Specializing in psychological thrillers and sci-fi narratives. 15+ years of experience with major studios.',
-          date: '2023-06-15',
-          tags: ['Screenwriter', 'Director', 'Producer'],
-          stats: { projects: 24, followers: 1892 }
-        },
-        {
-          id: '3',
-          type: 'company',
-          title: 'Stellar Productions',
-          subtitle: 'Independent Film Studio',
-          description: 'Boutique production company focusing on innovative storytelling and emerging talent.',
-          date: '2022-01-10',
-          tags: ['Production', 'Distribution', 'Finance'],
-          stats: { projects: 45, followers: 5234 }
-        },
-        {
-          id: '4',
-          type: 'pitch',
-          title: 'The Last Echo',
-          subtitle: 'Mystery Thriller',
-          description: 'A sound engineer discovers that certain frequencies can access memories from the past.',
-          genre: 'Thriller',
-          budget: 3200000,
-          rating: 4.6,
-          date: '2024-11-28',
-          tags: ['Mystery', 'Thriller', 'Supernatural'],
-          stats: { views: 987, likes: 234 }
-        },
-        {
-          id: '5',
-          type: 'creator',
-          title: 'Marcus Chen',
-          subtitle: 'Director & Cinematographer',
-          description: 'Visual storyteller with a unique perspective on modern cinema. Known for atmospheric thrillers.',
-          date: '2023-09-20',
-          tags: ['Director', 'Cinematographer', 'Editor'],
-          stats: { projects: 18, followers: 3421 }
+    try {
+      const params = new URLSearchParams();
+      params.append('q', searchQuery);
+      if (selectedType !== 'all') params.append('type', selectedType);
+      if (selectedGenre !== 'All Genres') params.append('genre', selectedGenre);
+      if (selectedBudget !== 'Any Budget') params.append('budget', selectedBudget);
+      if (selectedTimeframe !== 'All Time') params.append('timeframe', selectedTimeframe);
+      if (sortBy) params.append('sort', sortBy);
+
+      const response = await apiClient.get<{
+        pitches?: Array<{ id: number; title: string; logline?: string; genre?: string; budget?: string; created_at?: string; view_count?: number; like_count?: number }>;
+        users?: Array<{ id: number; name?: string; username?: string; user_type?: string; bio?: string; created_at?: string }>;
+        companies?: Array<{ id: number; name?: string; company_name?: string; description?: string; created_at?: string }>;
+      }>(`/api/search?${params}`);
+
+      const mapped: SearchResult[] = [];
+
+      if (response.success && response.data) {
+        const data = response.data as any;
+        for (const p of (data.pitches || [])) {
+          mapped.push({
+            id: String(p.id),
+            type: 'pitch',
+            title: p.title || 'Untitled',
+            subtitle: p.genre || '',
+            description: p.logline || '',
+            genre: p.genre || '',
+            budget: typeof p.budget === 'string' ? parseInt(p.budget.replace(/[^\d]/g, '')) || 0 : (p.budget || 0),
+            date: p.created_at || '',
+            tags: p.genre ? [p.genre] : [],
+            stats: { views: p.view_count || 0, likes: p.like_count || 0 }
+          });
         }
-      ]);
+        for (const u of (data.users || [])) {
+          mapped.push({
+            id: String(u.id),
+            type: 'creator',
+            title: u.name || u.username || 'Unknown',
+            subtitle: u.user_type || '',
+            description: u.bio || '',
+            date: u.created_at || '',
+            tags: u.user_type ? [u.user_type] : []
+          });
+        }
+        for (const c of (data.companies || [])) {
+          mapped.push({
+            id: String(c.id),
+            type: 'company',
+            title: c.name || c.company_name || 'Unknown',
+            description: c.description || '',
+            date: c.created_at || '',
+            tags: ['Production']
+          });
+        }
+      }
+      setResults(mapped);
+    } catch (err) {
+      console.error('Search failed:', err);
+      setResults([]);
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   const handleSearch = (e: React.FormEvent) => {

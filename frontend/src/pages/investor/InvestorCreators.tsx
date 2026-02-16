@@ -7,6 +7,7 @@ import {
   Video, Edit3, Camera, Zap, Target
 } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { investorApi } from '@/services/investor.service';
 
 interface Creator {
   id: string;
@@ -65,232 +66,52 @@ export default function InvestorCreators() {
 
   const loadCreators = async () => {
     try {
-      // Simulated creators data
-      setTimeout(() => {
-        setCreators([
-          {
-            id: '1',
-            name: 'Alex Thompson',
-            role: 'writer-director',
-            location: 'Los Angeles, CA',
-            experience: 'established',
-            followStatus: 'following',
-            bio: 'Award-winning filmmaker with a passion for character-driven sci-fi narratives',
-            stats: {
-              totalPitches: 12,
-              activePitches: 3,
-              fundedProjects: 5,
-              successRate: 78,
-              totalRaised: 8500000,
-              viewCount: 45000,
-              followerCount: 2340
-            },
-            genres: ['Sci-Fi', 'Drama', 'Thriller'],
-            skills: ['Directing', 'Screenwriting', 'Cinematography'],
-            currentProjects: [
-              {
-                id: 'p1',
-                title: 'The Quantum Paradox',
-                stage: 'development',
-                genre: 'Sci-Fi Thriller',
-                seekingAmount: 2500000,
-                percentageFunded: 65
-              },
-              {
-                id: 'p2',
-                title: 'Echo Chamber',
-                stage: 'pitch',
-                genre: 'Psychological Thriller',
-                seekingAmount: 1200000,
-                percentageFunded: 30
-              }
-            ],
-            achievements: [
-              {
-                title: 'Best Director - Sundance',
-                type: 'award',
-                year: 2023
-              },
-              {
-                title: 'Cannes Film Festival Selection',
-                type: 'festival',
-                year: 2022
-              }
-            ],
-            lastActive: '2 hours ago',
-            verified: true
+      const response = await investorApi.getCreators();
+      if (response.success && response.data) {
+        const data = response.data as any;
+        const items: any[] = data.creators || [];
+        const mapped: Creator[] = items.map((c: any) => ({
+          id: String(c.id || ''),
+          name: c.name || c.username || 'Unknown',
+          avatar: c.avatar_url || c.avatar,
+          role: (c.role || c.creator_role || 'multi-role') as Creator['role'],
+          location: c.location || '',
+          experience: (c.experience || 'emerging') as Creator['experience'],
+          followStatus: (c.follow_status || c.followStatus || 'not-following') as 'following' | 'not-following',
+          bio: c.bio || '',
+          stats: {
+            totalPitches: c.total_pitches || c.totalPitches || 0,
+            activePitches: c.active_pitches || c.activePitches || 0,
+            fundedProjects: c.funded_projects || c.fundedProjects || 0,
+            successRate: c.success_rate || c.successRate || 0,
+            totalRaised: c.total_raised || c.totalRaised || 0,
+            viewCount: c.view_count || c.viewCount || 0,
+            followerCount: c.follower_count || c.followerCount || 0
           },
-          {
-            id: '2',
-            name: 'Sarah Mitchell',
-            role: 'producer',
-            location: 'New York, NY',
-            experience: 'veteran',
-            followStatus: 'following',
-            bio: 'Emmy-nominated producer specializing in prestige drama and limited series',
-            stats: {
-              totalPitches: 18,
-              activePitches: 2,
-              fundedProjects: 11,
-              successRate: 85,
-              totalRaised: 25000000,
-              viewCount: 62000,
-              followerCount: 4580
-            },
-            genres: ['Drama', 'Historical', 'Biography'],
-            skills: ['Production Management', 'Budget Planning', 'Talent Relations'],
-            currentProjects: [
-              {
-                id: 'p3',
-                title: 'The Last Monarch',
-                stage: 'pre-production',
-                genre: 'Historical Drama',
-                seekingAmount: 5000000,
-                percentageFunded: 80
-              }
-            ],
-            achievements: [
-              {
-                title: 'Emmy Nomination - Best Limited Series',
-                type: 'award',
-                year: 2024
-              },
-              {
-                title: '10+ Funded Projects',
-                type: 'milestone',
-                year: 2023
-              }
-            ],
-            lastActive: '1 day ago',
-            verified: true
-          },
-          {
-            id: '3',
-            name: 'Marcus Chen',
-            role: 'director',
-            location: 'Austin, TX',
-            experience: 'emerging',
-            followStatus: 'not-following',
-            bio: 'Visionary director bringing fresh perspectives to genre filmmaking',
-            stats: {
-              totalPitches: 4,
-              activePitches: 2,
-              fundedProjects: 1,
-              successRate: 60,
-              totalRaised: 850000,
-              viewCount: 12000,
-              followerCount: 890
-            },
-            genres: ['Horror', 'Thriller', 'Mystery'],
-            skills: ['Directing', 'Visual Effects', 'Storyboarding'],
-            currentProjects: [
-              {
-                id: 'p4',
-                title: 'Midnight Protocol',
-                stage: 'pitch',
-                genre: 'Tech Horror',
-                seekingAmount: 750000,
-                percentageFunded: 20
-              }
-            ],
-            achievements: [
-              {
-                title: 'SXSW Audience Choice',
-                type: 'festival',
-                year: 2024
-              }
-            ],
-            lastActive: '3 hours ago',
-            verified: false
-          },
-          {
-            id: '4',
-            name: 'Emma Rodriguez',
-            role: 'writer',
-            location: 'Miami, FL',
-            experience: 'established',
-            followStatus: 'not-following',
-            bio: 'Screenwriter crafting compelling narratives with social impact',
-            stats: {
-              totalPitches: 8,
-              activePitches: 1,
-              fundedProjects: 3,
-              successRate: 72,
-              totalRaised: 3200000,
-              viewCount: 28000,
-              followerCount: 1560
-            },
-            genres: ['Drama', 'Comedy-Drama', 'Social Issue'],
-            skills: ['Screenwriting', 'Story Development', 'Script Doctoring'],
-            currentProjects: [
-              {
-                id: 'p5',
-                title: 'Divided Waters',
-                stage: 'development',
-                genre: 'Environmental Drama',
-                seekingAmount: 1800000,
-                percentageFunded: 45
-              }
-            ],
-            achievements: [
-              {
-                title: 'WGA Award Nominee',
-                type: 'award',
-                year: 2023
-              },
-              {
-                title: 'BlackList Top 10 Script',
-                type: 'milestone',
-                year: 2022
-              }
-            ],
-            lastActive: '5 hours ago',
-            verified: true
-          },
-          {
-            id: '5',
-            name: 'David Park',
-            role: 'multi-role',
-            location: 'Seattle, WA',
-            experience: 'emerging',
-            followStatus: 'following',
-            bio: 'Multi-hyphenate creator pushing boundaries in independent cinema',
-            stats: {
-              totalPitches: 6,
-              activePitches: 3,
-              fundedProjects: 2,
-              successRate: 65,
-              totalRaised: 1500000,
-              viewCount: 18000,
-              followerCount: 1120
-            },
-            genres: ['Indie', 'Experimental', 'Documentary'],
-            skills: ['Directing', 'Writing', 'Editing', 'Producing'],
-            currentProjects: [
-              {
-                id: 'p6',
-                title: 'Urban Legends',
-                stage: 'production',
-                genre: 'Documentary',
-                seekingAmount: 450000,
-                percentageFunded: 90
-              }
-            ],
-            achievements: [
-              {
-                title: 'Tribeca Film Festival - Best New Director',
-                type: 'festival',
-                year: 2024
-              }
-            ],
-            lastActive: '12 hours ago',
-            verified: false
-          }
-        ]);
-        setLoading(false);
-      }, 1000);
-    } catch (error) {
+          genres: c.genres || [],
+          skills: c.skills || [],
+          currentProjects: (c.current_projects || c.currentProjects || []).map((p: any) => ({
+            id: String(p.id || ''),
+            title: p.title || '',
+            stage: (p.stage || 'pitch') as 'pitch' | 'development' | 'pre-production' | 'production',
+            genre: p.genre || '',
+            seekingAmount: p.seeking_amount || p.seekingAmount || 0,
+            percentageFunded: p.percentage_funded || p.percentageFunded || 0
+          })),
+          achievements: (c.achievements || []).map((a: any) => ({
+            title: a.title || '',
+            type: (a.type || 'milestone') as 'award' | 'festival' | 'milestone',
+            year: a.year || 0
+          })),
+          lastActive: c.last_active || c.lastActive || '',
+          verified: c.verified || false
+        }));
+        setCreators(mapped);
+      }
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
       console.error('Failed to load creators:', error);
+    } finally {
       setLoading(false);
     }
   };

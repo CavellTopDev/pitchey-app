@@ -13,6 +13,7 @@ import {
   XAxis, YAxis, CartesianGrid, ResponsiveContainer
 } from 'recharts';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { investorApi } from '@/services/investor.service';
 
 interface PerformanceMetrics {
   totalReturn: number;
@@ -46,31 +47,40 @@ export default function InvestorPerformance() {
   const loadPerformanceData = async () => {
     try {
       setLoading(true);
-      // Simulate API call
-      setTimeout(() => {
-        setMetrics({
-          totalReturn: 28.5,
-          annualizedReturn: 24.3,
-          volatility: 18.2,
-          sharpeRatio: 1.34,
-          maxDrawdown: -12.5,
-          hitRate: 75,
-          averageHoldingPeriod: 3.2,
-          activeInvestments: 12
-        });
+      const [perfResponse, roiResponse, categoryResponse] = await Promise.all([
+        investorApi.getPerformance(timeRange),
+        investorApi.getROISummary(timeRange),
+        investorApi.getROIByCategory(timeRange)
+      ]);
 
-        setAllocations([
-          { genre: 'Sci-Fi/Fantasy', allocation: 35, performance: 32.1, count: 4 },
-          { genre: 'Drama', allocation: 28, performance: 18.5, count: 3 },
-          { genre: 'Horror/Thriller', allocation: 20, performance: 41.2, count: 3 },
-          { genre: 'Comedy', allocation: 12, performance: 15.8, count: 2 },
-          { genre: 'Documentary', allocation: 5, performance: 8.3, count: 1 }
-        ]);
+      // Map performance data
+      const perfData = perfResponse.success ? (perfResponse.data as any) : {};
+      setMetrics({
+        totalReturn: perfData.totalReturn ?? perfData.total_return ?? 0,
+        annualizedReturn: perfData.annualizedReturn ?? perfData.annualized_return ?? 0,
+        volatility: perfData.volatility ?? 0,
+        sharpeRatio: perfData.sharpeRatio ?? perfData.sharpe_ratio ?? 0,
+        maxDrawdown: perfData.maxDrawdown ?? perfData.max_drawdown ?? 0,
+        hitRate: perfData.hitRate ?? perfData.hit_rate ?? (roiResponse.data as any)?.summary?.profitable_count ?? 0,
+        averageHoldingPeriod: perfData.averageHoldingPeriod ?? perfData.avg_holding_period ?? 0,
+        activeInvestments: perfData.activeInvestments ?? perfData.active_investments ?? 0
+      });
 
-        setLoading(false);
-      }, 1000);
-    } catch (error) {
+      // Map category allocations
+      const categories: any[] = (categoryResponse.data as any)?.categories || [];
+      if (categories.length > 0) {
+        const totalCount = categories.reduce((sum: number, c: any) => sum + (c.count || 0), 0);
+        setAllocations(categories.map((c: any) => ({
+          genre: c.category || '',
+          allocation: totalCount > 0 ? Math.round((c.count / totalCount) * 100) : 0,
+          performance: c.avg_roi || 0,
+          count: c.count || 0
+        })));
+      }
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
       console.error('Failed to load performance data:', error);
+    } finally {
       setLoading(false);
     }
   };

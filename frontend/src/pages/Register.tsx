@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import { UserPlus, Mail, Lock, User, Briefcase, AlertCircle, CheckCircle } from 'lucide-react';
-import { BRAND } from '../constants/brand';
+
 
 export default function Register() {
   const navigate = useNavigate();
@@ -47,9 +47,8 @@ export default function Register() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <Link to="/" className="flex flex-col items-center gap-3">
-          <img src={BRAND.logo} alt={BRAND.logoAlt} className="h-12 w-auto" />
-          <h1 className="text-4xl font-bold text-primary-600">Pitchey</h1>
+        <Link to="/" className="flex flex-col items-center">
+          <span className="text-4xl font-bold text-purple-600">Pitchey</span>
         </Link>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
           Create your account

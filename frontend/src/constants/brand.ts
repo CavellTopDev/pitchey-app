@@ -1,7 +1,5 @@
 export const BRAND = {
   name: 'Pitchey',
-  logo: '/pitcheylogo.png',
+  logo: '/pitcheylogo.png',  // kept for browser notification icons
   logoAlt: 'Pitchey logo',
-  logoWidth: 768,
-  logoHeight: 237,
 } as const;

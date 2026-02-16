@@ -2717,6 +2717,14 @@ class RouteRegistry {
       const { creatorCalendarHandler } = await import('./handlers/creator-sidebar');
       return creatorCalendarHandler(req, this.env);
     });
+    this.register('GET', '/api/creator/calendar/events', async (req) => {
+      const { creatorCalendarHandler } = await import('./handlers/creator-sidebar');
+      return creatorCalendarHandler(req, this.env);
+    });
+    this.register('POST', '/api/calendar', async (req) => {
+      const { createCalendarEvent } = await import('./handlers/calendar-events');
+      return createCalendarEvent(req, this.env);
+    });
 
     // Additional Creator endpoints
     this.register('GET', '/api/creator/earnings', async (req) => {

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Bell, ChevronDown, CircleUser, Coins, Menu, X, LogOut, Home, Store } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { paymentsAPI } from '../../lib/apiServices';
-import { BRAND } from '../../constants/brand';
+
 
 interface MinimalHeaderProps {
   onMenuToggle?: () => void;
@@ -56,9 +56,8 @@ export function MinimalHeader({ onMenuToggle, isSidebarOpen = true, userType }: 
         </button>
 
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2">
-          <img src={BRAND.logo} alt={BRAND.logoAlt} className="h-8 w-auto" />
-          <span className={`text-xl sm:text-2xl font-bold text-${color}-600`}>Pitchey</span>
+        <Link to="/" className="flex items-center">
+          <span className="text-xl sm:text-2xl font-bold text-purple-600">Pitchey</span>
         </Link>
 
         {/* Divider */}

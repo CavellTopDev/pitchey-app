@@ -86,13 +86,24 @@ export default function NDAWizard({
   const [ndaData, setNDAData] = useState<NDA | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
-  const [requestMessage, setRequestMessage] = useState('');
+  const [requestMessage, setRequestMessage] = useState(
+    `Hi, I'd like to request access to the full details of "${pitchTitle}". I understand this requires signing an NDA and I'm prepared to do so.`
+  );
   const [signature, setSignature] = useState({
     fullName: '',
     title: '',
     company: '',
     acceptTerms: false
   });
+
+  // Reset template when wizard opens (keeps pitchTitle current across re-opens)
+  useEffect(() => {
+    if (isOpen) {
+      setRequestMessage(
+        `Hi, I'd like to request access to the full details of "${pitchTitle}". I understand this requires signing an NDA and I'm prepared to do so.`
+      );
+    }
+  }, [isOpen, pitchTitle]);
 
   // Check existing NDA status when wizard opens
   useEffect(() => {
@@ -518,7 +529,7 @@ export default function NDAWizard({
                           rows={4}
                         />
                         <p className="text-xs text-gray-500 mt-1">
-                          Optional: Explain why you're interested in this project
+                          Edit this message or send as-is
                         </p>
                       </div>
 

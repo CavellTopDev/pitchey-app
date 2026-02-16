@@ -7,6 +7,7 @@ import {
   ChevronRight, Plus, Check, X
 } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { investorApi } from '@/services/investor.service';
 
 interface NetworkMember {
   id: string;
@@ -49,106 +50,38 @@ export default function InvestorNetwork() {
 
   const loadNetworkData = async () => {
     try {
-      // Simulated network data
-      setTimeout(() => {
-        setNetworkMembers([
-          {
-            id: '1',
-            name: 'Michael Roberts',
-            type: 'investor',
-            title: 'Senior Investment Partner',
-            company: 'Venture Films Capital',
-            location: 'Los Angeles, CA',
-            connectionStatus: 'connected',
-            bio: 'Focused on emerging filmmakers and innovative storytelling',
-            stats: {
-              investments: 45,
-              portfolio: 28,
-              successRate: 72
-            },
-            interests: ['Sci-Fi', 'Drama', 'Documentary'],
-            mutualConnections: 12,
-            joinedDate: '2022-03-15',
-            lastActive: '2 hours ago'
+      const response = await investorApi.getNetwork();
+      if (response.success && response.data) {
+        const data = response.data as any;
+        const connections: any[] = data.connections || data.network || [];
+        const mapped: NetworkMember[] = connections.map((c: any) => ({
+          id: String(c.id || ''),
+          name: c.name || c.username || 'Unknown',
+          type: (c.user_type || c.type || 'investor') as 'investor' | 'creator' | 'production',
+          avatar: c.avatar_url || c.avatar,
+          title: c.title || c.role || '',
+          company: c.company_name || c.company,
+          location: c.location || '',
+          connectionStatus: (c.connection_status || c.status || 'suggested') as 'connected' | 'pending' | 'suggested',
+          bio: c.bio || '',
+          stats: {
+            investments: c.investments_count || c.investments || 0,
+            portfolio: c.portfolio_count || c.portfolio || 0,
+            productions: c.productions_count || c.productions || 0,
+            pitches: c.pitches_count || c.pitches || 0,
+            successRate: c.success_rate || c.successRate || 0
           },
-          {
-            id: '2',
-            name: 'Sarah Chen',
-            type: 'creator',
-            title: 'Writer/Director',
-            location: 'New York, NY',
-            connectionStatus: 'connected',
-            bio: 'Award-winning filmmaker specializing in character-driven narratives',
-            stats: {
-              pitches: 8,
-              productions: 3,
-              successRate: 60
-            },
-            interests: ['Thriller', 'Mystery', 'Indie'],
-            mutualConnections: 5,
-            joinedDate: '2023-01-20',
-            lastActive: '1 day ago'
-          },
-          {
-            id: '3',
-            name: 'Global Studios Inc.',
-            type: 'production',
-            title: 'Production Company',
-            location: 'Atlanta, GA',
-            connectionStatus: 'pending',
-            bio: 'Full-service production company with international distribution',
-            stats: {
-              productions: 150,
-              successRate: 85
-            },
-            interests: ['Action', 'Adventure', 'Franchise'],
-            mutualConnections: 8,
-            joinedDate: '2021-11-05',
-            lastActive: '3 days ago'
-          },
-          {
-            id: '4',
-            name: 'David Martinez',
-            type: 'investor',
-            title: 'Angel Investor',
-            company: 'Martinez Holdings',
-            location: 'Miami, FL',
-            connectionStatus: 'suggested',
-            bio: 'Passionate about supporting diverse voices in cinema',
-            stats: {
-              investments: 23,
-              portfolio: 15,
-              successRate: 68
-            },
-            interests: ['Drama', 'Comedy', 'International'],
-            mutualConnections: 3,
-            joinedDate: '2023-06-10',
-            lastActive: '5 hours ago'
-          },
-          {
-            id: '5',
-            name: 'Emma Thompson',
-            type: 'creator',
-            title: 'Producer',
-            company: 'Thompson Productions',
-            location: 'London, UK',
-            connectionStatus: 'connected',
-            bio: 'BAFTA-nominated producer with focus on British cinema',
-            stats: {
-              pitches: 12,
-              productions: 7,
-              successRate: 75
-            },
-            interests: ['Period Drama', 'Biography', 'Documentary'],
-            mutualConnections: 18,
-            joinedDate: '2022-09-01',
-            lastActive: '12 hours ago'
-          }
-        ]);
-        setLoading(false);
-      }, 1000);
-    } catch (error) {
+          interests: c.interests || c.genres || [],
+          mutualConnections: c.mutual_connections || 0,
+          joinedDate: c.joined_date || c.created_at || '',
+          lastActive: c.last_active || ''
+        }));
+        setNetworkMembers(mapped);
+      }
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
       console.error('Failed to load network data:', error);
+    } finally {
       setLoading(false);
     }
   };

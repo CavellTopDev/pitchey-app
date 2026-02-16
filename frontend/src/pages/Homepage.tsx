@@ -6,7 +6,7 @@ import { pitchService } from '../services/pitch.service';
 import type { Pitch } from '../services/pitch.service';
 import { getGenresSync, getFormatsSync } from '../constants/pitchConstants';
 import FormatDisplay from '../components/FormatDisplay';
-import { BRAND } from '../constants/brand';
+
 
 
 export default function Homepage() {
@@ -76,8 +76,7 @@ export default function Homepage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-8">
-              <a href="/" className="flex items-center gap-2">
-                <img src={BRAND.logo} alt={BRAND.logoAlt} className="h-8 w-auto" />
+              <a href="/" className="flex items-center">
                 <span className="text-2xl font-bold text-purple-600">Pitchey</span>
               </a>
               <nav className="hidden md:flex items-center gap-6">
@@ -491,9 +490,8 @@ export default function Homepage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <img src={BRAND.logo} alt={BRAND.logoAlt} className="h-6 w-auto" width={BRAND.logoWidth} height={BRAND.logoHeight} />
-                <span className="text-xl font-bold text-gray-900">Pitchey</span>
+              <div className="flex items-center mb-4">
+                <span className="text-xl font-bold text-purple-600">Pitchey</span>
               </div>
               <p className="text-metadata">
                 Connecting stories with opportunities since 2025.

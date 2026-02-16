@@ -1,31 +1,104 @@
-import React, { useState } from 'react';
-import { 
-  BarChart3, Activity, TrendingUp, Film, Target
+import React, { useState, useEffect } from 'react';
+import {
+  BarChart3, Activity, TrendingUp, Film, Target, AlertCircle, RefreshCw
 } from 'lucide-react';
 import { CreatorAnalytics } from '../components/Analytics/CreatorAnalytics';
 import CreatorActivity from './creator/CreatorActivity';
 import CreatorStats from './creator/CreatorStats';
+import { CreatorService, type CreatorAnalytics as CreatorAnalyticsData } from '../services/creator.service';
+import { AnalyticsService, type DashboardMetrics } from '../services/analytics.service';
 
 export default function CreatorAnalyticsPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'stats'>('overview');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [pitchPerformance, setPitchPerformance] = useState({
+    totalViews: 0,
+    viewsChange: 0,
+    totalLikes: 0,
+    likesChange: 0,
+    totalShares: 0,
+    sharesChange: 0,
+    potentialInvestment: 0,
+    investmentChange: 0
+  });
+  const [topPitches, setTopPitches] = useState<{ id: number; title: string; views: number; likes: number }[]>([]);
+  const [audienceBreakdown, setAudienceBreakdown] = useState<{ userType: string; count: number; percentage: number }[]>([]);
 
-  // Mock data for analytics
-  const pitchPerformance = {
-    totalViews: 12543,
-    viewsChange: 12.5,
-    totalLikes: 892,
-    likesChange: 8.3,
-    totalShares: 234,
-    sharesChange: -2.1,
-    potentialInvestment: 850000,
-    investmentChange: 15.7
+  const loadAnalytics = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const [dashboardMetrics, creatorAnalytics] = await Promise.all([
+        AnalyticsService.getDashboardMetrics().catch(() => null),
+        CreatorService.getAnalytics().catch(() => null)
+      ]);
+
+      // Map dashboard metrics to pitchPerformance format
+      if (dashboardMetrics) {
+        setPitchPerformance({
+          totalViews: dashboardMetrics.overview.totalViews,
+          viewsChange: dashboardMetrics.overview.viewsChange,
+          totalLikes: dashboardMetrics.overview.totalLikes,
+          likesChange: dashboardMetrics.overview.likesChange,
+          totalShares: 0,
+          sharesChange: 0,
+          potentialInvestment: dashboardMetrics.revenue?.total || 0,
+          investmentChange: dashboardMetrics.revenue?.growth || 0
+        });
+      }
+
+      // Map creator analytics to top pitches & audience breakdown
+      if (creatorAnalytics) {
+        setTopPitches(creatorAnalytics.topPitches || []);
+        setAudienceBreakdown(creatorAnalytics.audienceBreakdown || []);
+      }
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to load analytics:', e.message);
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    loadAnalytics();
+  }, []);
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'activity', label: 'Activity', icon: Activity },
     { id: 'stats', label: 'Quick Stats', icon: TrendingUp }
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-2xl mx-auto mt-12">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-red-800 mb-2">Failed to load analytics</h3>
+          <p className="text-red-600 mb-4">{error}</p>
+          <button
+            onClick={() => void loadAnalytics()}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-red-300 rounded-md text-sm text-red-700 hover:bg-red-100"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -68,7 +141,7 @@ export default function CreatorAnalyticsPage() {
             <div className="space-y-6">
               {/* Main Analytics Component */}
               <CreatorAnalytics pitchPerformance={pitchPerformance} />
-              
+
               {/* Additional Overview Sections */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Top Performing Pitches */}
@@ -78,23 +151,24 @@ export default function CreatorAnalyticsPage() {
                     Top Performing Pitches
                   </h3>
                   <div className="space-y-3">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    {topPitches.length > 0 ? topPitches.slice(0, 3).map((pitch, i) => (
+                      <div key={pitch.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                            <span className="text-sm font-bold text-purple-600">#{i}</span>
+                            <span className="text-sm font-bold text-purple-600">#{i + 1}</span>
                           </div>
                           <div>
-                            <p className="font-medium">Pitch Title {i}</p>
-                            <p className="text-sm text-gray-500">{1000 * i} views</p>
+                            <p className="font-medium">{pitch.title}</p>
+                            <p className="text-sm text-gray-500">{pitch.views.toLocaleString()} views</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold text-green-600">+{15 * i}%</p>
-                          <p className="text-xs text-gray-500">vs last week</p>
+                          <p className="font-semibold text-purple-600">{pitch.likes} likes</p>
                         </div>
                       </div>
-                    ))}
+                    )) : (
+                      <p className="text-gray-500 text-sm text-center py-4">No pitch data available yet</p>
+                    )}
                   </div>
                 </div>
 
@@ -105,33 +179,25 @@ export default function CreatorAnalyticsPage() {
                     Audience Insights
                   </h3>
                   <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-sm text-gray-600">Investors</span>
-                        <span className="text-sm font-semibold">45%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-purple-600 h-2 rounded-full" style={{ width: '45%' }}></div>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-sm text-gray-600">Production Companies</span>
-                        <span className="text-sm font-semibold">35%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-indigo-600 h-2 rounded-full" style={{ width: '35%' }}></div>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-sm text-gray-600">Other Creators</span>
-                        <span className="text-sm font-semibold">20%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-blue-600 h-2 rounded-full" style={{ width: '20%' }}></div>
-                      </div>
-                    </div>
+                    {audienceBreakdown.length > 0 ? audienceBreakdown.map((segment) => {
+                      const colors: Record<string, string> = {
+                        investor: 'bg-purple-600',
+                        production: 'bg-indigo-600',
+                      };
+                      return (
+                        <div key={segment.userType}>
+                          <div className="flex justify-between mb-2">
+                            <span className="text-sm text-gray-600 capitalize">{segment.userType}s</span>
+                            <span className="text-sm font-semibold">{segment.percentage}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div className={`${colors[segment.userType] || 'bg-blue-600'} h-2 rounded-full`} style={{ width: `${segment.percentage}%` }}></div>
+                          </div>
+                        </div>
+                      );
+                    }) : (
+                      <p className="text-gray-500 text-sm text-center py-4">No audience data available yet</p>
+                    )}
                   </div>
                 </div>
               </div>

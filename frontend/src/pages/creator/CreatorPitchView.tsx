@@ -441,7 +441,11 @@ const CreatorPitchView: React.FC = () => {
             {activeTab === 'feedback' && isOwner && (
               <div className="bg-white rounded-xl shadow-lg p-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">Feedback & Comments</h2>
-                <p className="text-gray-500">Coming soon...</p>
+                <div className="text-center py-8">
+                  <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500 font-medium">No feedback yet</p>
+                  <p className="text-sm text-gray-400 mt-1">Investors who sign your NDA can leave feedback on your pitch.</p>
+                </div>
               </div>
             )}
           </div>

@@ -6,6 +6,7 @@ import {
   Briefcase, Clock, CheckCircle, AlertCircle
 } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { investorApi } from '@/services/investor.service';
 
 interface ProductionCompany {
   id: string;
@@ -64,189 +65,53 @@ export default function InvestorProductionCompanies() {
 
   const loadProductionCompanies = async () => {
     try {
-      // Simulated production companies data
-      setTimeout(() => {
-        setCompanies([
-          {
-            id: '1',
-            name: 'Stellar Productions',
-            type: 'major',
-            location: 'Los Angeles, CA',
-            founded: '1998',
-            connectionStatus: 'partner',
-            description: 'Award-winning production company specializing in blockbuster films and premium series',
-            stats: {
-              totalProductions: 127,
-              activeProjects: 8,
-              avgBudget: 45000000,
-              successRate: 82,
-              awardsWon: 43,
-              distributionReach: 'Global'
-            },
-            genres: ['Action', 'Sci-Fi', 'Drama', 'Thriller'],
-            currentProjects: [
-              {
-                id: 'p1',
-                title: 'Quantum Realm',
-                status: 'production',
-                budget: 75000000,
-                investmentNeeded: 15000000
-              },
-              {
-                id: 'p2',
-                title: 'The Last Colony',
-                status: 'pre-production',
-                budget: 50000000,
-                investmentNeeded: 20000000
-              }
-            ],
-            pastSuccesses: [
-              {
-                title: 'Edge of Tomorrow',
-                year: 2023,
-                boxOffice: 320000000,
-                awards: ['Academy Award', 'Golden Globe']
-              },
-              {
-                title: 'Neural Network',
-                year: 2022,
-                boxOffice: 280000000
-              }
-            ],
-            investmentHistory: {
-              totalRaised: 450000000,
-              investorCount: 67,
-              avgROI: 28.5
-            }
+      const response = await investorApi.getProductionCompanies();
+      if (response.success && response.data) {
+        const data = response.data as any;
+        const items: any[] = data.companies || data.productionCompanies || [];
+        const mapped: ProductionCompany[] = items.map((c: any) => ({
+          id: String(c.id || ''),
+          name: c.name || c.company_name || 'Unknown',
+          logo: c.logo_url || c.logo,
+          type: (c.type || c.company_type || 'independent') as ProductionCompany['type'],
+          location: c.location || '',
+          founded: c.founded || c.founded_year || '',
+          connectionStatus: (c.connection_status || c.status || 'available') as ProductionCompany['connectionStatus'],
+          description: c.description || '',
+          stats: {
+            totalProductions: c.total_productions || c.totalProductions || 0,
+            activeProjects: c.active_projects || c.activeProjects || 0,
+            avgBudget: c.avg_budget || c.avgBudget || 0,
+            successRate: c.success_rate || c.successRate || 0,
+            awardsWon: c.awards_won || c.awardsWon || 0,
+            distributionReach: c.distribution_reach || c.distributionReach || ''
           },
-          {
-            id: '2',
-            name: 'Indie Vision Films',
-            type: 'independent',
-            location: 'New York, NY',
-            founded: '2010',
-            connectionStatus: 'in-talks',
-            description: 'Boutique studio focused on character-driven narratives and festival favorites',
-            stats: {
-              totalProductions: 48,
-              activeProjects: 4,
-              avgBudget: 5000000,
-              successRate: 75,
-              awardsWon: 28,
-              distributionReach: 'North America & Europe'
-            },
-            genres: ['Drama', 'Comedy', 'Documentary', 'Arthouse'],
-            currentProjects: [
-              {
-                id: 'p3',
-                title: 'Midnight Conversations',
-                status: 'post-production',
-                budget: 3500000
-              },
-              {
-                id: 'p4',
-                title: 'The Artist\'s Journey',
-                status: 'pre-production',
-                budget: 4000000,
-                investmentNeeded: 1500000
-              }
-            ],
-            pastSuccesses: [
-              {
-                title: 'Whispers in Time',
-                year: 2023,
-                awards: ['Sundance Audience Award', 'Cannes Selection']
-              }
-            ],
-            investmentHistory: {
-              totalRaised: 65000000,
-              investorCount: 34,
-              avgROI: 18.2
-            }
-          },
-          {
-            id: '3',
-            name: 'StreamMax Studios',
-            type: 'streaming',
-            location: 'San Francisco, CA',
-            founded: '2018',
-            connectionStatus: 'available',
-            description: 'Digital-first production house creating content for streaming platforms',
-            stats: {
-              totalProductions: 32,
-              activeProjects: 12,
-              avgBudget: 8000000,
-              successRate: 70,
-              awardsWon: 15,
-              distributionReach: 'Global Streaming'
-            },
-            genres: ['Series', 'Limited Series', 'Documentary', 'Animation'],
-            currentProjects: [
-              {
-                id: 'p5',
-                title: 'Cyber Detective S2',
-                status: 'production',
-                budget: 12000000,
-                investmentNeeded: 5000000
-              }
-            ],
-            pastSuccesses: [
-              {
-                title: 'The Algorithm',
-                year: 2024,
-                awards: ['Emmy Nomination']
-              }
-            ],
-            investmentHistory: {
-              totalRaised: 95000000,
-              investorCount: 23,
-              avgROI: 22.7
-            }
-          },
-          {
-            id: '4',
-            name: 'Horizon Pictures',
-            type: 'boutique',
-            location: 'Austin, TX',
-            founded: '2015',
-            connectionStatus: 'partner',
-            description: 'Specializing in genre films and cult classics',
-            stats: {
-              totalProductions: 24,
-              activeProjects: 3,
-              avgBudget: 2500000,
-              successRate: 68,
-              awardsWon: 12,
-              distributionReach: 'Select Markets'
-            },
-            genres: ['Horror', 'Thriller', 'Sci-Fi', 'Fantasy'],
-            currentProjects: [
-              {
-                id: 'p6',
-                title: 'Night Terrors',
-                status: 'pre-production',
-                budget: 2000000,
-                investmentNeeded: 800000
-              }
-            ],
-            pastSuccesses: [
-              {
-                title: 'The Haunting Hour',
-                year: 2023,
-                boxOffice: 45000000
-              }
-            ],
-            investmentHistory: {
-              totalRaised: 28000000,
-              investorCount: 18,
-              avgROI: 15.3
-            }
+          genres: c.genres || [],
+          currentProjects: (c.current_projects || c.currentProjects || []).map((p: any) => ({
+            id: String(p.id || ''),
+            title: p.title || '',
+            status: (p.status || 'pre-production') as 'pre-production' | 'production' | 'post-production' | 'distribution',
+            budget: p.budget || 0,
+            investmentNeeded: p.investment_needed || p.investmentNeeded
+          })),
+          pastSuccesses: (c.past_successes || c.pastSuccesses || []).map((s: any) => ({
+            title: s.title || '',
+            year: s.year || 0,
+            boxOffice: s.box_office || s.boxOffice,
+            awards: s.awards || []
+          })),
+          investmentHistory: {
+            totalRaised: c.total_raised || c.investmentHistory?.totalRaised || 0,
+            investorCount: c.investor_count || c.investmentHistory?.investorCount || 0,
+            avgROI: c.avg_roi || c.investmentHistory?.avgROI || 0
           }
-        ]);
-        setLoading(false);
-      }, 1000);
-    } catch (error) {
+        }));
+        setCompanies(mapped);
+      }
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
       console.error('Failed to load production companies:', error);
+    } finally {
       setLoading(false);
     }
   };

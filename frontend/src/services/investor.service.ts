@@ -148,7 +148,24 @@ export const investorApi = {
   // Risk Assessment
   getPortfolioRisk: (timeframe?: string) =>
     apiClient.get(`/api/investor/analytics/risk/portfolio${timeframe !== undefined ? `?timeframe=${timeframe}` : ''}`),
-  
+
+  // Network & Connections
+  getNetwork: () =>
+    apiClient.get('/api/investor/network'),
+
+  getCoInvestors: () =>
+    apiClient.get('/api/investor/co-investors'),
+
+  getCreators: () =>
+    apiClient.get('/api/investor/creators'),
+
+  getProductionCompanies: () =>
+    apiClient.get('/api/investor/production-companies'),
+
+  // Performance
+  getPerformance: (timeframe?: string) =>
+    apiClient.get(`/api/investor/performance${timeframe !== undefined ? `?timeframe=${timeframe}` : ''}`),
+
   // All Investments
   getAllInvestments: (params?: {
     status?: string;

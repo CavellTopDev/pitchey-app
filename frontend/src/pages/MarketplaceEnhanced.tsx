@@ -13,7 +13,7 @@ import Pagination from '../components/Pagination';
 import { useDebounce } from '../hooks/useDebounce';
 import { useResponsive } from '../hooks/useResponsive';
 import { configService } from '../services/config.service';
-import { BRAND } from '../constants/brand';
+
 import FormatDisplay from '../components/FormatDisplay';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -581,8 +581,7 @@ export default function MarketplaceEnhanced() {
           <div className="flex items-center justify-between h-16">
             {/* Logo and main nav */}
             <div className="flex items-center gap-8">
-              <a href="/" className="flex items-center gap-2">
-                <img src={BRAND.logo} alt={BRAND.logoAlt} className="h-8 w-auto" />
+              <a href="/" className="flex items-center">
                 <span className="text-2xl font-bold text-purple-600">Pitchey</span>
               </a>
               <nav className="hidden md:flex items-center gap-6">

@@ -135,10 +135,28 @@ export default function PaymentHistory({ payments: initialPayments, onRefresh }:
   const exportPayments = async () => {
     try {
       setLoading(true);
-      // This would typically be an API call to generate and download a CSV/PDF
-      alert('Export functionality coming soon! This will allow you to download your payment history as CSV or PDF.');
-    } catch (err: any) {
-      setError(err.message || 'Failed to export payments');
+      const headers = ['Date', 'Description', 'Type', 'Amount', 'Currency', 'Status'];
+      const rows = payments.map((p: any) => [
+        new Date(p.createdAt).toLocaleDateString(),
+        (p.description || `Payment #${p.id}`).replace(/,/g, ' '),
+        p.type || 'unknown',
+        (parseFloat(p.amount) / 100).toFixed(2),
+        (p.currency || 'USD').toUpperCase(),
+        p.status || 'unknown'
+      ]);
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `payment-history-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      setError(e.message || 'Failed to export payments');
     } finally {
       setLoading(false);
     }

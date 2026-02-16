@@ -7,6 +7,7 @@ import {
   BarChart3, PieChart, Activity, Zap
 } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { investorApi } from '@/services/investor.service';
 
 interface CoInvestor {
   id: string;
@@ -53,127 +54,41 @@ export default function InvestorCoInvestors() {
 
   const loadCoInvestors = async () => {
     try {
-      // Simulated co-investor data
-      setTimeout(() => {
-        setCoInvestors([
-          {
-            id: '1',
-            name: 'Victoria Sterling',
-            title: 'Managing Partner',
-            company: 'Sterling Capital',
-            location: 'New York, NY',
-            investmentStyle: 'aggressive',
-            connectionStatus: 'connected',
-            stats: {
-              totalInvestments: 67,
-              sharedDeals: 12,
-              avgDealSize: 850000,
-              successRate: 78,
-              portfolioValue: 45000000
-            },
-            specializations: ['Tech Thrillers', 'Sci-Fi', 'Action'],
-            recentActivity: {
-              type: 'Co-Investment',
-              project: 'Cyber Protocol',
-              amount: 1200000,
-              date: '2024-12-05'
-            },
-            compatibility: 92
+      const response = await investorApi.getCoInvestors();
+      if (response.success && response.data) {
+        const data = response.data as any;
+        const items: any[] = data.coInvestors || data.co_investors || [];
+        const mapped: CoInvestor[] = items.map((c: any) => ({
+          id: String(c.id || ''),
+          name: c.name || c.username || 'Unknown',
+          avatar: c.avatar_url || c.avatar,
+          title: c.title || c.role || '',
+          company: c.company_name || c.company,
+          location: c.location || '',
+          investmentStyle: (c.investment_style || c.investmentStyle || 'moderate') as 'aggressive' | 'moderate' | 'conservative',
+          connectionStatus: (c.connection_status || c.status || 'suggested') as 'connected' | 'pending' | 'suggested',
+          stats: {
+            totalInvestments: c.total_investments || c.totalInvestments || 0,
+            sharedDeals: c.shared_deals || c.sharedDeals || 0,
+            avgDealSize: c.avg_deal_size || c.avgDealSize || 0,
+            successRate: c.success_rate || c.successRate || 0,
+            portfolioValue: c.portfolio_value || c.portfolioValue || 0
           },
-          {
-            id: '2',
-            name: 'Robert Chen',
-            title: 'Senior Investment Director',
-            company: 'Pacific Ventures',
-            location: 'San Francisco, CA',
-            investmentStyle: 'moderate',
-            connectionStatus: 'connected',
-            stats: {
-              totalInvestments: 45,
-              sharedDeals: 8,
-              avgDealSize: 500000,
-              successRate: 72,
-              portfolioValue: 28000000
-            },
-            specializations: ['Drama', 'Indie Films', 'Documentary'],
-            recentActivity: {
-              type: 'Lead Investment',
-              project: 'Mountain Echoes',
-              amount: 750000,
-              date: '2024-12-02'
-            },
-            compatibility: 85
-          },
-          {
-            id: '3',
-            name: 'Amanda Foster',
-            title: 'Film Finance Executive',
-            company: 'Foster Entertainment Group',
-            location: 'Los Angeles, CA',
-            investmentStyle: 'conservative',
-            connectionStatus: 'suggested',
-            stats: {
-              totalInvestments: 38,
-              sharedDeals: 0,
-              avgDealSize: 400000,
-              successRate: 82,
-              portfolioValue: 22000000
-            },
-            specializations: ['Family Films', 'Animation', 'Comedy'],
-            recentActivity: {
-              type: 'New Investment',
-              project: 'Adventure Island',
-              amount: 550000,
-              date: '2024-11-28'
-            },
-            compatibility: 78
-          },
-          {
-            id: '4',
-            name: 'Marcus Williams',
-            title: 'Angel Investor',
-            location: 'Austin, TX',
-            investmentStyle: 'aggressive',
-            connectionStatus: 'connected',
-            stats: {
-              totalInvestments: 29,
-              sharedDeals: 5,
-              avgDealSize: 300000,
-              successRate: 65,
-              portfolioValue: 15000000
-            },
-            specializations: ['Horror', 'Thriller', 'Experimental'],
-            recentActivity: {
-              type: 'Co-Investment',
-              project: 'Dark Waters',
-              amount: 400000,
-              date: '2024-12-07'
-            },
-            compatibility: 71
-          },
-          {
-            id: '5',
-            name: 'Elizabeth Park',
-            title: 'Investment Partner',
-            company: 'Park Media Ventures',
-            location: 'Chicago, IL',
-            investmentStyle: 'moderate',
-            connectionStatus: 'pending',
-            stats: {
-              totalInvestments: 52,
-              sharedDeals: 3,
-              avgDealSize: 600000,
-              successRate: 75,
-              portfolioValue: 35000000
-            },
-            specializations: ['Period Drama', 'Biopic', 'Historical'],
-            compatibility: 68
-          }
-        ]);
-        setLoading(false);
-      }, 1000);
-    } catch (error) {
+          specializations: c.specializations || c.genres || [],
+          recentActivity: c.recent_activity ? {
+            type: c.recent_activity.type || '',
+            project: c.recent_activity.project || '',
+            amount: c.recent_activity.amount || 0,
+            date: c.recent_activity.date || ''
+          } : undefined,
+          compatibility: c.compatibility || c.compatibility_score || 0
+        }));
+        setCoInvestors(mapped);
+      }
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
       console.error('Failed to load co-investors:', error);
+    } finally {
       setLoading(false);
     }
   };

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import { Film, Briefcase, DollarSign, LogIn, Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react';
-import { BRAND } from '../constants/brand';
+
 
 export default function Login() {
   const navigate = useNavigate();
@@ -81,11 +81,10 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <Link to="/" className="flex flex-col items-center gap-3">
-          <img src={BRAND.logo} alt={BRAND.logoAlt} className="h-12 w-auto" />
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+        <Link to="/" className="flex flex-col items-center">
+          <span className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
             Pitchey
-          </h1>
+          </span>
         </Link>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
           Sign in to your account

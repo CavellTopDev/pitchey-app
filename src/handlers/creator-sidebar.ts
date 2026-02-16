@@ -371,9 +371,13 @@ export async function creatorCalendarHandler(
     return jsonResponse({ success: true, data: emptyData }, origin);
   }
 
+  // Parse optional date range filters
+  const url = new URL(request.url);
+  const startParam = url.searchParams.get('start');
+  const endParam = url.searchParams.get('end');
+
   try {
-    // calendar_events table does not currently exist in the schema.
-    // Synthesise events from NDA deadlines and investment milestones instead.
+    // Synthesise events from NDA deadlines
     const ndaEvents = await sql`
       SELECT
         nr.id,
@@ -381,7 +385,8 @@ export async function creatorCalendarHandler(
         'NDA: ' || p.title AS title,
         'NDA request for pitch "' || p.title || '"' AS description,
         nr.requested_at AS start_date,
-        nr.expires_at AS end_date
+        nr.expires_at AS end_date,
+        '#ef4444' AS color
       FROM nda_requests nr
       JOIN pitches p ON p.id = nr.pitch_id
       WHERE nr.pitch_owner_id = ${userId}
@@ -390,6 +395,7 @@ export async function creatorCalendarHandler(
       LIMIT 50
     `;
 
+    // Investment milestones
     const investmentEvents = await sql`
       SELECT
         i.id,
@@ -397,7 +403,8 @@ export async function creatorCalendarHandler(
         'Investment: ' || p.title AS title,
         'Investment of $' || i.amount || ' on pitch "' || p.title || '"' AS description,
         i.created_at AS start_date,
-        NULL AS end_date
+        NULL AS end_date,
+        '#10b981' AS color
       FROM investments i
       JOIN pitches p ON p.id = i.pitch_id
       WHERE p.user_id = ${userId}
@@ -405,10 +412,62 @@ export async function creatorCalendarHandler(
       LIMIT 50
     `;
 
-    const events = [...ndaEvents, ...investmentEvents].sort(
-      (a: any, b: any) =>
-        new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
-    );
+    // User-created calendar events (table may not exist yet)
+    let customEvents: any[] = [];
+    try {
+      if (startParam && endParam) {
+        customEvents = await sql`
+          SELECT id, title, type, start_date, end_date, location, description, attendees, color, reminder
+          FROM calendar_events
+          WHERE user_id = ${userId}
+            AND start_date >= ${startParam}::timestamp
+            AND start_date <= ${endParam}::timestamp
+          ORDER BY start_date ASC
+          LIMIT 100
+        `;
+      } else {
+        customEvents = await sql`
+          SELECT id, title, type, start_date, end_date, location, description, attendees, color, reminder
+          FROM calendar_events
+          WHERE user_id = ${userId}
+          ORDER BY start_date DESC
+          LIMIT 100
+        `;
+      }
+    } catch {
+      // calendar_events table may not exist yet — silently continue
+    }
+
+    // Normalize all events into a consistent shape with a `date` field
+    const normalize = (row: any) => {
+      const startRaw = row.start_date || row.start_time;
+      const endRaw = row.end_date || row.end_time;
+      const startISO = startRaw ? new Date(startRaw).toISOString() : null;
+      const endISO = endRaw ? new Date(endRaw).toISOString() : null;
+
+      return {
+        id: row.id,
+        title: row.title,
+        type: row.type,
+        date: startISO ? startISO.split('T')[0] : null,
+        start: startISO,
+        end: endISO,
+        description: row.description || null,
+        color: row.color || '#8b5cf6',
+        location: row.location || null,
+        attendees: row.attendees || [],
+      };
+    };
+
+    const events = [
+      ...ndaEvents.map((e: any) => normalize(e)),
+      ...investmentEvents.map((e: any) => normalize(e)),
+      ...customEvents.map((e: any) => normalize(e)),
+    ].sort((a, b) => {
+      const aTime = a.start ? new Date(a.start).getTime() : 0;
+      const bTime = b.start ? new Date(b.start).getTime() : 0;
+      return bTime - aTime;
+    });
 
     return jsonResponse({ success: true, data: { events } }, origin);
   } catch (error) {

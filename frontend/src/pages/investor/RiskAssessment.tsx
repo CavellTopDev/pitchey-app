@@ -79,7 +79,9 @@ const RiskAssessment = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Risk Level</p>
-                  <p className="text-2xl font-bold text-yellow-600">Moderate</p>
+                  <p className="text-2xl font-bold text-yellow-600">
+                    {riskData?.overallRisk || riskData?.overall_risk || 'Moderate'}
+                  </p>
                 </div>
                 <ShieldAlert className="h-8 w-8 text-yellow-600" />
               </div>
@@ -90,7 +92,9 @@ const RiskAssessment = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Risk Score</p>
-                  <p className="text-2xl font-bold text-blue-600">6.2/10</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {(riskData?.riskScore ?? riskData?.risk_score ?? 0).toFixed(1)}/10
+                  </p>
                 </div>
                 <Activity className="h-8 w-8 text-blue-600" />
               </div>
@@ -101,7 +105,9 @@ const RiskAssessment = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Diversification</p>
-                  <p className="text-2xl font-bold text-green-600">Good</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {riskData?.diversification || riskData?.diversification_rating || 'Good'}
+                  </p>
                 </div>
                 <CheckCircle className="h-8 w-8 text-green-600" />
               </div>
@@ -109,15 +115,104 @@ const RiskAssessment = () => {
           </Card>
         </div>
 
-        <Card>
+        {/* Portfolio Risk Distribution */}
+        <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Risk Analysis Dashboard</CardTitle>
-            <CardDescription>Comprehensive risk metrics and recommendations</CardDescription>
+            <CardTitle>Portfolio Risk Distribution</CardTitle>
+            <CardDescription>Breakdown of your investments by risk level</CardDescription>
           </CardHeader>
-          <CardContent className="h-96 flex items-center justify-center">
-            <p className="text-gray-500">Risk assessment charts coming soon</p>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-gray-600 flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    Low Risk
+                  </span>
+                  <span className="font-medium">{riskData?.lowRisk ?? riskData?.low_risk ?? riskData?.portfolio?.lowRisk ?? 0}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div
+                    className="bg-green-500 h-3 rounded-full transition-all duration-300"
+                    style={{ width: `${riskData?.lowRisk ?? riskData?.low_risk ?? riskData?.portfolio?.lowRisk ?? 0}%` }}
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-gray-600 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                    Medium Risk
+                  </span>
+                  <span className="font-medium">{riskData?.mediumRisk ?? riskData?.medium_risk ?? riskData?.portfolio?.mediumRisk ?? 0}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div
+                    className="bg-yellow-500 h-3 rounded-full transition-all duration-300"
+                    style={{ width: `${riskData?.mediumRisk ?? riskData?.medium_risk ?? riskData?.portfolio?.mediumRisk ?? 0}%` }}
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-gray-600 flex items-center gap-2">
+                    <ShieldAlert className="w-4 h-4 text-red-500" />
+                    High Risk
+                  </span>
+                  <span className="font-medium">{riskData?.highRisk ?? riskData?.high_risk ?? riskData?.portfolio?.highRisk ?? 0}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div
+                    className="bg-red-500 h-3 rounded-full transition-all duration-300"
+                    style={{ width: `${riskData?.highRisk ?? riskData?.high_risk ?? riskData?.portfolio?.highRisk ?? 0}%` }}
+                  />
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
+
+        {/* Risk by Category */}
+        {(riskData?.byCategory || riskData?.by_category) && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Risk by Genre Category</CardTitle>
+              <CardDescription>Risk assessment broken down by investment genre</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Risk Level</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Investments</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Exposure</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {(riskData.byCategory || riskData.by_category || []).map((cat: any, index: number) => (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{cat.category || cat.genre}</td>
+                        <td className="px-6 py-4 text-center">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            (cat.risk_level || cat.riskLevel) === 'low' ? 'bg-green-100 text-green-800' :
+                            (cat.risk_level || cat.riskLevel) === 'high' ? 'bg-red-100 text-red-800' :
+                            'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {cat.risk_level || cat.riskLevel || 'medium'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-center text-gray-900">{cat.count || 0}</td>
+                        <td className="px-6 py-4 text-sm text-center text-gray-900">{cat.exposure || cat.allocation || 0}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </main>
     </div>
   );

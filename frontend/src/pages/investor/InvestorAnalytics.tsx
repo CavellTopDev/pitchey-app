@@ -131,21 +131,15 @@ export default function InvestorAnalytics() {
       setAnalyticsMetrics(transformedMetrics);
 
       // Transform genre performance to market trends
-      const transformedTrends: MarketTrend[] = analyticsData.genrePerformance?.map((genre: any) => ({
+      const transformedTrends: MarketTrend[] = (analyticsData.genrePerformance || []).map((genre: any) => ({
         sector: genre.genre || 'Unknown',
         growth: genre.avgROI || 0,
         opportunities: genre.investments || 0,
-        riskLevel: genre.avgROI > 25 ? 'high' : genre.avgROI > 15 ? 'medium' : 'low',
+        riskLevel: genre.avgROI > 25 ? 'high' as const : genre.avgROI > 15 ? 'medium' as const : 'low' as const,
         recommendation: genre.avgROI > 25 ? 'Strong Buy - High potential' :
                         genre.avgROI > 15 ? 'Buy - Good returns' :
                         'Hold - Stable sector'
-      })) || [
-        { sector: 'Sci-Fi/Fantasy', growth: 35.2, opportunities: 12, riskLevel: 'medium', recommendation: 'Strong Buy - High streaming demand' },
-        { sector: 'Horror/Thriller', growth: 28.7, opportunities: 8, riskLevel: 'low', recommendation: 'Buy - Consistent performance' },
-        { sector: 'Drama', growth: 15.4, opportunities: 15, riskLevel: 'low', recommendation: 'Hold - Stable returns' },
-        { sector: 'Comedy', growth: 12.1, opportunities: 6, riskLevel: 'medium', recommendation: 'Hold - Market saturation risk' },
-        { sector: 'Documentary', growth: 22.8, opportunities: 4, riskLevel: 'high', recommendation: 'Cautious - Niche market' }
-      ];
+      }));
       setMarketTrends(transformedTrends);
 
       // Generate dynamic month labels for the past 6 months
@@ -162,36 +156,28 @@ export default function InvestorAnalytics() {
       const recentMonths = getRecentMonths();
 
       // Transform performance data to investment flows
-      const transformedFlows: InvestmentFlow[] = analyticsData.performance?.slice(0, 6).map((perf: any, index: number) => ({
+      const transformedFlows: InvestmentFlow[] = (analyticsData.performance || []).slice(0, 6).map((perf: any, index: number) => ({
         month: recentMonths[index] || perf.date,
         invested: perf.invested || 0,
         returned: perf.returns || 0,
         netFlow: (perf.returns || 0) - (perf.invested || 0)
-      })) || [
-        { month: recentMonths[0], invested: 450000, returned: 320000, netFlow: -130000 },
-        { month: recentMonths[1], invested: 380000, returned: 420000, netFlow: 40000 },
-        { month: recentMonths[2], invested: 520000, returned: 380000, netFlow: -140000 },
-        { month: recentMonths[3], invested: 420000, returned: 550000, netFlow: 130000 },
-        { month: recentMonths[4], invested: 380000, returned: 480000, netFlow: 100000 },
-        { month: recentMonths[5], invested: 460000, returned: 620000, netFlow: 160000 }
-      ];
+      }));
       setInvestmentFlows(transformedFlows);
 
       // Transform top performers to creator insights
-      const transformedInsights: CreatorInsight[] = analyticsData.topPerformers?.map((inv: any) => ({
-        name: inv.pitchTitle || 'Unknown Project',
-        genre: inv.genre || 'Unknown',
-        performance: ((inv.currentValue - inv.amount) / inv.amount) * 100 || 0,
-        riskScore: Math.random() * 2 + 2, // Simulated risk score
-        potentialROI: ((inv.currentValue / inv.amount) * 100) || 100,
-        recommendationLevel: Math.min(5, Math.ceil(((inv.currentValue - inv.amount) / inv.amount) * 10) || 3)
-      })) || [
-        { name: 'Sarah Chen', genre: 'Sci-Fi', performance: 42.3, riskScore: 3.2, potentialROI: 380, recommendationLevel: 5 },
-        { name: 'Marcus Rodriguez', genre: 'Horror', performance: 38.7, riskScore: 2.8, potentialROI: 420, recommendationLevel: 4 },
-        { name: 'Elena Volkov', genre: 'Drama', performance: 22.1, riskScore: 2.1, potentialROI: 180, recommendationLevel: 3 },
-        { name: 'James Wright', genre: 'Thriller', performance: 31.5, riskScore: 3.5, potentialROI: 290, recommendationLevel: 4 },
-        { name: 'Anna Kowalski', genre: 'Comedy', performance: 18.9, riskScore: 2.9, potentialROI: 150, recommendationLevel: 3 }
-      ];
+      const transformedInsights: CreatorInsight[] = (analyticsData.topPerformers || []).map((inv: any) => {
+        const roi = inv.amount > 0 ? ((inv.currentValue - inv.amount) / inv.amount) : 0;
+        // Compute risk score deterministically based on ROI volatility (0-5 scale)
+        const riskScore = Math.min(5, Math.max(1, Math.abs(roi) > 0.5 ? 4 : Math.abs(roi) > 0.2 ? 3 : 2));
+        return {
+          name: inv.pitchTitle || 'Unknown Project',
+          genre: inv.genre || 'Unknown',
+          performance: roi * 100,
+          riskScore,
+          potentialROI: inv.amount > 0 ? (inv.currentValue / inv.amount) * 100 : 100,
+          recommendationLevel: Math.min(5, Math.max(1, Math.ceil(roi * 10) || 3))
+        };
+      });
       setCreatorInsights(transformedInsights);
 
     } catch (err) {

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { config } from '../../config';
+import { CollaborationService } from '../../services/collaboration.service';
 
 interface Collaboration {
   id: string;
@@ -76,110 +77,46 @@ export default function ProductionCollaborations() {
   const fetchCollaborations = async () => {
     try {
       setLoading(true);
-      
-      // Mock data - replace with actual API call
-      setTimeout(() => {
-        setCollaborations([
-          {
-            id: '1',
-            partnerName: 'Skyline Studios',
-            partnerType: 'studio',
-            status: 'active',
-            startDate: '2023-06-15',
-            projectCount: 3,
-            totalValue: 2500000,
-            description: 'Strategic partnership for co-production of feature films and streaming content.',
-            contactPerson: 'David Miller',
-            contactEmail: 'david.miller@skylinestudios.com',
-            contactPhone: '+1 555-0123',
-            website: 'https://skylinestudios.com',
-            location: 'Los Angeles, CA',
-            rating: 4.8,
-            tags: ['Feature Films', 'Streaming', 'Co-Production'],
-            lastActivity: '2024-01-10T14:30:00Z',
-            documents: [
-              { id: 'd1', name: 'Master Agreement.pdf', type: 'contract', uploadedAt: '2023-06-15T10:00:00Z', size: '2.1 MB' },
-              { id: 'd2', name: 'NDA Agreement.pdf', type: 'nda', uploadedAt: '2023-06-16T11:00:00Z', size: '856 KB' }
-            ],
-            projects: [
-              { id: 'p1', name: 'Urban Legends', status: 'active', startDate: '2023-08-01', budget: 850000 },
-              { id: 'p2', name: 'Night Shift', status: 'completed', startDate: '2023-02-15', budget: 1200000 },
-              { id: 'p3', name: 'Digital Dreams', status: 'planning', startDate: '2024-03-01', budget: 950000 }
-            ]
-          },
-          {
-            id: '2',
-            partnerName: 'Global Distribution Network',
-            partnerType: 'distributor',
-            status: 'active',
-            startDate: '2023-03-10',
-            projectCount: 5,
-            totalValue: 4200000,
-            description: 'International distribution partnership covering Europe, Asia, and Australia.',
-            contactPerson: 'Maria Rodriguez',
-            contactEmail: 'maria@globaldist.com',
-            contactPhone: '+1 555-0456',
-            website: 'https://globaldist.com',
-            location: 'New York, NY',
-            rating: 4.6,
-            tags: ['International', 'Distribution', 'Streaming Rights'],
-            lastActivity: '2024-01-08T09:15:00Z',
-            documents: [
-              { id: 'd3', name: 'Distribution Agreement.pdf', type: 'agreement', uploadedAt: '2023-03-10T14:00:00Z', size: '3.2 MB' }
-            ],
-            projects: [
-              { id: 'p4', name: 'Midnight Express', status: 'completed', startDate: '2023-04-01', budget: 750000 }
-            ]
-          },
-          {
-            id: '3',
-            partnerName: 'Creative Minds Agency',
-            partnerType: 'talent',
-            status: 'pending',
-            startDate: '2024-01-15',
-            projectCount: 0,
-            totalValue: 0,
-            description: 'Talent representation for upcoming film projects.',
-            contactPerson: 'James Thompson',
-            contactEmail: 'james@creativeminds.com',
-            location: 'Beverly Hills, CA',
-            rating: 4.2,
-            tags: ['Talent', 'Representation', 'A-List'],
-            lastActivity: '2024-01-15T16:00:00Z',
-            documents: [],
-            projects: []
-          },
-          {
-            id: '4',
-            partnerName: 'TechVision VFX',
-            partnerType: 'vendor',
-            status: 'completed',
-            startDate: '2022-11-20',
-            endDate: '2023-08-30',
-            projectCount: 2,
-            totalValue: 650000,
-            description: 'Visual effects and post-production services.',
-            contactPerson: 'Alex Chen',
-            contactEmail: 'alex@techvision.com',
-            website: 'https://techvision.com',
-            location: 'Vancouver, BC',
-            rating: 4.9,
-            tags: ['VFX', 'Post-Production', 'CGI'],
-            lastActivity: '2023-08-30T17:00:00Z',
-            documents: [
-              { id: 'd4', name: 'Service Agreement.pdf', type: 'contract', uploadedAt: '2022-11-20T10:30:00Z', size: '1.8 MB' }
-            ],
-            projects: [
-              { id: 'p5', name: 'Space Odyssey', status: 'completed', startDate: '2023-01-15', budget: 400000 },
-              { id: 'p6', name: 'Future World', status: 'completed', startDate: '2023-04-20', budget: 250000 }
-            ]
-          }
-        ]);
-        setLoading(false);
-      }, 1000);
-      
-    } catch (error) {
+      const results = await CollaborationService.getCollaborations();
+      const mapped: Collaboration[] = results.map((c: any) => ({
+        id: String(c.id || ''),
+        partnerName: c.partner?.name || c.partnerName || c.title || 'Unknown',
+        partnerType: (c.partner?.type || c.partnerType || c.type || 'vendor') as Collaboration['partnerType'],
+        status: (c.status || 'pending') as Collaboration['status'],
+        startDate: c.startDate || c.start_date || c.proposedDate || '',
+        endDate: c.endDate || c.end_date,
+        projectCount: c.projectCount || c.project_count || 0,
+        totalValue: c.totalValue || c.total_value || c.terms?.budget || 0,
+        description: c.description || '',
+        contactPerson: c.contactPerson || c.contact_person || c.partner?.name || '',
+        contactEmail: c.contactEmail || c.contact_email || '',
+        contactPhone: c.contactPhone || c.contact_phone,
+        website: c.website,
+        logo: c.logo || c.partner?.avatar,
+        location: c.location || '',
+        rating: c.rating || c.metrics?.rating || 0,
+        tags: c.tags || [],
+        lastActivity: c.lastUpdate || c.last_activity || c.lastActivity || '',
+        documents: (c.documents || []).map((d: any) => ({
+          id: String(d.id || ''),
+          name: d.name || '',
+          type: (d.type || 'other') as CollaborationDocument['type'],
+          uploadedAt: d.uploadedAt || d.uploaded_at || '',
+          size: d.size || ''
+        })),
+        projects: (c.projects || []).map((p: any) => ({
+          id: String(p.id || ''),
+          name: p.name || p.title || '',
+          status: (p.status || 'planning') as CollaborationProject['status'],
+          startDate: p.startDate || p.start_date || '',
+          budget: p.budget || 0
+        }))
+      }));
+      setCollaborations(mapped);
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
       console.error('Failed to fetch collaborations:', error);
+    } finally {
       setLoading(false);
     }
   };

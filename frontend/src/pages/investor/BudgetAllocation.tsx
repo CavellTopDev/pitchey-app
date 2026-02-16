@@ -25,31 +25,18 @@ const BudgetAllocation = () => {
       setLoading(true);
       setError(null);
       const response = await investorApi.getBudgetAllocations();
-      
+
       if (response.success && response.data) {
         setAllocations((response.data as any).allocations || []);
       } else {
         setError('Failed to load budget allocations');
-        // Keep mock data as fallback
-        setAllocations([
-          { category: 'Action Films', allocated_amount: 3000000, used_amount: 2500000, percentage: 30 },
-          { category: 'Drama', allocated_amount: 2500000, used_amount: 2200000, percentage: 25 },
-          { category: 'Thriller', allocated_amount: 2000000, used_amount: 1800000, percentage: 20 },
-          { category: 'Sci-Fi', allocated_amount: 1500000, used_amount: 1200000, percentage: 15 },
-          { category: 'Comedy', allocated_amount: 1000000, used_amount: 800000, percentage: 10 },
-        ]);
+        setAllocations([]);
       }
-    } catch (error) {
-      console.error('Failed to load budget allocations:', error);
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to load budget allocations:', e.message);
       setError('Failed to load budget allocations');
-      // Keep mock data as fallback
-      setAllocations([
-        { category: 'Action Films', allocated_amount: 3000000, used_amount: 2500000, percentage: 30 },
-        { category: 'Drama', allocated_amount: 2500000, used_amount: 2200000, percentage: 25 },
-        { category: 'Thriller', allocated_amount: 2000000, used_amount: 1800000, percentage: 20 },
-        { category: 'Sci-Fi', allocated_amount: 1500000, used_amount: 1200000, percentage: 15 },
-        { category: 'Comedy', allocated_amount: 1000000, used_amount: 800000, percentage: 10 },
-      ]);
+      setAllocations([]);
     } finally {
       setLoading(false);
     }
@@ -96,8 +83,14 @@ const BudgetAllocation = () => {
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-md">
-            {error}. Showing sample data.
+          <div className="mb-6 p-4 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-md flex items-center justify-between">
+            <span>{error}</span>
+            <button
+              onClick={() => void loadBudgetAllocations()}
+              className="ml-4 px-3 py-1 text-sm border border-yellow-500 rounded hover:bg-yellow-200"
+            >
+              Retry
+            </button>
           </div>
         )}
 

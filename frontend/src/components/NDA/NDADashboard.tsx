@@ -58,6 +58,107 @@ interface QuickAction {
   urgent?: boolean;
 }
 
+function NDAAnalyticsPanel() {
+  const [analyticsData, setAnalyticsData] = useState<{
+    totalRequests: number;
+    approved: number;
+    rejected: number;
+    pending: number;
+    avgResponseTime: number;
+  } | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [timeframe, setTimeframe] = useState('30d');
+
+  useEffect(() => {
+    const loadAnalytics = async () => {
+      try {
+        setAnalyticsLoading(true);
+        const data = await ndaService.getNDAAnalytics(timeframe);
+        setAnalyticsData({
+          totalRequests: data.totalRequests ?? 0,
+          approved: data.approved ?? 0,
+          rejected: data.rejected ?? 0,
+          pending: data.pending ?? 0,
+          avgResponseTime: data.avgResponseTime ?? 0
+        });
+      } catch (err) {
+        const e = err instanceof Error ? err : new Error(String(err));
+        console.error('Failed to load NDA analytics:', e);
+      } finally {
+        setAnalyticsLoading(false);
+      }
+    };
+    loadAnalytics();
+  }, [timeframe]);
+
+  if (analyticsLoading) {
+    return (
+      <div className="flex items-center justify-center h-48">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-gray-900">NDA Analytics</h3>
+        <select
+          value={timeframe}
+          onChange={(e) => setTimeframe(e.target.value)}
+          className="px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+        >
+          <option value="7d">Last 7 days</option>
+          <option value="30d">Last 30 days</option>
+          <option value="90d">Last 90 days</option>
+          <option value="all">All time</option>
+        </select>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center gap-3">
+            <FileText className="w-8 h-8 text-blue-500" />
+            <div>
+              <p className="text-sm text-gray-500">Total NDAs</p>
+              <p className="text-xl font-semibold text-gray-900">{analyticsData?.totalRequests ?? 0}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="w-8 h-8 text-green-500" />
+            <div>
+              <p className="text-sm text-gray-500">Signed</p>
+              <p className="text-xl font-semibold text-green-600">{analyticsData?.approved ?? 0}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center gap-3">
+            <Clock className="w-8 h-8 text-yellow-500" />
+            <div>
+              <p className="text-sm text-gray-500">Pending</p>
+              <p className="text-xl font-semibold text-yellow-600">{analyticsData?.pending ?? 0}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center gap-3">
+            <TrendingUp className="w-8 h-8 text-purple-500" />
+            <div>
+              <p className="text-sm text-gray-500">Avg Time to Sign</p>
+              <p className="text-xl font-semibold text-gray-900">
+                {analyticsData?.avgResponseTime ? `${Math.round(analyticsData.avgResponseTime)}h` : 'N/A'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function NDADashboard({ userId, userRole }: NDADashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'approvals' | 'notifications' | 'analytics'>('overview');
   const [stats, setStats] = useState<NDAStats | null>(null);
@@ -448,15 +549,7 @@ export default function NDADashboard({ userId, userRole }: NDADashboardProps) {
       )}
 
       {activeTab === 'analytics' && (
-        <div className="space-y-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Advanced Analytics</h3>
-            <p className="text-gray-500">
-              Detailed analytics and reporting features coming soon. 
-              Use the download reports feature for current data export.
-            </p>
-          </div>
-        </div>
+        <NDAAnalyticsPanel />
       )}
     </div>
   );

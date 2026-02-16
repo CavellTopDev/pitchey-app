@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, TrendingUp, Eye, Heart, MessageSquare, Download, Calendar, Users, BarChart3 } from 'lucide-react';
 import { API_URL } from '../config';
+import { AnalyticsService } from '../services/analytics.service';
 
 interface AnalyticsData {
   overview: {
@@ -202,9 +203,22 @@ export default function Analytics() {
                 <option value="1y">Last year</option>
               </select>
               
-              <button 
-                onClick={() => {
-                  alert('Coming Soon: Analytics export functionality. This will allow you to download detailed reports in PDF, CSV, or Excel formats with customizable metrics and date ranges.');
+              <button
+                onClick={async () => {
+                  try {
+                    const blob = await AnalyticsService.exportAnalytics({ format: 'csv', dateRange: { start: '', end: '' }, metrics: ['views', 'likes', 'comments'] });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `analytics-report-${timeRange}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                  } catch (err) {
+                    const e = err instanceof Error ? err : new Error(String(err));
+                    console.error('Export failed:', e);
+                  }
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
               >

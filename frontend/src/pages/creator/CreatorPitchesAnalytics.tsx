@@ -296,13 +296,13 @@ export default function CreatorPitchesAnalytics() {
         </div>
 
         {/* Genre Engagement */}
-        {analytics && analytics.engagementByGenre.length > 0 && (
+        {analytics && (analytics.engagementByGenre ?? []).length > 0 && (
           <div className="bg-white rounded-lg shadow-sm border mt-8">
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Engagement by Genre</h2>
             </div>
             <div className="divide-y divide-gray-100">
-              {analytics.engagementByGenre.map(g => (
+              {(analytics.engagementByGenre ?? []).map(g => (
                 <div key={g.genre} className="p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-medium text-gray-900 capitalize">{g.genre}</span>

@@ -19,14 +19,8 @@ export interface CreatorStats {
 }
 
 export interface CreatorAnalytics {
-  viewsOverTime: {
-    date: string;
-    views: number;
-  }[];
-  likesOverTime: {
-    date: string;
-    likes: number;
-  }[];
+  current?: Record<string, number>;
+  trend?: { month: string; views: number; likes: number; ndas: number; engagement: number }[];
   topPitches: {
     id: number;
     title: string;
@@ -39,7 +33,7 @@ export interface CreatorAnalytics {
     count: number;
     percentage: number;
   }[];
-  engagementByGenre: {
+  engagementByGenre?: {
     genre: string;
     views: number;
     likes: number;
@@ -149,11 +143,8 @@ export class CreatorService {
     }
 
     return response.data || {
-      viewsOverTime: [],
-      likesOverTime: [],
       topPitches: [],
-      audienceBreakdown: [],
-      engagementByGenre: []
+      audienceBreakdown: []
     };
   }
 

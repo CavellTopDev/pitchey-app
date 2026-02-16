@@ -121,15 +121,80 @@ const MarketTrends = () => {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Market Analysis</CardTitle>
-            <CardDescription>Comprehensive market trends and insights</CardDescription>
-          </CardHeader>
-          <CardContent className="h-96 flex items-center justify-center">
-            <p className="text-gray-500">Market trends visualization coming soon</p>
-          </CardContent>
-        </Card>
+        {/* Top Genres */}
+        {trendsData?.topGenres && trendsData.topGenres.length > 0 && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Top Genres by Investment</CardTitle>
+              <CardDescription>Most popular genres for investment activity</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {trendsData.topGenres.map((genre: any, index: number) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-gray-700 w-32">{genre.genre || genre.name}</span>
+                      <div className="w-64 h-3 bg-gray-200 rounded-full">
+                        <div
+                          className="h-3 bg-purple-500 rounded-full"
+                          style={{ width: `${Math.min(100, (genre.count || genre.investment_count || 0) * 10)}%` }}
+                        />
+                      </div>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {genre.count || genre.investment_count || 0} investments
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Average Investment by Genre */}
+        {trendsData?.avgInvestmentByGenre && trendsData.avgInvestmentByGenre.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Average Investment by Genre</CardTitle>
+              <CardDescription>Mean investment amount per genre category</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Genre</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Avg Investment</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Volume</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {trendsData.avgInvestmentByGenre.map((item: any, index: number) => (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{item.genre || item.name}</td>
+                        <td className="px-6 py-4 text-sm text-right text-gray-900">{formatCurrency(item.avg_investment || item.avgInvestment || 0)}</td>
+                        <td className="px-6 py-4 text-sm text-right text-green-600 font-medium">{formatCurrency(item.total_volume || item.totalVolume || 0)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Fallback if no genre data */}
+        {(!trendsData?.topGenres || trendsData.topGenres.length === 0) && (!trendsData?.avgInvestmentByGenre || trendsData.avgInvestmentByGenre.length === 0) && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Market Analysis</CardTitle>
+              <CardDescription>Comprehensive market trends and insights</CardDescription>
+            </CardHeader>
+            <CardContent className="h-48 flex items-center justify-center">
+              <p className="text-gray-500">No genre-level data available yet. Invest in pitches to see market trends.</p>
+            </CardContent>
+          </Card>
+        )}
       </main>
     </div>
   );

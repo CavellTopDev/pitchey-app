@@ -270,11 +270,11 @@ export default function InvestorBrowse() {
   };
 
   const handleScheduleMeeting = (pitch: Pitch) => {
-    alert(`Coming Soon: Meeting scheduling for "${pitch.title}". This will integrate with calendar systems to schedule meetings with creators.`);
+    navigate(`/investor/messages?recipient=${pitch.creator?.id || ''}&subject=${encodeURIComponent(pitch.title)}`);
   };
 
   const handleMakeOffer = (pitch: Pitch) => {
-    alert(`Coming Soon: Investment offer system for "${pitch.title}". This will allow you to submit formal investment proposals.`);
+    navigate(`/investor/invest/${pitch.id}`);
   };
 
   if (currentTabState.loading && currentTabState.pitches.length === 0) {

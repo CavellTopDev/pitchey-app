@@ -7,6 +7,8 @@
 import { createAuth } from './better-auth-config';
 import type { PortalType } from './better-auth-config';
 import { getCorsHeaders } from '../utils/response';
+import { parseSessionCookie } from '../config/session.config';
+import { neon } from '@neondatabase/serverless';
 
 export interface AuthAdapterConfig {
   env: any;
@@ -24,10 +26,12 @@ export interface JWTPayload {
 
 export class AuthAdapter {
   private auth: ReturnType<typeof createAuth>;
+  private env: any;
   private enableJWTFallback: boolean;
 
   constructor(config: AuthAdapterConfig) {
     this.auth = createAuth(config.env);
+    this.env = config.env;
     this.enableJWTFallback = config.enableJWTFallback ?? true;
   }
 
@@ -283,10 +287,88 @@ export class AuthAdapter {
   }
 
   /**
-   * Validate JWT token or Better Auth session
+   * Validate session cookie or JWT token.
+   * Mirrors the worker's validateAuth pattern: cookie → KV cache → DB → JWT fallback.
    */
   async validateAuth(request: Request): Promise<{ valid: boolean; user?: any }> {
-    // First, check Better Auth session
+    // 1. Parse session cookie (handles both pitchey-session and legacy cookie names)
+    const cookieHeader = request.headers.get('Cookie');
+    const sessionId = parseSessionCookie(cookieHeader);
+
+    if (sessionId && this.env.DATABASE_URL) {
+      try {
+        // Check KV cache first
+        const kv = this.env.SESSION_STORE || this.env.SESSIONS_KV || this.env.KV || this.env.CACHE;
+        if (kv) {
+          const cached = await kv.get(`session:${sessionId}`, 'json') as any;
+          if (cached && new Date(cached.expiresAt) > new Date()) {
+            return {
+              valid: true,
+              user: {
+                id: cached.userId,
+                email: cached.userEmail,
+                name: cached.userName || cached.userEmail,
+                userType: cached.userType
+              }
+            };
+          }
+        }
+
+        // Fallback to database lookup
+        const sql = neon(this.env.DATABASE_URL);
+        const result = await sql(
+          `SELECT s.id, s.user_id, s.expires_at,
+                  u.id as uid, u.email, u.username, u.user_type,
+                  u.first_name, u.last_name, u.company_name, u.bio,
+                  COALESCE(u.name, u.username, u.email) as name
+           FROM sessions s
+           JOIN users u ON s.user_id::text = u.id::text
+           WHERE s.id = $1
+           AND s.expires_at > NOW()
+           LIMIT 1`,
+          [sessionId]
+        );
+
+        if (result && result.length > 0) {
+          const row = result[0];
+
+          // Cache for future requests
+          if (kv) {
+            await kv.put(
+              `session:${sessionId}`,
+              JSON.stringify({
+                userId: row.user_id,
+                userEmail: row.email,
+                userName: row.name,
+                userType: row.user_type,
+                expiresAt: row.expires_at
+              }),
+              { expirationTtl: 3600 }
+            );
+          }
+
+          return {
+            valid: true,
+            user: {
+              id: row.user_id,
+              email: row.email,
+              name: row.name,
+              username: row.username,
+              userType: row.user_type,
+              firstName: row.first_name,
+              lastName: row.last_name,
+              companyName: row.company_name,
+              bio: row.bio
+            }
+          };
+        }
+      } catch (err) {
+        const e = err instanceof Error ? err : new Error(String(err));
+        console.error('[AuthAdapter] Session validation error:', e.message);
+      }
+    }
+
+    // 2. Fallback: Better Auth API session
     try {
       const sessionResponse = await this.auth.api.getSession({
         headers: request.headers,
@@ -294,17 +376,18 @@ export class AuthAdapter {
       });
 
       if (sessionResponse.status === 200) {
-        const sessionData = await sessionResponse.json();
+        const sessionData = await sessionResponse.json() as any;
         if (sessionData.session && sessionData.user) {
           const user = await this.getUserFromDatabase(sessionData.user.id);
-          return { valid: true, user };
+          if (user) return { valid: true, user };
         }
       }
-    } catch (error) {
-      console.error('Session validation error:', error);
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('[AuthAdapter] Better Auth session error:', e.message);
     }
 
-    // Fallback to JWT validation if enabled
+    // 3. Fallback: JWT validation
     if (this.enableJWTFallback) {
       const authHeader = request.headers.get('Authorization');
       if (authHeader?.startsWith('Bearer ')) {
@@ -312,7 +395,7 @@ export class AuthAdapter {
         const payload = await this.validateJWTToken(token);
         if (payload) {
           const user = await this.getUserFromDatabase(payload.userId);
-          return { valid: true, user };
+          if (user) return { valid: true, user };
         }
       }
     }
@@ -415,13 +498,11 @@ export class AuthAdapter {
   }
 
   /**
-   * Get user from database
+   * Get user from database.
+   * Checks demo users first (fast path for login), then queries the real users table.
    */
   private async getUserFromDatabase(userId: string, requiredType?: PortalType): Promise<any> {
-    // For now, we'll use a simple lookup based on email since Better Auth isn't properly integrated
-    // This is a temporary solution until Better Auth tables are set up
-    
-    // Map known demo users
+    // Demo users — fast path for demo login flow
     const demoUsers: Record<string, any> = {
       'alex.creator@demo.com': {
         id: '1',
@@ -458,17 +539,47 @@ export class AuthAdapter {
       }
     };
 
-    // Try to find user by ID (which might be an email for demo purposes)
-    const user = Object.values(demoUsers).find(u => u.id === userId || u.email === userId);
-    
-    if (user) {
-      // Check portal type if required
-      if (requiredType && user.userType !== requiredType) {
-        return null;
-      }
-      return user;
+    const demoUser = Object.values(demoUsers).find(u => u.id === userId || u.email === userId);
+    if (demoUser) {
+      if (requiredType && demoUser.userType !== requiredType) return null;
+      return demoUser;
     }
-    
+
+    // Real DB lookup
+    if (this.env.DATABASE_URL) {
+      try {
+        const sql = neon(this.env.DATABASE_URL);
+        const result = await sql(
+          `SELECT id, email, username, user_type,
+                  first_name, last_name, company_name, bio,
+                  COALESCE(name, username, email) as name
+           FROM users
+           WHERE id::text = $1 OR email = $1
+           LIMIT 1`,
+          [userId]
+        );
+
+        if (result && result.length > 0) {
+          const row = result[0];
+          if (requiredType && row.user_type !== requiredType) return null;
+          return {
+            id: row.id,
+            email: row.email,
+            username: row.username,
+            name: row.name,
+            userType: row.user_type,
+            firstName: row.first_name,
+            lastName: row.last_name,
+            companyName: row.company_name,
+            bio: row.bio
+          };
+        }
+      } catch (err) {
+        const e = err instanceof Error ? err : new Error(String(err));
+        console.error('[AuthAdapter] DB user lookup error:', e.message);
+      }
+    }
+
     return null;
   }
 

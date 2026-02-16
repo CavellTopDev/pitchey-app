@@ -49,26 +49,48 @@ export class CreatorAnalyticsHandler {
 
       // Get top performing pitches
       const topPitches = await this.db.query(
-        `SELECT 
+        `SELECT
           p.id, p.title, p.genre,
-          SUM(pa.views) as total_views,
-          SUM(pa.likes) as total_likes,
-          SUM(pa.nda_requests) as total_ndas
+          SUM(pa.views) as views,
+          SUM(pa.likes) as likes,
+          SUM(pa.nda_requests) as ndas
          FROM pitches p
          JOIN pitch_analytics pa ON pa.pitch_id = p.id
          WHERE p.user_id = $1 AND p.status = 'published'
          GROUP BY p.id, p.title, p.genre
-         ORDER BY total_views DESC
+         ORDER BY views DESC
          LIMIT 5`,
         [userId]
       );
+
+      // Get audience breakdown from pitch_engagement
+      let audienceBreakdown: { userType: string; count: number; percentage: number }[] = [];
+      try {
+        const viewerTypes = await this.db.query(
+          `SELECT pe.viewer_type AS "userType", COUNT(*)::int AS count
+           FROM pitch_engagement pe
+           JOIN pitches p ON p.id = pe.pitch_id
+           WHERE p.user_id = $1
+           GROUP BY pe.viewer_type`,
+          [userId]
+        );
+        const total = viewerTypes.reduce((sum: number, row: any) => sum + Number(row.count), 0);
+        audienceBreakdown = viewerTypes.map((row: any) => ({
+          userType: row.userType,
+          count: Number(row.count),
+          percentage: total > 0 ? Math.round((Number(row.count) / total) * 100) : 0,
+        }));
+      } catch {
+        // pitch_engagement table may not exist or be empty
+      }
 
       return {
         success: true,
         data: {
           current: currentAnalytics[0] || this.getEmptyAnalytics(),
           trend: historicalTrend,
-          topPitches
+          topPitches,
+          audienceBreakdown
         }
       };
     } catch (error) {

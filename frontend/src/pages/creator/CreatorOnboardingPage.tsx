@@ -53,7 +53,7 @@ const ACCENT_CLASSES = {
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
-  const { user, checkSession } = useBetterAuthStore();
+  const { user, checkSession, logout } = useBetterAuthStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const userType = (user?.userType || 'creator') as keyof typeof PORTAL_CONFIG;
@@ -69,6 +69,11 @@ export default function OnboardingPage() {
   const [error, setError] = useState<string | null>(null);
 
   const canSubmit = firstName.trim().length > 0 && lastName.trim().length > 0 && bio.trim().length > 0 && !submitting;
+
+  const handleSignOut = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -205,6 +210,13 @@ export default function OnboardingPage() {
           >
             {submitting ? 'Saving...' : 'Complete Profile'}
           </button>
+
+          <p className="text-center text-sm text-gray-500 mt-4">
+            Wrong account?{' '}
+            <button type="button" onClick={handleSignOut} className="text-red-600 hover:text-red-700 font-medium">
+              Sign out
+            </button>
+          </p>
         </form>
       </div>
     </div>

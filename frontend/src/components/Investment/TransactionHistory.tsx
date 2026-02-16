@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, DollarSign, TrendingUp, TrendingDown, Download, Search, Filter, Eye, ExternalLink } from 'lucide-react';
-import { InvestmentService } from '../../services/investment.service';
+import { investorApi } from '../../services/investor.service';
 
 interface Transaction {
   id: number;
@@ -44,112 +44,65 @@ export default function TransactionHistory({
   const fetchTransactions = useCallback(async () => {
     try {
       setLoading(true);
-      
-      // This would call a transaction history API
-      // For now, using mock data
-      const mockTransactions: Transaction[] = [
-        {
-          id: 1,
-          type: 'investment',
-          amount: 50000,
-          investmentId: 1,
-          pitchTitle: 'Urban Legends',
-          pitchGenre: 'Horror',
-          creatorName: 'Alex Creator',
-          status: 'completed',
-          date: new Date('2024-01-15'),
-          description: 'Initial investment in horror film project'
-        },
-        {
-          id: 2,
-          type: 'return',
-          amount: 12500,
-          investmentId: 1,
-          pitchTitle: 'Urban Legends',
-          pitchGenre: 'Horror',
-          creatorName: 'Alex Creator',
-          status: 'completed',
-          date: new Date('2024-06-15'),
-          description: 'Q2 profit distribution'
-        },
-        {
-          id: 3,
-          type: 'investment',
-          amount: 75000,
-          investmentId: 2,
-          pitchTitle: 'Tech Thriller',
-          pitchGenre: 'Thriller',
-          creatorName: 'Sarah Producer',
-          status: 'pending',
-          date: new Date('2024-10-01'),
-          description: 'Investment pending creator approval'
-        },
-        {
-          id: 4,
-          type: 'dividend',
-          amount: 5000,
-          investmentId: 1,
-          pitchTitle: 'Urban Legends',
-          pitchGenre: 'Horror',
-          creatorName: 'Alex Creator',
-          status: 'completed',
-          date: new Date('2024-09-15'),
-          description: 'Monthly dividend payment'
-        },
-        {
-          id: 5,
-          type: 'fee',
-          amount: -250,
-          investmentId: 2,
-          pitchTitle: 'Tech Thriller',
-          pitchGenre: 'Thriller',
-          creatorName: 'Sarah Producer',
-          status: 'completed',
-          date: new Date('2024-10-02'),
-          description: 'Platform transaction fee'
-        }
-      ];
-      
-      // Apply filters
-      const filtered = mockTransactions.filter(t => {
-        const matchesSearch = !searchTerm || 
-          t.pitchTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          t.creatorName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          t.description?.toLowerCase().includes(searchTerm.toLowerCase());
-        
-        const matchesType = filterType === 'all' || t.type === filterType;
-        const matchesStatus = filterStatus === 'all' || t.status === filterStatus;
-        
-        return matchesSearch && matchesType && matchesStatus;
+
+      const response = await investorApi.getTransactions({
+        page: currentPage,
+        limit: pageSize,
+        type: filterType !== 'all' ? filterType : undefined,
+        search: searchTerm || undefined,
       });
-      
-      // Apply sorting
-      filtered.sort((a, b) => {
-        let comparison = 0;
-        switch (sortBy) {
-          case 'date':
-            comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
-            break;
-          case 'amount':
-            comparison = Math.abs(a.amount) - Math.abs(b.amount);
-            break;
-          case 'type':
-            comparison = a.type.localeCompare(b.type);
-            break;
-        }
-        return sortOrder === 'desc' ? -comparison : comparison;
-      });
-      
-      // Apply pagination
-      const totalItems = filtered.length;
-      setTotalPages(Math.ceil(totalItems / pageSize));
-      const startIndex = (currentPage - 1) * pageSize;
-      const paginatedTransactions = filtered.slice(startIndex, startIndex + pageSize);
-      
-      setTransactions(paginatedTransactions);
-      
-    } catch (error) {
-      console.error('Error fetching transactions:', error);
+
+      if (response.success && response.data) {
+        const data = response.data as any;
+        const rawTransactions: any[] = data.transactions || [];
+
+        // Map API response to local Transaction type
+        const mapped: Transaction[] = rawTransactions.map((t: any) => ({
+          id: t.id,
+          type: (t.type || 'investment') as Transaction['type'],
+          amount: Number(t.amount) || 0,
+          investmentId: t.investment_id || t.investmentId || 0,
+          pitchTitle: t.pitch_title || t.pitchTitle || '',
+          pitchGenre: t.genre || t.pitchGenre,
+          creatorName: t.creator_name || t.creatorName,
+          status: (t.status || 'completed') as Transaction['status'],
+          date: new Date(t.created_at || t.date || Date.now()),
+          description: t.description || t.notes,
+          relatedTransactionId: t.related_transaction_id || t.relatedTransactionId,
+        }));
+
+        // Apply client-side status filter (if API doesn't support it)
+        const filtered = filterStatus === 'all'
+          ? mapped
+          : mapped.filter(t => t.status === filterStatus);
+
+        // Apply client-side sorting
+        filtered.sort((a, b) => {
+          let comparison = 0;
+          switch (sortBy) {
+            case 'date':
+              comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
+              break;
+            case 'amount':
+              comparison = Math.abs(a.amount) - Math.abs(b.amount);
+              break;
+            case 'type':
+              comparison = a.type.localeCompare(b.type);
+              break;
+          }
+          return sortOrder === 'desc' ? -comparison : comparison;
+        });
+
+        setTransactions(filtered);
+        setTotalPages(data.totalPages || data.total_pages || Math.ceil((data.total || filtered.length) / pageSize));
+      } else {
+        setTransactions([]);
+        setTotalPages(1);
+      }
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Error fetching transactions:', e.message);
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
