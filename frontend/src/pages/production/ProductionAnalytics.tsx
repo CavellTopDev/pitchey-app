@@ -123,67 +123,10 @@ export default function ProductionAnalytics() {
     } catch (err) {
       console.error('Failed to load analytics data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load analytics data');
-      
-      // Set fallback data for demo purposes
-      setMetrics([
-        {
-          title: 'Total Revenue',
-          value: '$2.4M',
-          change: 12.5,
-          changeType: 'increase',
-          icon: DollarSign,
-          color: 'text-green-600'
-        },
-        {
-          title: 'Active Projects',
-          value: 8,
-          change: 2,
-          changeType: 'increase',
-          icon: Film,
-          color: 'text-blue-600'
-        },
-        {
-          title: 'Team Utilization',
-          value: '87%',
-          change: 5.2,
-          changeType: 'increase',
-          icon: Users,
-          color: 'text-purple-600'
-        },
-        {
-          title: 'Avg ROI',
-          value: '145%',
-          change: -3.1,
-          changeType: 'decrease',
-          icon: TrendingUp,
-          color: 'text-orange-600'
-        }
-      ]);
-
-      setProjectPerformance([
-        {
-          id: '1',
-          title: 'The Last Symphony',
-          genre: 'Drama',
-          roi: 165,
-          revenue: 850000,
-          budget: 520000,
-          status: 'completed',
-          views: 15420,
-          engagement: 8.7
-        },
-        {
-          id: '2',
-          title: 'Midnight Heist',
-          genre: 'Thriller',
-          roi: 234,
-          revenue: 1200000,
-          budget: 512000,
-          status: 'released',
-          views: 22150,
-          engagement: 9.2
-        }
-      ]);
+      setMetrics([]);
+      setProjectPerformance([]);
+      setFinancialData(null);
+      setResourceUtilization(null);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -265,7 +208,7 @@ export default function ProductionAnalytics() {
                   API Connection Issue
                 </h3>
                 <div className="mt-2 text-sm text-yellow-700">
-                  <p>Unable to connect to analytics API. Showing demo data. {error}</p>
+                  <p>Unable to connect to analytics API. {error}</p>
                 </div>
               </div>
             </div>
@@ -448,7 +391,9 @@ export default function ProductionAnalytics() {
                     <dt className="text-sm font-medium text-gray-500 truncate">
                       Team Utilization
                     </dt>
-                    <dd className="text-lg font-medium text-gray-900">87%</dd>
+                    <dd className="text-lg font-medium text-gray-900">
+                      {resourceUtilization != null ? `${resourceUtilization.teamUtilization}%` : 'N/A'}
+                    </dd>
                   </dl>
                 </div>
               </div>
@@ -466,7 +411,9 @@ export default function ProductionAnalytics() {
                     <dt className="text-sm font-medium text-gray-500 truncate">
                       Studio Time Usage
                     </dt>
-                    <dd className="text-lg font-medium text-gray-900">72%</dd>
+                    <dd className="text-lg font-medium text-gray-900">
+                      {resourceUtilization != null ? `${resourceUtilization.studioTime}%` : 'N/A'}
+                    </dd>
                   </dl>
                 </div>
               </div>
@@ -484,7 +431,9 @@ export default function ProductionAnalytics() {
                     <dt className="text-sm font-medium text-gray-500 truncate">
                       Equipment Usage
                     </dt>
-                    <dd className="text-lg font-medium text-gray-900">91%</dd>
+                    <dd className="text-lg font-medium text-gray-900">
+                      {resourceUtilization != null ? `${resourceUtilization.equipmentUsage}%` : 'N/A'}
+                    </dd>
                   </dl>
                 </div>
               </div>

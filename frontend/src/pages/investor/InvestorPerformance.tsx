@@ -66,6 +66,18 @@ export default function InvestorPerformance() {
         activeInvestments: perfData.activeInvestments ?? perfData.active_investments ?? 0
       });
 
+      // Populate portfolio vs market chart from API performance data
+      const performanceHistory: any[] = perfData.history ?? perfData.performanceData ?? perfData.data ?? [];
+      if (performanceHistory.length > 0) {
+        setPerformanceChartPoints(performanceHistory.map((point: any) => ({
+          month: point.month ?? point.date ?? '',
+          portfolio: point.portfolioValue ?? point.value ?? 0,
+          market: point.marketValue ?? point.benchmark ?? 0
+        })));
+      } else {
+        setPerformanceChartPoints([]);
+      }
+
       // Map category allocations
       const categories: any[] = (categoryResponse.data as any)?.categories || [];
       if (categories.length > 0) {
@@ -85,28 +97,8 @@ export default function InvestorPerformance() {
     }
   };
 
-  // Chart data
-  const performanceChartData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-    datasets: [
-      {
-        label: 'Portfolio Performance',
-        data: [100, 102.5, 108.2, 104.7, 112.3, 118.9, 115.6, 122.8, 119.4, 125.7, 128.3, 128.5],
-        borderColor: 'rgb(147, 51, 234)',
-        backgroundColor: 'rgba(147, 51, 234, 0.1)',
-        fill: true,
-        tension: 0.4
-      },
-      {
-        label: 'Market Benchmark',
-        data: [100, 101.2, 103.8, 102.1, 106.5, 108.9, 107.2, 111.4, 109.8, 113.2, 115.6, 116.8],
-        borderColor: 'rgb(156, 163, 175)',
-        backgroundColor: 'rgba(156, 163, 175, 0.1)',
-        fill: true,
-        tension: 0.4
-      }
-    ]
-  };
+  // Chart data - populated from API response via metrics/allocations state
+  const [performanceChartPoints, setPerformanceChartPoints] = useState<{ month: string; portfolio: number; market: number }[]>([]);
 
   const allocationChartData = {
     labels: allocations.map(a => a.genre),
@@ -242,20 +234,22 @@ export default function InvestorPerformance() {
               <h2 className="text-xl font-semibold text-gray-900">Portfolio vs Market</h2>
               <BarChart3 className="w-5 h-5 text-gray-400" />
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={performanceChartData.datasets[0].data.map((value: any, index: number) => ({
-                month: performanceChartData.labels[index],
-                portfolio: value,
-                market: performanceChartData.datasets[1]?.data[index] || 0
-              }))}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <ChartTooltip />
-                <Line type="monotone" dataKey="portfolio" stroke="#10b981" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="market" stroke="#6366f1" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
+            {performanceChartPoints.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={performanceChartPoints}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <ChartTooltip />
+                  <Line type="monotone" dataKey="portfolio" stroke="#10b981" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="market" stroke="#6366f1" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-gray-500 text-sm">
+                No performance data available
+              </div>
+            )}
           </div>
 
           <div className="bg-white rounded-lg shadow-sm border p-6">

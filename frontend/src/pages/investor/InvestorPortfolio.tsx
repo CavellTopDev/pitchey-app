@@ -514,32 +514,45 @@ export default function InvestorPortfolio() {
         )}
 
         {/* Investment Tips */}
-        <div className="mt-8 bg-blue-50 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-blue-900 mb-3">Investment Insights</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-start gap-3">
-              <TrendingUp className="w-5 h-5 text-blue-600 mt-0.5" />
-              <div>
-                <p className="font-medium text-blue-900">Best Performer</p>
-                <p className="text-sm text-blue-700">Ocean's Secret with 60% ROI</p>
+        {investments.length > 0 && (() => {
+          const topPerformer = investments.reduce((best, inv) => inv.roi > best.roi ? inv : best, investments[0]);
+          const needsReview = investments.filter(inv => inv.roi < 0 || inv.status === 'pending').length;
+          const genres = Array.from(new Set(investments.map(inv => inv.genre)));
+          return (
+            <div className="mt-8 bg-blue-50 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-blue-900 mb-3">Investment Insights</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-start gap-3">
+                  <TrendingUp className="w-5 h-5 text-blue-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-blue-900">Best Performer</p>
+                    <p className="text-sm text-blue-700">
+                      {topPerformer.pitchTitle} with {topPerformer.roi}% ROI
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-blue-900">Attention Needed</p>
+                    <p className="text-sm text-blue-700">
+                      {needsReview > 0 ? `${needsReview} investment${needsReview > 1 ? 's' : ''} require review` : 'All investments on track'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Star className="w-5 h-5 text-blue-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-blue-900">Recommended Action</p>
+                    <p className="text-sm text-blue-700">
+                      {genres.length < 3 ? 'Consider diversifying genres' : `Invested across ${genres.length} genres`}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
-              <div>
-                <p className="font-medium text-blue-900">Attention Needed</p>
-                <p className="text-sm text-blue-700">2 investments require review</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <Star className="w-5 h-5 text-blue-600 mt-0.5" />
-              <div>
-                <p className="font-medium text-blue-900">Recommended Action</p>
-                <p className="text-sm text-blue-700">Consider diversifying genres</p>
-              </div>
-            </div>
-          </div>
-        </div>
+          );
+        })()}
       </div>
     </div>
   );

@@ -163,39 +163,37 @@ describe('RiskAssessment', () => {
   // --- Error State ---
 
   describe('Error State', () => {
-    it('shows error message when API fails and falls back to sample data', async () => {
+    it('shows error message and empty state when API fails', async () => {
       mockGetPortfolioRisk.mockRejectedValue(new Error('Network error'))
       renderPage()
       await waitFor(() => {
-        // The component still renders with fallback data, but heading shows
         expect(screen.getByText('Risk Assessment')).toBeInTheDocument()
-        // Fallback risk score 6.2/10 — check parent text content
-        const riskScoreLabel = screen.getByText('Risk Score')
-        expect(riskScoreLabel.closest('div')?.textContent).toContain('6.2')
+        expect(screen.getByText(/Unable to load risk data/)).toBeInTheDocument()
+        expect(screen.getByText('No risk data available.')).toBeInTheDocument()
       })
+      // Risk metric cards should NOT be rendered when data is null
+      expect(screen.queryByText('Risk Score')).not.toBeInTheDocument()
+      expect(screen.queryByText('Portfolio Risk Distribution')).not.toBeInTheDocument()
     })
 
-    it('displays fallback risk level on error', async () => {
+    it('does not display risk level card on error', async () => {
       mockGetPortfolioRisk.mockRejectedValue(new Error('err'))
       renderPage()
       await waitFor(() => {
-        expect(screen.getByText('Risk Level')).toBeInTheDocument()
-        // Fallback overallRisk is 'Medium'
-        const riskLevelLabel = screen.getByText('Risk Level')
-        expect(riskLevelLabel.closest('div')?.textContent).toContain('Medium')
+        expect(screen.getByText('No risk data available.')).toBeInTheDocument()
       })
+      expect(screen.queryByText('Risk Level')).not.toBeInTheDocument()
     })
 
-    it('falls back when API returns success:false', async () => {
+    it('shows empty state when API returns success:false', async () => {
       mockGetPortfolioRisk.mockResolvedValue({ success: false, data: null })
       renderPage()
       await waitFor(() => {
-        // Fallback data is used — riskScore=6.2, lowRisk=45
-        const riskScoreLabel = screen.getByText('Risk Score')
-        expect(riskScoreLabel.closest('div')?.textContent).toContain('6.2')
-        const distribution = screen.getByText('Portfolio Risk Distribution').closest('.rounded-xl')!
-        expect(distribution.textContent).toContain('45%')
+        expect(screen.getByText(/Unable to load risk data/)).toBeInTheDocument()
+        expect(screen.getByText('No risk data available.')).toBeInTheDocument()
       })
+      expect(screen.queryByText('Risk Score')).not.toBeInTheDocument()
+      expect(screen.queryByText('Portfolio Risk Distribution')).not.toBeInTheDocument()
     })
   })
 

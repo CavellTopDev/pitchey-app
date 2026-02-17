@@ -31,21 +31,12 @@ const MarketTrends = () => {
         setTrendsData(response.data);
       } else {
         setError('Failed to load market trends');
-        // Use fallback data
-        setTrendsData({
-          marketGrowth: 15.8,
-          totalInvestment: 245000000,
-          activePitches: 1247
-        });
+        setTrendsData(null);
       }
     } catch (error) {
       console.error('Failed to load market trends:', error);
       setError('Failed to load market trends');
-      setTrendsData({
-        marketGrowth: 15.8,
-        totalInvestment: 245000000,
-        activePitches: 1247
-      });
+      setTrendsData(null);
     } finally {
       setLoading(false);
     }
@@ -81,7 +72,7 @@ const MarketTrends = () => {
 
         {error && (
           <div className="mb-6 p-4 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-md">
-            {error}. Showing sample data.
+            Data unavailable. {error}
           </div>
         )}
 
@@ -91,7 +82,9 @@ const MarketTrends = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Market Growth</p>
-                  <p className="text-2xl font-bold text-green-600">+{trendsData?.marketGrowth || 15.8}%</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {trendsData != null ? `+${trendsData.marketGrowth ?? 0}%` : 'N/A'}
+                  </p>
                 </div>
                 <TrendingUp className="h-8 w-8 text-green-600" />
               </div>
@@ -102,7 +95,9 @@ const MarketTrends = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Total Investment</p>
-                  <p className="text-2xl font-bold text-purple-600">{formatCurrency(trendsData?.totalInvestment || 245000000)}</p>
+                  <p className="text-2xl font-bold text-purple-600">
+                    {trendsData != null ? formatCurrency(trendsData.totalInvestment ?? 0) : 'N/A'}
+                  </p>
                 </div>
                 <Activity className="h-8 w-8 text-purple-600" />
               </div>
@@ -113,7 +108,9 @@ const MarketTrends = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Active Pitches</p>
-                  <p className="text-2xl font-bold text-blue-600">{trendsData?.activePitches || 1247}</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {trendsData != null ? (trendsData.activePitches ?? 0) : 'N/A'}
+                  </p>
                 </div>
                 <Globe className="h-8 w-8 text-blue-600" />
               </div>

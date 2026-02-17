@@ -66,6 +66,7 @@ export default function InvestorAnalytics() {
   const [marketTrends, setMarketTrends] = useState<MarketTrend[]>([]);
   const [investmentFlows, setInvestmentFlows] = useState<InvestmentFlow[]>([]);
   const [creatorInsights, setCreatorInsights] = useState<CreatorInsight[]>([]);
+  const [riskAnalysis, setRiskAnalysis] = useState<{ lowRisk: number; mediumRisk: number; highRisk: number } | null>(null);
 
   const loadAnalyticsData = useCallback(async () => {
     try {
@@ -86,12 +87,17 @@ export default function InvestorAnalytics() {
       const analyticsData = await InvestorService.getAnalytics(period);
 
       // Transform API response to analytics metrics
+      const avgROI = analyticsData.genrePerformance?.length > 0
+        ? analyticsData.genrePerformance.reduce((sum: number, g: any) => sum + (g.avgROI || 0), 0) / analyticsData.genrePerformance.length
+        : 0;
+      const totalCurrentValue = analyticsData.topPerformers?.reduce((sum: number, inv: any) => sum + (inv.currentValue || 0), 0) ?? 0;
+
       const transformedMetrics: AnalyticsMetric[] = [
         {
           id: '1',
           title: 'Portfolio Growth Rate',
-          value: analyticsData.riskAnalysis?.lowRisk || 24.5,
-          change: 4.2,
+          value: analyticsData.riskAnalysis?.lowRisk ?? 0,
+          change: 0,
           changeType: 'increase' as const,
           icon: TrendingUp,
           format: 'percentage' as const,
@@ -100,8 +106,8 @@ export default function InvestorAnalytics() {
         {
           id: '2',
           title: 'Investment Velocity',
-          value: analyticsData.topPerformers?.reduce((sum: number, inv: any) => sum + (inv.currentValue || 0), 0) || 850000,
-          change: 12.8,
+          value: totalCurrentValue,
+          change: 0,
           changeType: 'increase' as const,
           icon: Zap,
           format: 'currency' as const,
@@ -110,8 +116,8 @@ export default function InvestorAnalytics() {
         {
           id: '3',
           title: 'Market Opportunities',
-          value: analyticsData.genrePerformance?.length || 47,
-          change: 8,
+          value: analyticsData.genrePerformance?.length ?? 0,
+          change: 0,
           changeType: 'increase' as const,
           icon: Target,
           format: 'number' as const,
@@ -120,8 +126,8 @@ export default function InvestorAnalytics() {
         {
           id: '4',
           title: 'Risk-Adjusted Return',
-          value: analyticsData.genrePerformance?.reduce((sum: number, g: any) => sum + (g.avgROI || 0), 0) / (analyticsData.genrePerformance?.length || 1) || 18.9,
-          change: 2.1,
+          value: avgROI,
+          change: 0,
           changeType: 'increase' as const,
           icon: Award,
           format: 'percentage' as const,
@@ -129,6 +135,7 @@ export default function InvestorAnalytics() {
         }
       ];
       setAnalyticsMetrics(transformedMetrics);
+      setRiskAnalysis(analyticsData.riskAnalysis ?? null);
 
       // Transform genre performance to market trends
       const transformedTrends: MarketTrend[] = (analyticsData.genrePerformance || []).map((genre: any) => ({
@@ -210,22 +217,15 @@ export default function InvestorAnalytics() {
     netFlow: flow.netFlow
   }));
 
-  // Debug logging
+  const riskDistributionData = riskAnalysis
+    ? [
+        { name: 'Low Risk', value: riskAnalysis.lowRisk, color: '#22c55e' },
+        { name: 'Medium Risk', value: riskAnalysis.mediumRisk, color: '#fb923c' },
+        { name: 'High Risk', value: riskAnalysis.highRisk, color: '#ef4444' }
+      ]
+    : [];
 
-  const riskDistributionData = [
-    { name: 'Low Risk', value: 45, color: '#22c55e' },
-    { name: 'Medium Risk', value: 35, color: '#fb923c' },
-    { name: 'High Risk', value: 20, color: '#ef4444' }
-  ];
-
-  const performanceRadarData = [
-    { label: 'ROI', value: 85, industry: 65 },
-    { label: 'Risk Management', value: 78, industry: 70 },
-    { label: 'Diversification', value: 92, industry: 75 },
-    { label: 'Market Timing', value: 71, industry: 68 },
-    { label: 'Creator Selection', value: 88, industry: 72 },
-    { label: 'Genre Strategy', value: 83, industry: 70 }
-  ];
+  const performanceRadarData: { label: string; value: number; industry: number }[] = [];
 
   const formatValue = (value: number, format: string) => {
     switch (format) {

@@ -143,22 +143,23 @@ describe('MarketTrends', () => {
   // --- Error State ---
 
   describe('Error State', () => {
-    it('shows warning banner when API fails and falls back to sample data', async () => {
+    it('shows warning banner when API fails', async () => {
       mockGetMarketTrends.mockRejectedValue(new Error('Network error'))
       renderPage()
       await waitFor(() => {
         expect(screen.getByText(/Failed to load market trends/)).toBeInTheDocument()
-        expect(screen.getByText(/Showing sample data/)).toBeInTheDocument()
+        expect(screen.getByText(/Data unavailable/)).toBeInTheDocument()
       })
     })
 
-    it('still displays fallback metric values on error', async () => {
+    it('displays N/A for metric values on error', async () => {
       mockGetMarketTrends.mockRejectedValue(new Error('err'))
       renderPage()
       await waitFor(() => {
-        // Fallback values from component
         expect(screen.getByText('Market Growth')).toBeInTheDocument()
-        expect(screen.getByText('+15.8%')).toBeInTheDocument()
+        // Metrics show N/A when data is null
+        const growthCard = screen.getByText('Market Growth').closest('div')
+        expect(growthCard?.parentElement?.textContent).toContain('N/A')
       })
     })
 

@@ -41,100 +41,14 @@ const InvestorWallet = () => {
   // Wallet state
   const [wallet, setWallet] = useState({
     balance: {
-      available: 125000,
-      pending: 15000,
-      invested: 450000,
-      total: 590000
+      available: 0,
+      pending: 0,
+      invested: 0,
+      total: 0
     },
-    transactions: [
-      {
-        id: 1,
-        type: 'investment',
-        description: 'Investment in "Stellar Horizons"',
-        amount: -50000,
-        date: '2024-12-15',
-        status: 'completed',
-        balance: 125000
-      },
-      {
-        id: 2,
-        type: 'deposit',
-        description: 'Bank transfer deposit',
-        amount: 100000,
-        date: '2024-12-10',
-        status: 'completed',
-        balance: 175000
-      },
-      {
-        id: 3,
-        type: 'return',
-        description: 'ROI from "Ocean\'s Echo"',
-        amount: 25000,
-        date: '2024-12-05',
-        status: 'completed',
-        balance: 75000
-      },
-      {
-        id: 4,
-        type: 'investment',
-        description: 'Investment in "The Last Light"',
-        amount: -75000,
-        date: '2024-11-28',
-        status: 'completed',
-        balance: 50000
-      },
-      {
-        id: 5,
-        type: 'withdrawal',
-        description: 'Withdrawal to bank account',
-        amount: -25000,
-        date: '2024-11-20',
-        status: 'completed',
-        balance: 125000
-      }
-    ],
-    paymentMethods: [
-      {
-        id: 1,
-        type: 'bank',
-        name: 'Chase Business Account',
-        last4: '4921',
-        isDefault: true
-      },
-      {
-        id: 2,
-        type: 'card',
-        name: 'Corporate Card',
-        last4: '3847',
-        isDefault: false
-      }
-    ],
-    recentAlerts: [
-      {
-        id: 1,
-        type: 'security',
-        message: 'Large transaction detected: $50,000',
-        severity: 'high',
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        read: false
-      },
-      {
-        id: 2,
-        type: 'info',
-        message: 'Monthly statement is now available',
-        severity: 'normal',
-        timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
-        read: true
-      },
-      {
-        id: 3,
-        type: 'success',
-        message: 'ROI distribution of $25,000 processed',
-        severity: 'normal',
-        timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-        read: false
-      }
-    ]
+    transactions: [] as any[],
+    paymentMethods: [] as any[],
+    recentAlerts: [] as any[]
   });
 
   // Initialize real-time updates and fetch data
@@ -153,26 +67,45 @@ const InvestorWallet = () => {
   const loadWalletData = async () => {
     try {
       setLoading(true);
-      const [financialSummary, recentTransactions, transactionStats] = await Promise.all([
+      const [financialSummary, recentTransactions, transactionStatsRes, paymentMethodsRes, paymentHistoryRes] = await Promise.all([
         investorApi.getFinancialSummary(),
         investorApi.getRecentTransactions(10),
-        investorApi.getTransactionStats()
+        investorApi.getTransactionStats(),
+        investorApi.getAllInvestments(),
+        investorApi.getTransactions({ limit: 20 })
       ]);
-      
-      // Update wallet state with real data
-      if (financialSummary.success) {
-        setWallet(prev => ({
-          ...prev,
-          balance: (financialSummary.data as any)?.balance || prev.balance
-        }));
-      }
+
+      setWallet(prev => {
+        const summary = financialSummary.success ? (financialSummary.data as any) : null;
+        const balance = summary ? {
+          available: summary.totalInvested != null ? (summary.portfolioValue ?? 0) - (summary.totalInvested ?? 0) : 0,
+          pending: summary.pendingInvestments ?? 0,
+          invested: summary.totalInvested ?? 0,
+          total: summary.portfolioValue ?? 0
+        } : prev.balance;
+
+        const transactions = recentTransactions.success
+          ? ((recentTransactions.data as any)?.transactions ?? [])
+          : prev.transactions;
+
+        const paymentMethods = paymentMethodsRes.success
+          ? ((paymentMethodsRes.data as any)?.paymentMethods ?? (paymentMethodsRes.data as any)?.methods ?? [])
+          : prev.paymentMethods;
+
+        return { ...prev, balance, transactions, paymentMethods };
+      });
 
       if (recentTransactions.success) {
-        setRealtimeTransactions((recentTransactions.data as any)?.transactions || []);
+        setRealtimeTransactions((recentTransactions.data as any)?.transactions ?? []);
       }
 
-      if (transactionStats.success) {
-        setTransactionStats((transactionStats as any).data || (transactionStats.data as any) || transactionStats);
+      if (transactionStatsRes.success) {
+        setTransactionStats((transactionStatsRes.data as any)?.stats ?? (transactionStatsRes.data as any) ?? {
+          todayVolume: 0,
+          weeklyVolume: 0,
+          failedTransactions: 0,
+          pendingTransactions: 0
+        });
       }
     } catch (error) {
       console.error('Error loading wallet data:', error);

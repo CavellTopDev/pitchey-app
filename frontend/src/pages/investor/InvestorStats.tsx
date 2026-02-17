@@ -45,97 +45,110 @@ export default function InvestorStats() {
   const [metrics, setMetrics] = useState<PerformanceMetrics | null>(null);
 
   const loadStats = useCallback(async () => {
-    let cancelled = false;
-    
     try {
       setLoading(true);
-      
-      // Simulate loading stats - replace with actual API
-      const timeoutId = setTimeout(() => {
-        if (cancelled) return;
-        
-        setMetrics({
-          portfolioValue: 8750000,
-          totalInvested: 6200000,
-          unrealizedGains: 2100000,
-          realizedGains: 450000,
-          activeInvestments: 12,
-          completedExits: 3,
-          averageROI: 28.5,
-          hitRate: 75,
-          dealFlow: 156,
-          followOnRate: 45
-        });
 
-        setStats([
-          {
-            label: 'Portfolio Value',
-            value: '$8.75M',
-            change: 12.8,
-            trend: 'up',
-            icon: DollarSign,
-            color: 'green',
-            description: 'Total current portfolio valuation'
-          },
-          {
-            label: 'Total Invested',
-            value: '$6.20M',
-            change: 8.3,
-            trend: 'up',
-            icon: Target,
-            color: 'blue',
-            description: 'Capital deployed across investments'
-          },
-          {
-            label: 'Average ROI',
-            value: '28.5%',
-            change: 3.2,
-            trend: 'up',
-            icon: TrendingUp,
-            color: 'purple',
-            description: 'Return on investment across portfolio'
-          },
-          {
-            label: 'Active Investments',
-            value: 12,
-            change: 2,
-            trend: 'up',
-            icon: Activity,
-            color: 'orange',
-            description: 'Currently active portfolio companies'
-          },
-          {
-            label: 'Hit Rate',
-            value: '75%',
-            change: 5.0,
-            trend: 'up',
-            icon: Award,
-            color: 'yellow',
-            description: 'Successful investment rate'
-          },
-          {
-            label: 'Deal Flow',
-            value: 156,
-            change: -2.1,
-            trend: 'down',
-            icon: Building,
-            color: 'red',
-            description: 'Opportunities reviewed this period'
-          }
-        ]);
-        setLoading(false);
-      }, 1000);
-      
-      // Return cleanup function
-      return () => {
-        cancelled = true;
-        clearTimeout(timeoutId);
-      };
+      const response = await fetch('/api/investor/investments/summary', {
+        credentials: 'include'
+      });
+      const json = response.ok ? await response.json() : null;
+      const data = json?.data ?? json ?? {};
+
+      const portfolioValue = data.portfolioValue ?? data.currentValue ?? 0;
+      const totalInvested = data.totalInvested ?? 0;
+      const activeInvestments = data.activeInvestments ?? data.activeDeals ?? 0;
+      const averageROI = data.averageROI ?? data.avgROI ?? data.averageReturn ?? 0;
+      const completedExits = data.completedInvestments ?? data.completedDeals ?? 0;
+      const dealFlow = data.dealFlow ?? data.totalInvestments ?? 0;
+
+      setMetrics({
+        portfolioValue,
+        totalInvested,
+        unrealizedGains: data.unrealizedGains ?? Math.max(0, portfolioValue - totalInvested),
+        realizedGains: data.realizedGains ?? 0,
+        activeInvestments,
+        completedExits,
+        averageROI,
+        hitRate: data.hitRate ?? 0,
+        dealFlow,
+        followOnRate: data.followOnRate ?? 0
+      });
+
+      const fmtM = (n: number) => n >= 1000000 ? `$${(n / 1000000).toFixed(2)}M` : n >= 1000 ? `$${(n / 1000).toFixed(0)}K` : `$${n}`;
+
+      setStats([
+        {
+          label: 'Portfolio Value',
+          value: fmtM(portfolioValue),
+          change: data.monthlyGrowth ?? 0,
+          trend: (data.monthlyGrowth ?? 0) >= 0 ? 'up' : 'down',
+          icon: DollarSign,
+          color: 'green',
+          description: 'Total current portfolio valuation'
+        },
+        {
+          label: 'Total Invested',
+          value: fmtM(totalInvested),
+          change: 0,
+          trend: 'stable',
+          icon: Target,
+          color: 'blue',
+          description: 'Capital deployed across investments'
+        },
+        {
+          label: 'Average ROI',
+          value: `${averageROI.toFixed(1)}%`,
+          change: 0,
+          trend: averageROI > 0 ? 'up' : averageROI < 0 ? 'down' : 'stable',
+          icon: TrendingUp,
+          color: 'purple',
+          description: 'Return on investment across portfolio'
+        },
+        {
+          label: 'Active Investments',
+          value: activeInvestments,
+          change: 0,
+          trend: 'stable',
+          icon: Activity,
+          color: 'orange',
+          description: 'Currently active portfolio companies'
+        },
+        {
+          label: 'Hit Rate',
+          value: `${data.hitRate ?? 0}%`,
+          change: 0,
+          trend: 'stable',
+          icon: Award,
+          color: 'yellow',
+          description: 'Successful investment rate'
+        },
+        {
+          label: 'Deal Flow',
+          value: dealFlow,
+          change: 0,
+          trend: 'stable',
+          icon: Building,
+          color: 'red',
+          description: 'Opportunities reviewed this period'
+        }
+      ]);
     } catch (error) {
-      if (!cancelled) {
-        console.error('Failed to load stats:', error);
-        setLoading(false);
-      }
+      console.error('Failed to load stats:', error);
+      setMetrics({
+        portfolioValue: 0,
+        totalInvested: 0,
+        unrealizedGains: 0,
+        realizedGains: 0,
+        activeInvestments: 0,
+        completedExits: 0,
+        averageROI: 0,
+        hitRate: 0,
+        dealFlow: 0,
+        followOnRate: 0
+      });
+      setStats([]);
+    } finally {
+      setLoading(false);
     }
   }, [timeRange]);
 
