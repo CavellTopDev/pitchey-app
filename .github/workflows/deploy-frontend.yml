@@ -36,9 +36,12 @@ jobs:
         working-directory: frontend
         run: npm run build
         env:
-          # These variables are baked into the build
-          VITE_API_URL: 'https://pitchey-api-prod.ndlovucavelle.workers.dev'
-          VITE_WS_URL: 'wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws'
+          # VITE_API_URL must be empty for same-origin requests via Pages Functions proxy
+          # The proxy at functions/api/[[path]].ts forwards /api/* to the Worker
+          # Setting this to the Worker URL would bypass the proxy and break cookies
+          VITE_API_URL: ''
+          VITE_WS_URL: 'wss://pitchey-api-prod.ndlovucavelle.workers.dev'
+          VITE_DISABLE_WEBSOCKET: 'true'
           VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN || 'https://fd5664ae577039ccb7cce31e91f54533@o4510137537396736.ingest.de.sentry.io/4510138308755536' }}
           NODE_ENV: production
 
