@@ -2020,8 +2020,9 @@ class RouteRegistry {
     this.register('GET', '/api/notifications/unread', this.getUnreadNotifications.bind(this));
     this.register('GET', '/api/user/notifications', this.getUserNotifications.bind(this));
 
-    // Presence update endpoint
+    // Presence endpoints
     this.register('POST', '/api/presence/update', this.handlePresenceUpdate.bind(this));
+    this.register('GET', '/api/presence/online', this.handlePresenceOnline.bind(this));
 
     // Polling endpoint for free tier (combines multiple data sources)
     this.register('GET', '/api/poll/all', this.handlePollAll.bind(this));
@@ -4199,6 +4200,7 @@ pitchey_analytics_datapoints_per_minute 1250
 
       return builder.success({
         status: 'healthy',
+        websocketAvailable: false, // Durable Objects WS not live yet — keeps frontend in HTTP polling mode
         websocket: {
           upgrade_supported: true,
           connection_test: wsSupported ? 'ready_for_upgrade' : 'standard_http',
@@ -10297,13 +10299,13 @@ pitchey_analytics_datapoints_per_minute 1250
       const [{ count }] = await this.db.query(`
         SELECT COUNT(*) as count
         FROM notifications
-        WHERE user_id = $1 AND read = false
+        WHERE user_id = $1 AND is_read = false
       `, [authResult.user.id]);
 
-      return builder.success({ unread_count: this.safeParseInt(count) });
+      return builder.success({ count: this.safeParseInt(count) });
     } catch (error) {
       // Return 0 if notifications table doesn't exist
-      return builder.success({ unread_count: 0 });
+      return builder.success({ count: 0 });
     }
   }
 
@@ -10331,9 +10333,9 @@ pitchey_analytics_datapoints_per_minute 1250
 
       // Mark fetched notifications as read
       await this.db.query(`
-        UPDATE notifications 
-        SET read = true 
-        WHERE user_id = $1 AND read = false
+        UPDATE notifications
+        SET is_read = true
+        WHERE user_id = $1 AND is_read = false
       `, [authResult.user.id]);
 
       return builder.success({ notifications });
@@ -10353,20 +10355,23 @@ pitchey_analytics_datapoints_per_minute 1250
     const builder = new ApiResponseBuilder(request);
 
     try {
-      const body = await request.json() as { status?: string };
-      const status = body.status || 'online';
+      const body = await request.json() as { status?: string; activity?: string };
+      const allowedStatuses = ['online', 'away', 'busy', 'offline', 'dnd'];
+      const status = allowedStatuses.includes(body.status || '') ? body.status! : 'online';
+      const activity = body.activity || null;
       const userId = authResult.user.id;
 
       // Update presence in database (upsert)
       await this.db.query(`
-        INSERT INTO user_presence (user_id, status, updated_at)
-        VALUES ($1, $2, NOW())
+        INSERT INTO user_presence (user_id, status, activity, updated_at)
+        VALUES ($1, $2, $3, NOW())
         ON CONFLICT (user_id)
-        DO UPDATE SET status = $2, updated_at = NOW()
-      `, [userId, status]);
+        DO UPDATE SET status = $2, activity = $3, updated_at = NOW()
+      `, [userId, status, activity]);
 
       return builder.success({
         status,
+        activity,
         userId,
         updated_at: new Date().toISOString()
       });
@@ -10383,6 +10388,37 @@ pitchey_analytics_datapoints_per_minute 1250
   }
 
   /**
+   * Get currently online users (active in last 5 minutes, not offline)
+   */
+  private async handlePresenceOnline(request: Request): Promise<Response> {
+    const authResult = await this.requireAuth(request);
+    if (!authResult.authorized) return authResult.response!;
+
+    const builder = new ApiResponseBuilder(request);
+
+    try {
+      const users = await this.db.query(`
+        SELECT
+          up.user_id as "userId",
+          COALESCE(u.name, u.username, u.email) as username,
+          up.status,
+          up.updated_at as "lastSeen",
+          up.activity
+        FROM user_presence up
+        JOIN users u ON up.user_id = u.id
+        WHERE up.updated_at > NOW() - INTERVAL '5 minutes'
+          AND up.status != 'offline'
+        ORDER BY up.updated_at DESC
+      `);
+
+      return builder.success({ users });
+    } catch (error) {
+      // Return empty array if table doesn't exist
+      return builder.success({ users: [] });
+    }
+  }
+
+  /**
    * Combined polling endpoint for free tier
    * Returns notifications, messages, and dashboard updates in a single request
    */
@@ -10393,10 +10429,10 @@ pitchey_analytics_datapoints_per_minute 1250
 
     try {
       // Fetch multiple data sources in parallel
-      const [notifications, unreadCount, dashboardStats] = await Promise.all([
+      const [notifications, unreadCount, dashboardStats, presenceUsers] = await Promise.all([
         // Get recent notifications
         this.db.query(`
-          SELECT id, type, title, message, created_at, read
+          SELECT id, type, title, message, created_at, is_read
           FROM notifications
           WHERE user_id = $1
           ORDER BY created_at DESC
@@ -10407,21 +10443,37 @@ pitchey_analytics_datapoints_per_minute 1250
         this.db.query(`
           SELECT COUNT(*) as count
           FROM notifications
-          WHERE user_id = $1 AND read = false
+          WHERE user_id = $1 AND is_read = false
         `, [authResult.user.id]).then(([result]) => result?.count || 0).catch(() => 0),
 
         // Get basic dashboard stats based on user type
-        this.getDashboardStatsForUser(authResult.user)
+        this.getDashboardStatsForUser(authResult.user),
+
+        // Get online users
+        this.db.query(`
+          SELECT
+            up.user_id as "userId",
+            COALESCE(u.name, u.username, u.email) as username,
+            up.status,
+            up.updated_at as "lastSeen",
+            up.activity
+          FROM user_presence up
+          JOIN users u ON up.user_id = u.id
+          WHERE up.updated_at > NOW() - INTERVAL '5 minutes'
+            AND up.status != 'offline'
+          ORDER BY up.updated_at DESC
+        `).catch(() => [])
       ]);
 
       // Determine next poll interval based on activity
-      const hasNewNotifications = notifications.length > 0 && notifications.some((n: any) => !n.read);
+      const hasNewNotifications = notifications.length > 0 && notifications.some((n: any) => !n.is_read);
       const nextPollIn = hasNewNotifications ? 15000 : 30000; // 15s if new notifications, 30s otherwise
 
       return builder.success({
         notifications: notifications || [],
         messages: [], // Messages would come from a messaging system if implemented
-        updates: [dashboardStats],
+        dashboardMetrics: dashboardStats,
+        presence: { users: presenceUsers || [] },
         unreadCount: this.safeParseInt(unreadCount),
         timestamp: Date.now(),
         nextPollIn
@@ -10432,7 +10484,8 @@ pitchey_analytics_datapoints_per_minute 1250
       return builder.success({
         notifications: [],
         messages: [],
-        updates: [],
+        dashboardMetrics: {},
+        presence: { users: [] },
         unreadCount: 0,
         timestamp: Date.now(),
         nextPollIn: 60000 // Poll less frequently on error
@@ -10506,20 +10559,42 @@ pitchey_analytics_datapoints_per_minute 1250
     const builder = new ApiResponseBuilder(request);
 
     try {
-      // Return mock real-time analytics data
+      // Fetch real analytics data in parallel (each query resilient to missing tables)
+      const [activeUsers, viewsLastHour, newPitchesToday, investmentsToday, trendingGenres] = await Promise.all([
+        this.db.query(`
+          SELECT COUNT(*) as count FROM user_presence
+          WHERE updated_at > NOW() - INTERVAL '5 minutes' AND status != 'offline'
+        `).then(([r]) => this.safeParseInt(r?.count)).catch(() => 0),
+
+        this.db.query(`
+          SELECT COALESCE(SUM(views), 0) as total FROM pitch_analytics
+          WHERE date = CURRENT_DATE
+        `).then(([r]) => this.safeParseInt(r?.total)).catch(() => 0),
+
+        this.db.query(`
+          SELECT COUNT(*) as count FROM pitches
+          WHERE created_at >= CURRENT_DATE
+        `).then(([r]) => this.safeParseInt(r?.count)).catch(() => 0),
+
+        this.db.query(`
+          SELECT COUNT(*) as count FROM investments
+          WHERE created_at >= CURRENT_DATE
+        `).then(([r]) => this.safeParseInt(r?.count)).catch(() => 0),
+
+        this.db.query(`
+          SELECT genre, COUNT(*) as count FROM pitches
+          WHERE status = 'published' AND genre IS NOT NULL
+          GROUP BY genre ORDER BY count DESC LIMIT 3
+        `).then(rows => rows.map((r: any) => r.genre)).catch(() => ['Action', 'Drama', 'Comedy'])
+      ]);
+
       const analytics = {
-        active_users: Math.floor(Math.random() * 100) + 50,
-        views_last_hour: Math.floor(Math.random() * 500) + 100,
-        new_pitches_today: Math.floor(Math.random() * 20) + 5,
-        investments_today: Math.floor(Math.random() * 10) + 2,
-        trending_genres: ['Action', 'Drama', 'Comedy'],
-        server_time: new Date().toISOString(),
-        peak_hours: [
-          { hour: 14, views: 450 },
-          { hour: 15, views: 520 },
-          { hour: 16, views: 480 },
-          { hour: 17, views: 390 }
-        ]
+        active_users: activeUsers,
+        views_last_hour: viewsLastHour,
+        new_pitches_today: newPitchesToday,
+        investments_today: investmentsToday,
+        trending_genres: trendingGenres,
+        server_time: new Date().toISOString()
       };
 
       return builder.success(analytics);

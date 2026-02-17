@@ -24,7 +24,9 @@ class PresenceFallbackService {
   private pollInterval: NodeJS.Timeout | null = null;
   private readonly POLL_INTERVAL = 30000; // Poll every 30 seconds
   private readonly HEARTBEAT_INTERVAL = 60000; // Send heartbeat every 60 seconds
+  private readonly MAX_CONSECUTIVE_FAILURES = 3;
   private isPolling = false;
+  private consecutiveFailures = 0;
   private subscribers: ((users: PresenceData[]) => void)[] = [];
   private heartbeatTimeout: NodeJS.Timeout | null = null;
   private currentStatus: 'online' | 'away' | 'offline' | 'dnd' = 'offline';
@@ -39,6 +41,7 @@ class PresenceFallbackService {
     }
 
     this.isPolling = true;
+    this.consecutiveFailures = 0;
     this.currentStatus = 'online';
 
     // Start polling for presence updates
@@ -57,6 +60,7 @@ class PresenceFallbackService {
    * Stop presence polling and heartbeat
    */
   stop(): void {
+    const wasPolling = this.isPolling;
     this.isPolling = false;
     this.currentStatus = 'offline';
 
@@ -70,8 +74,13 @@ class PresenceFallbackService {
       this.heartbeatTimeout = null;
     }
 
-    // Send offline status before stopping
-    this.updatePresence({ status: 'offline' });
+    // Only try to send offline status if the service was running successfully
+    // (i.e. not stopped due to endpoint failures)
+    if (wasPolling && this.consecutiveFailures < this.MAX_CONSECUTIVE_FAILURES) {
+      this.updatePresence({ status: 'offline' }).catch(() => {
+        // Ignore — we're stopping anyway
+      });
+    }
   }
 
   /**
@@ -94,21 +103,47 @@ class PresenceFallbackService {
         return false;
       }
 
+      // Endpoint doesn't exist — stop immediately to avoid infinite retries
+      if (response.status === 404 || response.status === 405) {
+        this.stop();
+        return false;
+      }
+
       if (!response.ok) {
-        throw new Error(`Presence update failed: ${response.status}`);
+        this.consecutiveFailures++;
+        if (this.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
+          console.warn('Presence update: too many failures, stopping service');
+          this.stop();
+        }
+        return false;
+      }
+
+      // Verify we got JSON back (Pages SPA fallback returns HTML for unknown routes)
+      const contentType = response.headers.get('Content-Type') || '';
+      if (!contentType.includes('application/json')) {
+        this.consecutiveFailures++;
+        if (this.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
+          console.warn('Presence update: endpoint returning non-JSON, stopping service');
+          this.stop();
+        }
+        return false;
       }
 
       const result = await response.json();
+      this.consecutiveFailures = 0; // Reset on success
       if (result.success) {
         this.currentStatus = data.status;
         this.currentActivity = data.activity;
         return true;
       } else {
-        console.warn('Presence update failed:', result.message);
         return false;
       }
     } catch (error) {
-      console.error('Error updating presence:', error);
+      this.consecutiveFailures++;
+      if (this.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
+        console.warn('Presence update: too many failures, stopping service');
+        this.stop();
+      }
       return false;
     }
   }
@@ -130,11 +165,34 @@ class PresenceFallbackService {
         return [];
       }
 
+      // Endpoint doesn't exist — stop immediately to avoid infinite retries
+      if (response.status === 404 || response.status === 405) {
+        this.stop();
+        return [];
+      }
+
       if (!response.ok) {
-        throw new Error(`Presence fetch failed: ${response.status}`);
+        this.consecutiveFailures++;
+        if (this.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
+          console.warn('Presence fetch: too many failures, stopping service');
+          this.stop();
+        }
+        return [];
+      }
+
+      // Verify we got JSON back (Pages SPA fallback returns HTML for unknown routes)
+      const contentType = response.headers.get('Content-Type') || '';
+      if (!contentType.includes('application/json')) {
+        this.consecutiveFailures++;
+        if (this.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
+          console.warn('Presence fetch: endpoint returning non-JSON, stopping service');
+          this.stop();
+        }
+        return [];
       }
 
       const result = await response.json();
+      this.consecutiveFailures = 0; // Reset on success
       if (result.success && result.data) {
         const users = (result.data.users || []).map((user: any) => ({
           ...user,
@@ -146,17 +204,21 @@ class PresenceFallbackService {
           try {
             callback(users);
           } catch (error) {
-            console.error('Error in presence subscriber:', error);
+            const e = error instanceof Error ? error : new Error(String(error));
+            console.error('Error in presence subscriber:', e.message);
           }
         });
 
         return users;
       } else {
-        console.warn('Invalid presence response:', result);
         return [];
       }
     } catch (error) {
-      console.error('Error fetching presence:', error);
+      this.consecutiveFailures++;
+      if (this.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
+        console.warn('Presence fetch: too many failures, stopping service');
+        this.stop();
+      }
       return [];
     }
   }
@@ -181,15 +243,19 @@ class PresenceFallbackService {
    */
   private startHeartbeat(): void {
     const sendHeartbeat = async () => {
-      if (this.isPolling && this.currentStatus !== 'offline') {
-        await this.updatePresence({ 
-          status: this.currentStatus, 
-          activity: this.currentActivity 
+      if (!this.isPolling) return; // Service was stopped — don't reschedule
+
+      if (this.currentStatus !== 'offline') {
+        await this.updatePresence({
+          status: this.currentStatus,
+          activity: this.currentActivity
         });
       }
 
-      // Schedule next heartbeat
-      this.heartbeatTimeout = setTimeout(sendHeartbeat, this.HEARTBEAT_INTERVAL);
+      // Only schedule next heartbeat if service is still running
+      if (this.isPolling) {
+        this.heartbeatTimeout = setTimeout(sendHeartbeat, this.HEARTBEAT_INTERVAL);
+      }
     };
 
     sendHeartbeat();
@@ -225,7 +291,12 @@ class PresenceFallbackService {
       });
 
       if (!response.ok) {
-        throw new Error(`WebSocket test failed: ${response.status}`);
+        return { available: false, error: `WebSocket test failed: ${response.status}` };
+      }
+
+      const contentType = response.headers.get('Content-Type') || '';
+      if (!contentType.includes('application/json')) {
+        return { available: false, error: 'Endpoint returned non-JSON response' };
       }
 
       const result = await response.json();

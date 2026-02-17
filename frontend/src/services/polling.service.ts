@@ -115,15 +115,22 @@ class PollingService {
 
     try {
       const response = await apiClient.get(url);
-      
+
       if (response.data) {
         this.processPollingResponse(endpoint, response.data);
         this.lastPollTimes.set(endpoint, now);
       }
-    } catch (error: any) {
-      // Don't treat 404s as errors for polling endpoints
-      if (error.response?.status === 404) {
-        // Expected when no new data
+    } catch (error: unknown) {
+      const status = (error as any)?.response?.status;
+      // Don't treat 404/405 as retriable errors — endpoint doesn't exist
+      if (status === 404 || status === 405) {
+        // Stop polling this endpoint permanently
+        this.retryCounters.set(endpoint, this.config.maxRetries);
+        const interval = this.pollingIntervals.get(endpoint);
+        if (interval) {
+          clearInterval(interval);
+          this.pollingIntervals.delete(endpoint);
+        }
         return;
       }
       throw error;
