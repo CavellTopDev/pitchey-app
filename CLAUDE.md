@@ -60,12 +60,14 @@ Detailed context split by domain to keep LLM context focused:
 - **[Deployment](docs/context-deployment.md)** — CI/CD, environment setup, service URLs, deploy commands
 
 ## Current Status (February 2026)
-- 117+ API endpoints operational
-- 34 test files, 961 tests, zero failures
+- 120+ API endpoints operational
+- 53 test files, 1130 tests, zero failures
 - TypeScript type-check blocking in CI (zero errors)
 - All 3 dashboards hardened (per-section errors, connectivity awareness, skeleton loading)
 - Connectivity awareness on all key pages (Messages, PitchEdit, SearchPage)
 - Portfolio analytics use real SQL aggregation (no mock data)
+- Creator analytics: topPitches + audienceBreakdown from real DB queries
+- Calendar: full CRUD (GET synthesized + custom events, POST new events)
 - Team invite emails wired via Resend API
 - Frontend RBAC: 50 permissions, 5 roles
 

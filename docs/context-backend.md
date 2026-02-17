@@ -35,7 +35,11 @@ Cloudflare Worker handling all API routing, auth, database, caching, and storage
 - **Connection**: Neon pooler (`ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech`)
 - **Migrations**: SQL scripts in `src/db/migrations/`, runner at `src/db/migrate.ts`
 - **Edge Pooling**: Via Neon's built-in connection pooler
-- 117+ API endpoints operational
+- 120+ API endpoints operational
+
+### Notable Tables
+- `calendar_events` — user-created events (columns: `start_date`/`end_date` as timestamp, `attendees` as jsonb, `color`, `reminder`)
+- `pitch_engagement` — viewer tracking with `viewer_type` for audience breakdown
 
 ## Caching — Upstash Redis
 - Global distributed Redis for session/notification caching

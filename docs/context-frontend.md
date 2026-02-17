@@ -52,7 +52,7 @@ All 3 dashboards (Creator, Investor, Production) follow the same pattern:
 
 ## Testing
 - Vitest + jsdom + @testing-library/react
-- 31 test files, 921 tests, zero failures
+- 53 test files, 1130 tests, zero failures
 - Test utils at `test/utils.tsx` (custom render with providers, mock factories)
 - Page tests use `MemoryRouter` wrapper + `vi.mock` for stores/services
 - **Critical**: Mock Zustand store user objects as stable references (same object across renders) to prevent infinite `useEffect` loops
