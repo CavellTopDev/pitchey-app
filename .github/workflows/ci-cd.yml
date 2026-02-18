@@ -79,7 +79,7 @@ jobs:
         env:
           VITE_API_URL: ''
           VITE_WS_URL: wss://pitchey-api-prod.ndlovucavelle.workers.dev
-          VITE_DISABLE_WEBSOCKET: 'true'
+          VITE_DISABLE_WEBSOCKET: 'false'
 
       - name: 📊 Bundle size analysis
         run: |
@@ -181,7 +181,7 @@ jobs:
         env:
           VITE_API_URL: ''
           VITE_WS_URL: wss://pitchey-api-staging.ndlovucavelle.workers.dev
-          VITE_DISABLE_WEBSOCKET: 'true'
+          VITE_DISABLE_WEBSOCKET: 'false'
 
       - name: 🚀 Deploy Worker to staging
         run: |
@@ -227,7 +227,7 @@ jobs:
         env:
           VITE_API_URL: ''
           VITE_WS_URL: wss://pitchey-api-prod.ndlovucavelle.workers.dev
-          VITE_DISABLE_WEBSOCKET: 'true'
+          VITE_DISABLE_WEBSOCKET: 'false'
 
       - name: 🚀 Deploy Worker to production
         run: |

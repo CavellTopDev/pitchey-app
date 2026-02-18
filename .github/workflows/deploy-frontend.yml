@@ -41,7 +41,7 @@ jobs:
           # Setting this to the Worker URL would bypass the proxy and break cookies
           VITE_API_URL: ''
           VITE_WS_URL: 'wss://pitchey-api-prod.ndlovucavelle.workers.dev'
-          VITE_DISABLE_WEBSOCKET: 'true'
+          VITE_DISABLE_WEBSOCKET: 'false'
           VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN || 'https://fd5664ae577039ccb7cce31e91f54533@o4510137537396736.ingest.de.sentry.io/4510138308755536' }}
           NODE_ENV: production
 
