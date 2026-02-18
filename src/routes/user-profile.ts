@@ -12,16 +12,11 @@ export interface UserProfileUpdate {
   bio?: string;
   phone?: string;
   website?: string;
-  linkedinUrl?: string;
   companyName?: string;
   profileImage?: string;
   location?: string;
-  skills?: string[];
-  preferences?: {
-    emailNotifications?: boolean;
-    smsNotifications?: boolean;
-    marketingEmails?: boolean;
-  };
+  firstName?: string;
+  lastName?: string;
 }
 
 export interface UserSettings {
@@ -62,16 +57,16 @@ export class UserProfileRoutes {
       const userId = authResult.user.id;
 
       const [user] = await this.sql`
-        SELECT 
-          id, email, name, user_type as "userType",
+        SELECT
+          id, email, name, first_name as "firstName",
+          last_name as "lastName", user_type as "userType",
           company_name as "companyName", bio, phone,
-          website, linkedin_url as "linkedinUrl",
-          profile_image as "profileImage", location,
-          skills, email_verified as "emailVerified",
+          website, profile_image as "profileImage", location,
+          email_verified as "emailVerified",
           two_factor_enabled as "twoFactorEnabled",
           created_at as "createdAt",
           updated_at as "updatedAt"
-        FROM users 
+        FROM users
         WHERE id = ${userId}
         LIMIT 1
       `;
@@ -129,8 +124,20 @@ export class UserProfileRoutes {
       let paramIndex = 1;
 
       if (updates.name !== undefined) {
-        updateFields.push(`name = $${paramIndex++}`);
-        values.push(updates.name);
+        // name column is generated — split into first_name/last_name
+        const nameParts = updates.name.split(' ');
+        updateFields.push(`first_name = $${paramIndex++}`);
+        values.push(nameParts[0] || '');
+        updateFields.push(`last_name = $${paramIndex++}`);
+        values.push(nameParts.slice(1).join(' ') || '');
+      }
+      if (updates.firstName !== undefined) {
+        updateFields.push(`first_name = $${paramIndex++}`);
+        values.push(updates.firstName);
+      }
+      if (updates.lastName !== undefined) {
+        updateFields.push(`last_name = $${paramIndex++}`);
+        values.push(updates.lastName);
       }
       if (updates.bio !== undefined) {
         updateFields.push(`bio = $${paramIndex++}`);
@@ -144,10 +151,6 @@ export class UserProfileRoutes {
         updateFields.push(`website = $${paramIndex++}`);
         values.push(updates.website);
       }
-      if (updates.linkedinUrl !== undefined) {
-        updateFields.push(`linkedin_url = $${paramIndex++}`);
-        values.push(updates.linkedinUrl);
-      }
       if (updates.companyName !== undefined) {
         updateFields.push(`company_name = $${paramIndex++}`);
         values.push(updates.companyName);
@@ -159,10 +162,6 @@ export class UserProfileRoutes {
       if (updates.location !== undefined) {
         updateFields.push(`location = $${paramIndex++}`);
         values.push(updates.location);
-      }
-      if (updates.skills !== undefined) {
-        updateFields.push(`skills = $${paramIndex++}`);
-        values.push(JSON.stringify(updates.skills));
       }
 
       if (updateFields.length === 0) {
@@ -182,16 +181,16 @@ export class UserProfileRoutes {
         UPDATE users 
         SET ${updateFields.join(', ')}
         WHERE id = $${paramIndex}
-        RETURNING 
-          id, email, name, user_type as "userType",
+        RETURNING
+          id, email, name, first_name as "firstName",
+          last_name as "lastName", user_type as "userType",
           company_name as "companyName", bio, phone,
-          website, linkedin_url as "linkedinUrl",
-          profile_image as "profileImage", location,
-          skills, created_at as "createdAt",
+          website, profile_image as "profileImage", location,
+          created_at as "createdAt",
           updated_at as "updatedAt"
       `;
 
-      const [updatedUser] = await this.sql(updateQuery, values);
+      const [updatedUser] = await this.sql.query(updateQuery, values);
 
       return new Response(JSON.stringify({
         success: true,
@@ -378,13 +377,13 @@ export class UserProfileRoutes {
   async getPublicProfile(request: Request, userId: string): Promise<Response> {
     try {
       const [user] = await this.sql`
-        SELECT 
-          id, name, user_type as "userType",
+        SELECT
+          id, name, first_name as "firstName",
+          last_name as "lastName", user_type as "userType",
           company_name as "companyName", bio,
-          website, linkedin_url as "linkedinUrl",
-          profile_image as "profileImage", location,
-          skills, created_at as "createdAt"
-        FROM users 
+          website, profile_image as "profileImage", location,
+          created_at as "createdAt"
+        FROM users
         WHERE id = ${userId} AND deleted_at IS NULL
         LIMIT 1
       `;

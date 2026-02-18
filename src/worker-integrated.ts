@@ -837,7 +837,12 @@ class RouteRegistry {
                 id: cached.userId,
                 email: cached.userEmail,
                 name: cached.userName || cached.userEmail,
-                userType: cached.userType
+                userType: cached.userType,
+                firstName: cached.firstName,
+                lastName: cached.lastName,
+                bio: cached.bio,
+                companyName: cached.companyName,
+                profileImage: cached.profileImage
               }
             };
           }
@@ -848,6 +853,7 @@ class RouteRegistry {
           `SELECT s.id, s.user_id, s.expires_at,
                   u.id as user_id, u.email, u.username, u.user_type,
                   u.first_name, u.last_name, u.company_name,
+                  u.bio, u.profile_image,
                   COALESCE(u.name, u.username, u.email) as name
            FROM sessions s
            JOIN users u ON s.user_id::text = u.id::text
@@ -870,6 +876,11 @@ class RouteRegistry {
                 userEmail: session.email,
                 userName: session.name,
                 userType: session.user_type,
+                firstName: session.first_name,
+                lastName: session.last_name,
+                bio: session.bio,
+                companyName: session.company_name,
+                profileImage: session.profile_image,
                 expiresAt: session.expires_at
               }),
               { expirationTtl: 3600 } // Cache for 1 hour
@@ -887,7 +898,9 @@ class RouteRegistry {
               userType: session.user_type,
               firstName: session.first_name,
               lastName: session.last_name,
-              companyName: session.company_name
+              bio: session.bio,
+              companyName: session.company_name,
+              profileImage: session.profile_image
             }
           };
         } else {
@@ -1938,8 +1951,24 @@ class RouteRegistry {
     // User profile routes
     const userProfileRoutes = new UserProfileRoutes(this.env);
     this.register('GET', '/api/users/profile', (req) => userProfileRoutes.getProfile(req));
-    this.register('PUT', '/api/users/profile', (req) => userProfileRoutes.updateProfile(req));
-    this.register('PUT', '/api/user/profile', (req) => userProfileRoutes.updateProfile(req));
+    const profileUpdateWithCacheInvalidation = async (req: Request) => {
+      const response = await userProfileRoutes.updateProfile(req);
+      // Invalidate session cache so checkSession returns fresh profile data
+      if (response.status === 200) {
+        try {
+          const kv = this.env.SESSION_STORE || this.env.SESSIONS_KV || this.env.KV || this.env.CACHE;
+          const cookieHeader = req.headers.get('Cookie');
+          const { parseSessionCookie } = await import('./config/session.config');
+          const sessionId = parseSessionCookie(cookieHeader);
+          if (kv && sessionId) {
+            await kv.delete(`session:${sessionId}`);
+          }
+        } catch (e) { /* non-fatal */ }
+      }
+      return response;
+    };
+    this.register('PUT', '/api/users/profile', profileUpdateWithCacheInvalidation);
+    this.register('PUT', '/api/user/profile', profileUpdateWithCacheInvalidation);
     this.register('GET', '/api/users/settings', (req) => userProfileRoutes.getSettings(req));
     this.register('PUT', '/api/users/settings', (req) => userProfileRoutes.updateSettings(req));
     this.register('DELETE', '/api/users/account', (req) => userProfileRoutes.deleteAccount(req));
