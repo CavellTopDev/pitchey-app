@@ -1360,7 +1360,8 @@ class RouteRegistry {
     try {
       // Query database for user
       const query = `
-        SELECT id, email, username, name, user_type, first_name, last_name, company_name
+        SELECT id, email, username, name, user_type, first_name, last_name,
+               bio, company_name, profile_image
         FROM users
         WHERE email = $1 AND user_type = $2
         LIMIT 1
@@ -1444,6 +1445,11 @@ class RouteRegistry {
             userEmail: result.email,
             userName: result.username || result.name || email.split('@')[0],
             userType: result.user_type,
+            firstName: result.first_name,
+            lastName: result.last_name,
+            bio: result.bio,
+            companyName: result.company_name,
+            profileImage: result.profile_image,
             expiresAt: expiresAt.toISOString()
           }),
           { expirationTtl: 604800 } // 7 days
@@ -1463,7 +1469,9 @@ class RouteRegistry {
             userType: result.user_type,
             firstName: result.first_name,
             lastName: result.last_name,
-            companyName: result.company_name
+            bio: result.bio,
+            companyName: result.company_name,
+            profileImage: result.profile_image
           }
         }
       }), {
@@ -3586,7 +3594,13 @@ class RouteRegistry {
               id: sessionId,
               userId: user.id,
               userEmail: user.email,
+              userName: user.username || user.name || user.email.split('@')[0],
               userType: user.user_type,
+              firstName: user.first_name,
+              lastName: user.last_name,
+              bio: user.bio,
+              companyName: user.company_name,
+              profileImage: user.profile_image,
               expiresAt
             }),
             { expirationTtl: 604800 } // 7 days
@@ -3607,7 +3621,12 @@ class RouteRegistry {
               id: user.id.toString(),
               email: user.email,
               name: userName,
-              userType: user.user_type || 'creator'
+              userType: user.user_type || 'creator',
+              firstName: user.first_name,
+              lastName: user.last_name,
+              bio: user.bio,
+              companyName: user.company_name,
+              profileImage: user.profile_image
             },
             session: {
               id: sessionId,
@@ -3751,7 +3770,13 @@ class RouteRegistry {
               id: sessionId,
               userId: user.id,
               userEmail: user.email,
+              userName: user.username || user.name || user.email.split('@')[0],
               userType: user.user_type,
+              firstName: user.first_name,
+              lastName: user.last_name,
+              bio: user.bio,
+              companyName: user.company_name,
+              profileImage: user.profile_image,
               expiresAt
             }),
             { expirationTtl: 604800 } // 7 days
@@ -4419,8 +4444,8 @@ pitchey_analytics_datapoints_per_minute 1250
       }
     }
 
-    // Fallback to JWT validation
-    const builder = new ApiResponseBuilder(request);
+    // Fallback to session validation via cookie/DB
+    const corsHeaders = getCorsHeaders(request.headers.get('Origin'));
 
     // Check if user was already attached by middleware
     const user = (request as any).user;
@@ -4429,12 +4454,22 @@ pitchey_analytics_datapoints_per_minute 1250
       // If no user attached, validate manually
       const { valid, user: authUser } = await this.validateAuth(request);
       if (!valid) {
-        return builder.error(ErrorCode.UNAUTHORIZED, 'Invalid session');
+        return new Response(JSON.stringify({ success: false, error: 'Invalid session' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
       }
-      return builder.success({ session: { user: authUser } });
+      // Return same format as Better Auth path: { user: {...}, success: true }
+      return new Response(JSON.stringify({ user: authUser, success: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
     }
 
-    return builder.success({ session: { user } });
+    return new Response(JSON.stringify({ user, success: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
   }
 
   private async getPitches(request: Request): Promise<Response> {
