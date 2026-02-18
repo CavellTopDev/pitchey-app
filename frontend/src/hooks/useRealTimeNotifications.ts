@@ -2,11 +2,13 @@ import { useEffect, useCallback, useRef } from 'react';
 import { useNotificationToast } from '../components/Toast/NotificationToastContainer';
 import { notificationService } from '../services/notification.service';
 import { useBetterAuthStore } from '../store/betterAuthStore';
+import { useWebSocket } from '../contexts/WebSocketContext';
 import { BRAND } from '../constants/brand';
 
 interface NotificationData {
-  type: 'nda_request' | 'nda_approved' | 'nda_declined' | 'investment' | 'message' | 
-        'pitch_viewed' | 'follow' | 'comment' | 'like' | 'system';
+  type: 'nda_request' | 'nda_approved' | 'nda_declined' | 'investment' | 'message' |
+        'pitch_viewed' | 'follow' | 'comment' | 'like' | 'system' | 'nda_status_update' |
+        'chat_message' | 'pitch_view_update';
   title: string;
   message: string;
   data?: any;
@@ -19,20 +21,60 @@ interface NotificationData {
 export function useRealTimeNotifications() {
   const toast = useNotificationToast();
   const { isAuthenticated } = useBetterAuthStore();
-  const lastNotificationId = useRef<number>(0);
-  const pollingInterval = useRef<NodeJS.Timer | null>(null);
+  const { subscribeToMessages, isConnected } = useWebSocket();
+  const processedIds = useRef<Set<string>>(new Set());
 
-  // Mock WebSocket functions for compatibility - not used, just for interface compatibility
-  // const subscribeToMessages = () => {};
-  // const sendMessage = () => {};
-
-  // Handle incoming real-time notifications
+  // Handle incoming real-time notifications — fires toast + browser notification
   const handleNotificationMessage = useCallback((message: any) => {
-    if (message.type !== 'notification') return;
+    // Deduplicate by message ID
+    const msgId = message.id || message.data?.id;
+    if (msgId && processedIds.current.has(msgId)) return;
+    if (msgId) processedIds.current.add(msgId);
 
-    const notificationData: NotificationData = message.data;
+    // Determine notification data from message envelope
+    // WebSocket messages arrive as { type: "notification"|"nda_status_update"|..., data: {...} }
+    let notificationData: NotificationData;
 
-    // Show toast notification
+    if (message.type === 'notification') {
+      notificationData = message.data;
+    } else if (message.type === 'nda_status_update') {
+      const d = message.data || {};
+      const status = d.status || 'updated';
+      notificationData = {
+        type: status === 'requested' ? 'nda_request' :
+              status === 'approved' ? 'nda_approved' :
+              status === 'rejected' ? 'nda_declined' : 'nda_request',
+        title: `NDA ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+        message: d.message || `NDA for "${d.pitchTitle || 'a pitch'}" was ${status}`,
+        data: d,
+        pitchId: d.pitchId,
+      };
+    } else if (message.type === 'chat_message') {
+      const d = message.data || {};
+      notificationData = {
+        type: 'message',
+        title: 'New Message',
+        message: d.content || d.message || 'You have a new message',
+        data: d,
+        conversationId: d.conversationId,
+      };
+    } else if (message.type === 'pitch_view_update') {
+      const d = message.data || {};
+      notificationData = {
+        type: 'pitch_viewed',
+        title: 'Pitch Viewed',
+        message: `Someone viewed "${d.pitchTitle || 'your pitch'}"`,
+        data: d,
+        pitchId: d.pitchId,
+      };
+    } else {
+      // Unknown type — skip
+      return;
+    }
+
+    if (!notificationData) return;
+
+    // Show toast notification based on type
     switch (notificationData.type) {
       case 'nda_request':
         toast.notifyNDARequest(
@@ -58,6 +100,7 @@ export function useRealTimeNotifications() {
         break;
 
       case 'message':
+      case 'chat_message':
         toast.notifyNewMessage(
           notificationData.data?.senderName || 'Someone',
           notificationData.message,
@@ -66,6 +109,7 @@ export function useRealTimeNotifications() {
         break;
 
       case 'pitch_viewed':
+      case 'pitch_view_update':
         toast.notifyPitchViewed(
           notificationData.data?.pitchTitle || 'Your pitch',
           notificationData.data?.viewerName || 'Someone'
@@ -111,7 +155,9 @@ export function useRealTimeNotifications() {
 
       default:
         // Generic notification
-        toast.info(notificationData.title, notificationData.message);
+        if (notificationData.title && notificationData.message) {
+          toast.info(notificationData.title, notificationData.message);
+        }
     }
 
     // Also show browser notification if supported
@@ -120,128 +166,36 @@ export function useRealTimeNotifications() {
         title: notificationData.title,
         body: notificationData.message,
         icon: BRAND.logo,
-        tag: `realtime_${Date.now()}`,
+        tag: `realtime_${msgId || Date.now()}`,
         data: notificationData.data,
         requireInteraction: notificationData.requireInteraction
       });
     }
   }, [toast]);
 
-  // Poll for new notifications instead of WebSocket
+  // Subscribe to WebSocket messages for real-time toast notifications
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !isConnected) return;
 
-    const pollNotifications = async () => {
-      try {
-        // Fetch recent notifications from API
-        const isDev = import.meta.env.MODE === 'development';
-        const apiUrl = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : '');
-        const response = await fetch(`${apiUrl}/api/user/notifications`, {
-          method: 'GET',
-          credentials: 'include' // Send cookies for Better Auth session
-        });
-        
-        // Handle 404 gracefully - endpoint might not exist yet
-        if (response.status === 404) {
-          // Silently ignore - endpoint not implemented yet
-          return;
-        }
-        
-        if (!response.ok) {
-          // Handle 401 with mock data for demo purposes
-          if (response.status === 401) {
-            // Use mock notifications for demo when auth fails
-            const mockNotifications = [
-              {
-                id: Date.now(),
-                type: 'info',
-                title: 'Welcome to Pitchey',
-                message: 'Your dashboard is ready. Start exploring!',
-                timestamp: new Date().toISOString()
-              }
-            ];
-            
-            // Only show welcome notification once per session
-            if (!sessionStorage.getItem('welcome_notification_shown')) {
-              mockNotifications.forEach((notification: any) => {
-                handleNotificationMessage({
-                  type: 'notification',
-                  data: {
-                    type: notification.type,
-                    title: notification.title,
-                    message: notification.message,
-                    data: {}
-                  }
-                });
-              });
-              sessionStorage.setItem('welcome_notification_shown', 'true');
-            }
-          }
-          
-          // Only log error for non-404/401 errors
-          if (response.status !== 404 && response.status !== 401) {
-            console.warn(`Notification polling returned status: ${response.status}`);
-          }
-          return;
-        }
-        
-        const data = await response.json();
-        
-        if (data && Array.isArray(data)) {
-          const newNotifications = data.filter(
-            (n: any) => n.id > lastNotificationId.current
-          );
-          
-          // Process new notifications
-          newNotifications.forEach((notification: any) => {
-            handleNotificationMessage({
-              type: 'notification',
-              data: {
-                type: notification.type,
-                title: notification.title,
-                message: notification.message,
-                data: notification.data,
-                pitchId: notification.pitchId,
-                conversationId: notification.conversationId
-              }
-            });
-            
-            // Update last notification ID
-            if (notification.id > lastNotificationId.current) {
-              lastNotificationId.current = notification.id;
-            }
-          });
-        }
-      } catch (error) {
-        // Silently handle errors to avoid console spam
-        // Only log if it's not a network error (which is common)
-        if (error instanceof Error && !error.message.includes('fetch')) {
-          console.warn('Notification polling error:', error.message);
-        }
+    const unsubscribe = subscribeToMessages((message: any) => {
+      // Only handle message types that should trigger toasts
+      const toastTypes = ['notification', 'nda_status_update', 'chat_message', 'pitch_view_update'];
+      if (toastTypes.includes(message.type)) {
+        handleNotificationMessage(message);
       }
-    };
+    });
 
-    // DISABLED: Polling was causing rate limiting and 429 errors
-    // Notifications should be fetched on-demand or via WebSocket when available
-    // pollNotifications(); // Initial poll
-    // pollingInterval.current = setInterval(pollNotifications, 30000);
+    return unsubscribe;
+  }, [isAuthenticated, isConnected, subscribeToMessages, handleNotificationMessage]);
 
-    return () => {
-      if (pollingInterval.current) {
-        clearInterval(pollingInterval.current as unknown as number);
+  // Cleanup processed IDs periodically to prevent memory leak
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (processedIds.current.size > 200) {
+        processedIds.current.clear();
       }
-    };
-  }, [isAuthenticated, handleNotificationMessage]);
-
-  // Methods to send real-time notifications (for admin/system use)
-  const sendNotification = useCallback((notification: NotificationData) => {
-    // This functionality is not currently implemented - requires WebSocket context
-    console.warn('sendNotification not implemented - requires WebSocket connection');
-  }, []);
-
-  const sendTargetedNotification = useCallback((userId: number, notification: NotificationData) => {
-    // This functionality is not currently implemented - requires WebSocket context
-    console.warn('sendTargetedNotification not implemented - requires WebSocket connection');
+    }, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   // Request browser notification permission
@@ -262,8 +216,6 @@ export function useRealTimeNotifications() {
   }, [toast]);
 
   return {
-    sendNotification,
-    sendTargetedNotification,
     requestNotificationPermission
   };
 }

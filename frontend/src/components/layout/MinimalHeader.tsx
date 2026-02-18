@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Bell, ChevronDown, CircleUser, Coins, Menu, X, LogOut, Home, Store } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { paymentsAPI } from '../../lib/apiServices';
+import { WebSocketStatusCompact } from '../WebSocketStatus';
 
 
 interface MinimalHeaderProps {
@@ -84,6 +85,9 @@ export function MinimalHeader({ onMenuToggle, isSidebarOpen = true, userType }: 
 
       {/* Right: User Actions */}
       <div className="flex items-center gap-4">
+        {/* WebSocket Status */}
+        <WebSocketStatusCompact className="hidden sm:flex" />
+
         {/* Credits */}
         <button className={`flex items-center gap-2 px-3 py-1 bg-${color}-100 text-${color}-700 rounded-full text-sm hover:bg-${color}-200 transition`}>
           <Coins className="w-4 h-4" />

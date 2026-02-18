@@ -622,29 +622,48 @@ function InvestorDashboard() {
                 {/* Recent Activity */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-                      <Clock className="w-5 h-5 text-gray-400" />
-                      <div className="flex-1">
-                        <p className="text-sm text-gray-900">New pitch saved: "The Last Echo"</p>
-                        <p className="text-xs text-gray-500">2 hours ago</p>
-                      </div>
+                  {sectionStatus.notifications.error ? (
+                    <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-lg p-4">
+                      <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+                      <p className="text-red-700 text-sm flex-1">{sectionStatus.notifications.error}</p>
+                      <button
+                        onClick={() => handleRetrySection('notifications')}
+                        className="flex items-center gap-1 text-sm font-medium text-red-700 hover:text-red-800 bg-red-100 hover:bg-red-200 px-3 py-1 rounded transition"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" /> Retry
+                      </button>
                     </div>
-                    <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-                      <Shield className="w-5 h-5 text-gray-400" />
-                      <div className="flex-1">
-                        <p className="text-sm text-gray-900">NDA signed for "Digital Dreams"</p>
-                        <p className="text-xs text-gray-500">1 day ago</p>
-                      </div>
+                  ) : safeArray(notifications).length > 0 ? (
+                    <div className="space-y-3">
+                      {safeArray(notifications).slice(0, 5).map((item: any, idx: number) => {
+                        const actType = safeString(safeAccess(item, 'type', 'info'));
+                        const icon = actType === 'nda_request' || actType === 'nda_signed' ? (
+                          <Shield className="w-5 h-5 text-blue-400" />
+                        ) : actType === 'investment' ? (
+                          <DollarSign className="w-5 h-5 text-green-400" />
+                        ) : actType === 'pitch_view' || actType === 'pitch_viewed' ? (
+                          <Eye className="w-5 h-5 text-purple-400" />
+                        ) : (
+                          <Clock className="w-5 h-5 text-gray-400" />
+                        );
+                        return (
+                          <div key={safeAccess(item, 'id', idx)} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                            {icon}
+                            <div className="flex-1">
+                              <p className="text-sm text-gray-900">{safeString(safeAccess(item, 'title', safeAccess(item, 'message', 'Activity')))}</p>
+                              <p className="text-xs text-gray-500">
+                                {safeAccess(item, 'createdAt', null) || safeAccess(item, 'timestamp', null)
+                                  ? formatDate(safeAccess(item, 'createdAt', safeAccess(item, 'timestamp', '')))
+                                  : ''}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-                      <DollarSign className="w-5 h-5 text-gray-400" />
-                      <div className="flex-1">
-                        <p className="text-sm text-gray-900">Investment completed: $50,000</p>
-                        <p className="text-xs text-gray-500">3 days ago</p>
-                      </div>
-                    </div>
-                  </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500 text-sm">No recent activity</div>
+                  )}
                 </div>
               </div>
             )}
