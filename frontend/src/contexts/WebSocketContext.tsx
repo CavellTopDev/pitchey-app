@@ -717,8 +717,8 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
           presenceFallbackService.start();
         }
       }, 1000);
-    } else if (recentAttempts >= 2) {
-      // Enable fallback sooner but don't disable WebSocket completely
+    } else if (recentAttempts >= 4) {
+      // Enable fallback after sustained WebSocket failure but keep trying
       if (!usingFallback) {
         setUsingFallback(true);
         pollingService.start();

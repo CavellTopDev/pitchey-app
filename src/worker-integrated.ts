@@ -291,6 +291,7 @@ import { StubRoutes } from './routes/stub-routes';
 
 // Import enhanced real-time service
 import { WorkerRealtimeService } from './services/worker-realtime.service';
+import { UpstashCacheService } from './services/upstash-cache.service';
 
 // Import intelligence handlers - TEMPORARILY DISABLED
 // import {
@@ -603,6 +604,9 @@ export interface Env {
   SENTRY_TRACES_SAMPLE_RATE?: string;
   CF_VERSION_METADATA?: { id: string; tag: string; timestamp: string };
 
+  // Durable Objects
+  NOTIFICATION_HUB?: DurableObjectNamespace;
+
   // Index signature for compatibility with handler Env types
   [key: string]: any;
 }
@@ -632,6 +636,7 @@ class RouteRegistry {
   private notificationIntegration?: NotificationIntegrationService;
   private notificationRoutes?: NotificationRoutesHandler;
   private redis: any = undefined; // Optional Redis client for rate limiting
+  private cache!: UpstashCacheService;
 
   constructor(env: Env) {
     this.env = env;
@@ -666,6 +671,9 @@ class RouteRegistry {
 
       // Initialize realtime service for WebSocket support
       this.realtimeService = new WorkerRealtimeService(env, this.db);
+
+      // Initialize Upstash Redis cache (no-op if credentials not set)
+      this.cache = new UpstashCacheService(env);
 
       // Initialize intelligence WebSocket service - TEMPORARILY DISABLED
       // this.intelligenceWebSocketService = getIntelligenceWebSocketService(env);
@@ -2331,9 +2339,23 @@ class RouteRegistry {
     this.register('POST', '/api/pitches/:id/save', (req) => realPitchSaveHandler(req, this.env));
     this.register('DELETE', '/api/pitches/:id/save', (req) => realPitchUnsaveHandler(req, this.env));
 
-    // Pitch Publish/Archive endpoints
-    this.register('POST', '/api/pitches/:id/publish', (req) => pitchPublishHandler(req, this.env));
-    this.register('POST', '/api/pitches/:id/archive', (req) => pitchArchiveHandler(req, this.env));
+    // Pitch Publish/Archive endpoints (with cache invalidation)
+    this.register('POST', '/api/pitches/:id/publish', async (req) => {
+      const response = await pitchPublishHandler(req, this.env);
+      // Invalidate browse cache after publish so new pitch appears immediately
+      if (response.status === 200) {
+        try { await this.invalidateBrowseCache(); } catch (_) { /* non-blocking */ }
+      }
+      return response;
+    });
+    this.register('POST', '/api/pitches/:id/archive', async (req) => {
+      const response = await pitchArchiveHandler(req, this.env);
+      // Invalidate browse cache after archive so pitch disappears immediately
+      if (response.status === 200) {
+        try { await this.invalidateBrowseCache(); } catch (_) { /* non-blocking */ }
+      }
+      return response;
+    });
 
     // Team Management routes (use internal validateAuth for consistency)
     this.register('GET', '/api/teams', (req) => this.getTeamsInternal(req));
@@ -2410,7 +2432,7 @@ class RouteRegistry {
     this.register('POST', '/api/analytics/events', this.trackAnalyticsEvents.bind(this));
 
     // Analytics aliases for frontend compatibility
-    this.register('POST', '/api/analytics/track-view', (req) => trackViewHandler(req, this.env));
+    this.register('POST', '/api/analytics/track-view', (req) => this.trackViewWithRealtimePush(req));
     this.register('POST', '/api/analytics/share', this.handleAnalyticsShare.bind(this));
     this.register('POST', '/api/analytics/schedule-report', this.handleScheduleReport.bind(this));
     this.register('GET', '/api/analytics/scheduled-reports', this.handleGetScheduledReports.bind(this));
@@ -2474,7 +2496,7 @@ class RouteRegistry {
     this.register('POST', '/api/demos/request', this.handleDemoRequest.bind(this));
 
     // View tracking endpoints
-    this.register('POST', '/api/views/track', (req) => trackViewHandler(req, this.env));
+    this.register('POST', '/api/views/track', (req) => this.trackViewWithRealtimePush(req));
     this.register('GET', '/api/views/analytics', (req) => getViewAnalyticsHandler(req, this.env));
     this.register('GET', '/api/views/pitch/*', (req) => getPitchViewersHandler(req, this.env));
 
@@ -4242,15 +4264,16 @@ pitchey_analytics_datapoints_per_minute 1250
 
       return builder.success({
         status: 'healthy',
-        websocketAvailable: false, // Durable Objects WS not live yet — keeps frontend in HTTP polling mode
+        websocketAvailable: true, // WebSocket via NotificationHub Durable Object is live
         websocket: {
           upgrade_supported: true,
           connection_test: wsSupported ? 'ready_for_upgrade' : 'standard_http',
-          realtime_features: 'available'
+          realtime_features: 'available',
+          transport: 'durable_object'
         },
         durable_objects: {
-          status: 'planned',
-          note: 'WebSockets via Durable Objects planned for future implementation'
+          status: 'active',
+          binding: !!this.env.NOTIFICATION_HUB
         },
         timestamp: new Date().toISOString()
       });
@@ -4616,6 +4639,9 @@ pitchey_analytics_datapoints_per_minute 1250
           // Continue even if attachments fail to save
         }
       }
+
+      // Invalidate browse cache (new pitch may appear in listings once published)
+      try { await this.invalidateBrowseCache(); } catch (_) { /* non-blocking */ }
 
       return builder.success({ pitch });
     } catch (error) {
@@ -5065,6 +5091,9 @@ pitchey_analytics_datapoints_per_minute 1250
         }
       }
 
+      // Invalidate browse cache (updated pitch data should reflect in listings)
+      try { await this.invalidateBrowseCache(); } catch (_) { /* non-blocking */ }
+
       return builder.success({ pitch: updated });
     } catch (error) {
       return errorHandler(error, request);
@@ -5088,6 +5117,9 @@ pitchey_analytics_datapoints_per_minute 1250
       if (result.length === 0) {
         return builder.error(ErrorCode.NOT_FOUND, 'Pitch not found or not authorized');
       }
+
+      // Invalidate browse cache (deleted pitch should disappear from listings)
+      try { await this.invalidateBrowseCache(); } catch (_) { /* non-blocking */ }
 
       return builder.noContent();
     } catch (error) {
@@ -6315,6 +6347,28 @@ pitchey_analytics_datapoints_per_minute 1250
         JSON.stringify(data.terms || {})
       ]) as DatabaseRow[];
 
+      // Push real-time notification to pitch creator
+      if (data.pitchId) {
+        try {
+          const [pitch] = await this.db.query(
+            `SELECT user_id, title FROM pitches WHERE id = $1`, [data.pitchId]
+          ) as DatabaseRow[];
+          if (pitch?.user_id) {
+            await this.pushRealtimeEvent(String(pitch.user_id), {
+              type: 'notification',
+              data: {
+                type: 'success',
+                title: 'New Investment Interest',
+                message: `An investor has expressed interest in "${pitch.title || 'your pitch'}" ($${data.amount || 0})`,
+                pitchId: data.pitchId,
+                investmentId: investment?.id,
+                timestamp: new Date().toISOString()
+              }
+            });
+          }
+        } catch (_) { /* non-blocking */ }
+      }
+
       return builder.success({ investment });
     } catch (error) {
       return errorHandler(error, request);
@@ -6553,6 +6607,22 @@ pitchey_analytics_datapoints_per_minute 1250
         }
       );
 
+      // Push real-time NDA status update to pitch creator
+      if (!isDemoAccount && creatorId) {
+        try {
+          await this.pushRealtimeEvent(String(creatorId), {
+            type: 'nda_status_update',
+            data: {
+              ndaId: nda.id,
+              pitchId: nda.pitch_id,
+              status: 'pending',
+              requesterName: authResult.user.name || authResult.user.email,
+              timestamp: new Date().toISOString()
+            }
+          });
+        } catch (_) { /* non-blocking */ }
+      }
+
       return builder.success({
         id: nda.id,
         status: nda.status,
@@ -6666,6 +6736,21 @@ pitchey_analytics_datapoints_per_minute 1250
         console.warn('Failed to create NDA approval notification:', notifError);
       }
 
+      // Push real-time NDA approval to requester
+      try {
+        await this.pushRealtimeEvent(String(this.safeParseInt(nda.signer_id)), {
+          type: 'nda_status_update',
+          data: {
+            ndaId: parseInt(params.id),
+            pitchId: this.safeParseInt(nda.pitch_id),
+            status: 'approved',
+            pitchTitle: nda.pitch_title,
+            creatorName: authResult.user.name || authResult.user.email,
+            timestamp: new Date().toISOString()
+          }
+        });
+      } catch (_) { /* non-blocking */ }
+
       return builder.success({ nda });
     } catch (error) {
       return errorHandler(error, request);
@@ -6725,6 +6810,22 @@ pitchey_analytics_datapoints_per_minute 1250
       } catch (notifError) {
         console.warn('Failed to create NDA rejection notification:', notifError);
       }
+
+      // Push real-time NDA rejection to requester
+      try {
+        await this.pushRealtimeEvent(String(this.safeParseInt(nda.signer_id)), {
+          type: 'nda_status_update',
+          data: {
+            ndaId: parseInt(params.id),
+            pitchId: this.safeParseInt(nda.pitch_id),
+            status: 'rejected',
+            pitchTitle: nda.pitch_title,
+            reason: data.reason,
+            creatorName: authResult.user.name || authResult.user.email,
+            timestamp: new Date().toISOString()
+          }
+        });
+      } catch (_) { /* non-blocking */ }
 
       return builder.success({ nda });
     } catch (error) {
@@ -6852,6 +6953,23 @@ pitchey_analytics_datapoints_per_minute 1250
         }
       } catch (msgError) {
         console.warn('Failed to create NDA signing message thread:', msgError);
+      }
+
+      // Push real-time NDA signed event to pitch creator
+      if (conversation?.creatorId) {
+        try {
+          await this.pushRealtimeEvent(String(conversation.creatorId), {
+            type: 'nda_status_update',
+            data: {
+              ndaId: parseInt(ndaId),
+              pitchId: this.safeParseInt(nda.pitch_id),
+              status: 'signed',
+              pitchTitle: conversation.pitchTitle,
+              requesterName: authResult.user.name || authResult.user.email,
+              timestamp: new Date().toISOString()
+            }
+          });
+        } catch (_) { /* non-blocking */ }
       }
 
       return builder.success({ nda: signedNda, conversation });
@@ -7072,6 +7190,15 @@ pitchey_analytics_datapoints_per_minute 1250
     const page = parseInt(url.searchParams.get('page') || '1');
     const offset = (page - 1) * limit;
 
+    // Check Redis cache (3 min TTL for browse)
+    const cacheKey = `browse:pitches:${tab}:p${page}:l${limit}`;
+    try {
+      const cached = await this.cache.get<any>(cacheKey);
+      if (cached) {
+        return builder.success(typeof cached === 'string' ? JSON.parse(cached) : cached);
+      }
+    } catch (_) { /* cache miss, proceed */ }
+
     try {
       let sql: string;
       let params: any[];
@@ -7159,7 +7286,7 @@ pitchey_analytics_datapoints_per_minute 1250
       const totalCount = this.safeParseInt(countResult?.total) || 0;
 
       // Return the response in the expected format
-      return builder.success({
+      const responseData = {
         success: true,
         items: pitches || [],
         tab: tab,
@@ -7167,7 +7294,12 @@ pitchey_analytics_datapoints_per_minute 1250
         page: page,
         limit: limit,
         hasMore: (offset + (pitches?.length || 0)) < totalCount
-      });
+      };
+
+      // Cache for 3 minutes
+      try { await this.cache.set(cacheKey, JSON.stringify(responseData), 180); } catch (_) { /* non-blocking */ }
+
+      return builder.success(responseData);
 
     } catch (error) {
       console.error('Error in browsePitches:', error);
@@ -8830,11 +8962,9 @@ pitchey_analytics_datapoints_per_minute 1250
     try {
       // Check for WebSocket upgrade header
       const upgradeHeader = request.headers.get('Upgrade');
-      console.log('WebSocket upgrade request received, Upgrade header:', upgradeHeader);
 
       if (!upgradeHeader || upgradeHeader.toLowerCase() !== 'websocket') {
         // Not a WebSocket upgrade request - return info about WebSocket endpoint
-        console.log('Not a WebSocket upgrade - returning info response');
         return new Response(JSON.stringify({
           success: true,
           message: 'WebSocket endpoint ready',
@@ -8850,16 +8980,99 @@ pitchey_analytics_datapoints_per_minute 1250
         });
       }
 
-      console.log('WebSocket upgrade detected, calling realtimeService.handleWebSocketUpgrade');
-      // Paid Cloudflare plan with Durable Objects - WebSocket is fully supported
-      // Use the enhanced realtime service for WebSocket handling
+      // --- Authenticate the WebSocket connection ---
+      // Try token from query string first (frontend fetches /api/ws/token, then connects with ?token=)
+      const url = new URL(request.url);
+      const token = url.searchParams.get('token');
+      let userId: string | null = null;
+      let portalType: string | null = null;
+      let username: string | null = null;
+
+      if (token) {
+        // Validate token (which is a Better Auth session ID)
+        try {
+          const { BetterAuthSessionHandler } = await import('./auth/better-auth-session-handler');
+          const sessionHandler = new BetterAuthSessionHandler(this.env);
+          // Build a fake request with the session cookie so we can validate
+          const fakeHeaders = new Headers(request.headers);
+          fakeHeaders.set('Cookie', `better-auth.session_token=${token}; pitchey-session=${token}`);
+          const fakeRequest = new Request(request.url, { headers: fakeHeaders });
+          const sessionResult = await sessionHandler.validateSession(fakeRequest);
+          if (sessionResult.valid && sessionResult.user) {
+            userId = String(sessionResult.user.id);
+            portalType = sessionResult.user.userType || sessionResult.user.user_type || 'creator';
+            username = sessionResult.user.name || sessionResult.user.email || undefined;
+          }
+        } catch (authErr) {
+          console.warn('WebSocket token auth failed:', authErr);
+        }
+      }
+
+      if (!userId) {
+        // Try cookie-based auth as fallback
+        try {
+          const { BetterAuthSessionHandler } = await import('./auth/better-auth-session-handler');
+          const sessionHandler = new BetterAuthSessionHandler(this.env);
+          const sessionResult = await sessionHandler.validateSession(request);
+          if (sessionResult.valid && sessionResult.user) {
+            userId = String(sessionResult.user.id);
+            portalType = sessionResult.user.userType || sessionResult.user.user_type || 'creator';
+            username = sessionResult.user.name || sessionResult.user.email || undefined;
+          }
+        } catch (authErr) {
+          console.warn('WebSocket cookie auth failed:', authErr);
+        }
+      }
+
+      if (!userId) {
+        return new Response(JSON.stringify({
+          error: 'Authentication required for WebSocket connection',
+          fallback: true,
+          endpoints: {
+            notifications: '/api/poll/notifications',
+            messages: '/api/poll/messages',
+            dashboard: '/api/poll/dashboard',
+            all: '/api/poll/all'
+          }
+        }), {
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+            ...getCorsHeaders(request.headers.get('Origin'))
+          }
+        });
+      }
+
+      // --- Route to Durable Object ---
+      if (this.env.NOTIFICATION_HUB) {
+        // Get the global hub DO instance
+        const hubId = this.env.NOTIFICATION_HUB.idFromName('global-hub');
+        const hub = this.env.NOTIFICATION_HUB.get(hubId);
+
+        // Forward the upgrade request with auth headers
+        const doUrl = new URL(request.url);
+        doUrl.pathname = '/websocket';
+        const doRequest = new Request(doUrl.toString(), {
+          headers: new Headers({
+            'Upgrade': 'websocket',
+            'X-User-ID': userId,
+            'X-Portal-Type': portalType || 'creator',
+            'X-Username': username || '',
+            'User-Agent': request.headers.get('User-Agent') || '',
+            'CF-Connecting-IP': request.headers.get('CF-Connecting-IP') || '',
+          }),
+        });
+
+        return hub.fetch(doRequest);
+      }
+
+      // Fallback: use stateless WorkerRealtimeService if DO not available
+      console.warn('NOTIFICATION_HUB binding not available, falling back to stateless WebSocket');
       const response = await this.realtimeService.handleWebSocketUpgrade(request);
-      console.log('WebSocket upgrade response status:', response.status, 'has webSocket:', !!(response as any).webSocket);
       return response;
     } catch (error) {
-      console.error('WebSocket upgrade error:', error, 'Stack:', error instanceof Error ? error.stack : 'N/A');
+      console.error('WebSocket upgrade error:', error);
 
-      // Fallback to polling information on error
       return new Response(JSON.stringify({
         error: 'WebSocket upgrade failed',
         fallback: true,
@@ -8879,6 +9092,106 @@ pitchey_analytics_datapoints_per_minute 1250
         }
       });
     }
+  }
+
+  /**
+   * Push a real-time event to a specific user via the NotificationHub DO.
+   * Fire-and-forget: failures are logged but never break API responses.
+   */
+  private async pushRealtimeEvent(userId: string, event: { type: string; data: any }): Promise<void> {
+    try {
+      if (!this.env.NOTIFICATION_HUB) return;
+
+      const hubId = this.env.NOTIFICATION_HUB.idFromName('global-hub');
+      const hub = this.env.NOTIFICATION_HUB.get(hubId);
+
+      await hub.fetch(new Request('https://do-internal/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          message: {
+            type: event.type,
+            data: event.data,
+            id: crypto.randomUUID(),
+            timestamp: new Date().toISOString()
+          }
+        })
+      }));
+    } catch (err) {
+      console.warn('pushRealtimeEvent failed (non-blocking):', err);
+    }
+  }
+
+  /**
+   * Invalidate all browse/listing cache keys after a pitch write operation.
+   * Fire-and-forget: cache invalidation failure must never break the API response.
+   */
+  private async invalidateBrowseCache(): Promise<void> {
+    try {
+      // Delete known cache key prefixes for browse endpoints
+      // Upstash doesn't support wildcard DEL, so we clear the most common keys
+      const keysToDelete: string[] = [];
+      const tabs = ['trending', 'new', 'popular', 'default'];
+      const genres = ['all', 'Drama', 'Comedy', 'Action', 'Thriller', 'Horror', 'Sci-Fi', 'Romance', 'Documentary'];
+
+      for (const tab of tabs) {
+        for (let page = 1; page <= 3; page++) {
+          keysToDelete.push(`browse:pitches:${tab}:p${page}:l20`);
+          keysToDelete.push(`browse:pitches:${tab}:p${page}:l10`);
+        }
+      }
+      for (const genre of genres) {
+        for (let page = 1; page <= 3; page++) {
+          keysToDelete.push(`browse:top-rated:${genre}:p${page}:l20`);
+          keysToDelete.push(`browse:top-rated:${genre}:p${page}:l10`);
+        }
+      }
+
+      if (keysToDelete.length > 0) {
+        await this.cache.del(...keysToDelete);
+      }
+    } catch (err) {
+      console.warn('invalidateBrowseCache failed (non-blocking):', err);
+    }
+  }
+
+  /**
+   * Wrapper around trackViewHandler that also pushes a real-time pitch_view_update
+   * event to the pitch creator so their dashboard shows live view counts.
+   */
+  private async trackViewWithRealtimePush(request: Request): Promise<Response> {
+    // Clone the request so we can read the body twice (handler + our logic)
+    const cloned = request.clone();
+    const response = await trackViewHandler(request, this.env);
+
+    // Only push real-time event for successful new views (not duplicates)
+    try {
+      const responseBody = await response.clone().json() as any;
+      if (responseBody?.success && !responseBody?.duplicate) {
+        const body = await cloned.json() as Record<string, unknown>;
+        const pitchId = typeof body.pitchId === 'number' ? body.pitchId : parseInt(String(body.pitchId), 10);
+        if (pitchId && !isNaN(pitchId)) {
+          // Look up the pitch creator
+          const [pitch] = await this.db.query(
+            `SELECT user_id, title, view_count FROM pitches WHERE id = $1`, [pitchId]
+          ) as DatabaseRow[];
+          if (pitch?.user_id) {
+            await this.pushRealtimeEvent(String(pitch.user_id), {
+              type: 'pitch_view_update',
+              data: {
+                pitchId,
+                viewCount: parseInt(String(pitch.view_count || 0), 10),
+                pitchTitle: pitch.title,
+                timestamp: new Date().toISOString()
+              }
+            });
+          }
+        }
+      }
+    } catch (_) { /* non-blocking — never break the view tracking response */ }
+
+    return response;
   }
 
   // === REAL-TIME MANAGEMENT HANDLERS ===
@@ -10740,6 +11053,19 @@ pitchey_analytics_datapoints_per_minute 1250
     const limit = parseInt(url.searchParams.get('limit') || '20', 10);
     const genre = url.searchParams.get('genre');
     const offset = (page - 1) * limit;
+    const corsHeaders = getCorsHeaders(request.headers.get('Origin'));
+
+    // Check Redis cache first (5 min TTL)
+    const cacheKey = `browse:top-rated:${genre || 'all'}:p${page}:l${limit}`;
+    try {
+      const cached = await this.cache.get<string>(cacheKey);
+      if (cached) {
+        return new Response(typeof cached === 'string' ? cached : JSON.stringify(cached), {
+          headers: { 'Content-Type': 'application/json', 'X-Cache': 'HIT', ...corsHeaders },
+          status: 200
+        });
+      }
+    } catch (_) { /* cache miss or error, proceed to DB */ }
 
     try {
       let whereClause = "WHERE p.status = 'published'";
@@ -10767,13 +11093,18 @@ pitchey_analytics_datapoints_per_minute 1250
       ]);
 
       const total = parseInt(String(countResult[0]?.total || '0'), 10);
-      return new Response(JSON.stringify({ items: pitches, total, totalPages: Math.ceil(total / limit) }), {
-        headers: { 'Content-Type': 'application/json', ...getCorsHeaders(request.headers.get('Origin')) },
+      const responseBody = JSON.stringify({ items: pitches, total, totalPages: Math.ceil(total / limit) });
+
+      // Cache the result for 5 minutes
+      try { await this.cache.set(cacheKey, responseBody, 300); } catch (_) { /* non-blocking */ }
+
+      return new Response(responseBody, {
+        headers: { 'Content-Type': 'application/json', 'X-Cache': 'MISS', ...corsHeaders },
         status: 200
       });
     } catch (error) {
       return new Response(JSON.stringify({ items: [], total: 0, totalPages: 0 }), {
-        headers: { 'Content-Type': 'application/json', ...getCorsHeaders(request.headers.get('Origin')) },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
         status: 200
       });
     }
@@ -15212,6 +15543,22 @@ Signatures: [To be completed upon signing]
 
       const handler = new (await import('./handlers/messaging-simple')).SimpleMessagingHandler(this.db);
       const result = await handler.sendMessage(authCheck.user.id, data);
+
+      // Push real-time chat message to recipient
+      if (result.success && data.recipientId) {
+        try {
+          await this.pushRealtimeEvent(String(data.recipientId), {
+            type: 'chat_message',
+            data: {
+              senderId: authCheck.user.id,
+              senderName: authCheck.user.name || authCheck.user.email,
+              content: typeof data.content === 'string' ? data.content.substring(0, 200) : '',
+              conversationId: (result as any).data?.conversationId || (result as any).conversationId,
+              timestamp: new Date().toISOString()
+            }
+          });
+        } catch (_) { /* non-blocking */ }
+      }
 
       const origin = request.headers.get('Origin');
       return new Response(JSON.stringify(result), {
