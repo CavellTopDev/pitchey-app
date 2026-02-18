@@ -679,22 +679,38 @@ class RouteRegistry {
       // this.intelligenceWebSocketService = getIntelligenceWebSocketService(env);
 
       // Initialize A/B testing services
-      this.abTestingHandler = new ABTestingHandler(this.db);
-      this.abTestingWebSocketHandler = new ABTestingWebSocketHandler(this.db);
+      try {
+        this.abTestingHandler = new ABTestingHandler(this.db);
+        this.abTestingWebSocketHandler = new ABTestingWebSocketHandler(this.db);
+      } catch (abErr) {
+        console.error('Failed to initialize A/B testing (non-fatal):', abErr);
+      }
 
       // Initialize container integration
-      this.containerIntegration = new ContainerWorkerIntegration(env);
+      try {
+        this.containerIntegration = new ContainerWorkerIntegration(env);
+      } catch (containerErr) {
+        console.error('Failed to initialize container integration (non-fatal):', containerErr);
+      }
 
       // Initialize audit trail service
-      this.auditService = createAuditTrailService(env);
+      try {
+        this.auditService = createAuditTrailService(env);
+      } catch (auditErr) {
+        console.error('Failed to initialize audit trail (non-fatal):', auditErr);
+      }
 
       // Initialize legal document handler
-      if (this.db && this.enhancedR2Handler && this.auditService) {
-        this.legalDocumentHandler = new LegalDocumentHandler(
-          this.db,
-          this.enhancedR2Handler,
-          this.auditService
-        );
+      try {
+        if (this.db && this.enhancedR2Handler && this.auditService) {
+          this.legalDocumentHandler = new LegalDocumentHandler(
+            this.db,
+            this.enhancedR2Handler,
+            this.auditService
+          );
+        }
+      } catch (legalErr) {
+        console.error('Failed to initialize legal document handler (non-fatal):', legalErr);
       }
 
       // Initialize notification system
@@ -722,23 +738,26 @@ class RouteRegistry {
 
       // Initialize Better Auth with Cloudflare integration
       // Check for SESSION_STORE (wrangler.toml binding) or SESSIONS_KV or KV
-      if (env.DATABASE_URL && (env.SESSION_STORE || env.SESSIONS_KV || env.KV || env.CACHE)) {
-        console.log('Initializing Better Auth with Cloudflare integration');
-        // Pass the correct KV binding to Better Auth
-        // Use type assertion to handle KVNamespace type variations between imports
-        const authEnv = {
-          DATABASE_URL: env.DATABASE_URL,
-          BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET,
-          JWT_SECRET: env.JWT_SECRET,
-          SESSIONS_KV: env.SESSION_STORE || env.SESSIONS_KV || env.KV || env.CACHE,
-          KV: env.KV,
-          FRONTEND_URL: env.FRONTEND_URL,
-          ENVIRONMENT: env.ENVIRONMENT
-        } as AuthEnv;
-        this.betterAuth = createBetterAuthInstance(authEnv);
-        this.portalAuth = createPortalAuth(this.betterAuth);
-      } else {
-        console.log('Better Auth not initialized - missing DATABASE_URL or KV namespace');
+      try {
+        if (env.DATABASE_URL && (env.SESSION_STORE || env.SESSIONS_KV || env.KV || env.CACHE)) {
+          console.log('Initializing Better Auth with Cloudflare integration');
+          const authEnv = {
+            DATABASE_URL: env.DATABASE_URL,
+            BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET,
+            JWT_SECRET: env.JWT_SECRET,
+            SESSIONS_KV: env.SESSION_STORE || env.SESSIONS_KV || env.KV || env.CACHE,
+            KV: env.KV,
+            FRONTEND_URL: env.FRONTEND_URL,
+            ENVIRONMENT: env.ENVIRONMENT
+          } as AuthEnv;
+          this.betterAuth = createBetterAuthInstance(authEnv);
+          this.portalAuth = createPortalAuth(this.betterAuth);
+        } else {
+          console.log('Better Auth not initialized - missing DATABASE_URL or KV namespace');
+        }
+      } catch (authError) {
+        console.error('Failed to initialize Better Auth (non-fatal):', authError);
+        // Continue without Better Auth - handleLoginSimple will handle auth via direct DB
       }
 
       // Initialize email and messaging routes if configuration is available
@@ -746,14 +765,18 @@ class RouteRegistry {
         // this.emailMessagingRoutes = new EmailMessagingRoutes(env);
       }
     } catch (error) {
-      console.error('Failed to initialize database:', error);
-      // Create a dummy database object that returns errors
-      this.db = new WorkerDatabase({
-        connectionString: 'postgresql://dummy:dummy@localhost:5432/dummy'
-      });
+      console.error('Failed to initialize services:', error);
+      // Only create a dummy database if the real one wasn't already initialized
+      if (!this.db || this.db.constructor.name !== 'WorkerDatabase') {
+        this.db = new WorkerDatabase({
+          connectionString: 'postgresql://dummy:dummy@localhost:5432/dummy'
+        });
+      }
 
-      // Still initialize file handler with dummy db
-      this.fileHandler = new WorkerFileHandler(this.db);
+      // Still initialize file handler if not done
+      if (!this.fileHandler) {
+        this.fileHandler = new WorkerFileHandler(this.db);
+      }
     }
 
     // Initialize Better Auth adapter (commented out - causing runtime error)
