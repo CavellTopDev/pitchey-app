@@ -151,11 +151,11 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     error: null,
     state: 'disconnected',
     quality: {
-      strength: 'poor',
+      strength: 'good',
       latency: null,
       lastPing: null,
       consecutiveFailures: 0,
-      successRate: 0,
+      successRate: 100,
     },
   });
   
@@ -750,10 +750,11 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
       let finalWsUrl = `${wsUrl}/ws`;
       
       // Check if this is a cross-origin connection
-      // When API_URL is empty (same-origin setup), use current origin
-      const apiOrigin = config.API_URL ? new URL(config.API_URL).origin : window.location.origin;
+      // Compare WebSocket URL origin to current page origin (not API_URL)
+      // In production, API_URL is empty (same-origin proxy) but WS_URL goes direct to Worker
+      const wsOrigin = new URL(wsUrl.replace(/^ws/, 'http')).origin;
       const currentOrigin = window.location.origin;
-      const isCrossOrigin = apiOrigin !== currentOrigin;
+      const isCrossOrigin = wsOrigin !== currentOrigin;
 
       if (isCrossOrigin) {
         // Cross-origin: Need to fetch a WebSocket token
@@ -779,11 +780,12 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
         }
       }
       
+      const wsCreateTime = Date.now();
       const ws = new WebSocket(finalWsUrl);
-      
+
       ws.onopen = () => {
         const connectTime = Date.now();
-        const connectionLatency = connectTime - now;
+        const connectionLatency = connectTime - wsCreateTime;
         
         // Record successful connection
         updateConnectionQuality(true, connectionLatency);
