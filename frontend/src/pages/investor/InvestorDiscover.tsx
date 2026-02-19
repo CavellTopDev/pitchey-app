@@ -123,7 +123,7 @@ const InvestorDiscover = () => {
       if (requestId !== fetchRequestIdRef.current) return;
 
       // Transform API response to match component interface
-      const transformedPitches: PitchItem[] = response.opportunities.map((opp: InvestmentOpportunity) => ({
+      const transformedPitches: PitchItem[] = (response.opportunities ?? []).map((opp: InvestmentOpportunity) => ({
         id: opp.id,
         title: opp.title || 'Untitled',
         genre: opp.genre || 'Unknown',

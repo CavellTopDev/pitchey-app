@@ -786,7 +786,10 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
       ws.onopen = () => {
         const connectTime = Date.now();
         const connectionLatency = connectTime - wsCreateTime;
-        
+
+        // Reset stale connection history so a fresh connect starts clean
+        connectionHistoryRef.current = [];
+
         // Record successful connection
         updateConnectionQuality(true, connectionLatency);
         recordCircuitBreakerSuccess();

@@ -78,7 +78,7 @@ export default function InvestorPortfolio() {
       // Fetch investment history
       const historyResponse = await InvestmentService.getInvestmentHistory({ limit: 50 });
       if (historyResponse.success && historyResponse.data) {
-        const transformedInvestments: Investment[] = historyResponse.data.investments.map((inv) => ({
+        const transformedInvestments: Investment[] = (historyResponse.data?.investments ?? []).map((inv: any) => ({
           id: String(inv.id),
           pitchTitle: inv.pitchTitle || 'Unknown Project',
           creator: inv.creatorName || 'Unknown Creator',

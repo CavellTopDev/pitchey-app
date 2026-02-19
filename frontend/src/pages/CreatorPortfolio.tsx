@@ -7,6 +7,7 @@ import PortfolioGrid from '../components/portfolio/PortfolioGrid';
 import LoadingState from '../components/portfolio/LoadingState';
 import ErrorState from '../components/portfolio/ErrorState';
 import { apiClient } from '../lib/api-client';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import '../utils/debug-auth.js';
 
 interface Creator {
@@ -56,6 +57,7 @@ interface PortfolioData {
 
 const CreatorPortfolio: React.FC = () => {
   const { creatorId } = useParams<{ creatorId: string }>();
+  const { user } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [portfolio, setPortfolio] = useState<PortfolioData | null>(null);
@@ -102,7 +104,9 @@ const CreatorPortfolio: React.FC = () => {
     setError(null);
 
     try {
-      const response = await apiClient.get(`/api/creator/portfolio/${effectiveCreatorId}`);
+      // If viewing own portfolio (no creatorId param), use session-based endpoint
+      const url = creatorId ? `/api/creator/portfolio/${creatorId}` : '/api/creator/portfolio';
+      const response = await apiClient.get(url);
       
       if (!response.success) {
         throw new Error(response.error?.message || 'Failed to fetch portfolio');
@@ -110,11 +114,48 @@ const CreatorPortfolio: React.FC = () => {
 
       const data = response.data as any;
 
-      if (!data || !data.success) {
-        throw new Error('Portfolio data indicates failure');
+      if (!data) {
+        throw new Error('No portfolio data received');
       }
 
-      setPortfolio(data as PortfolioData);
+      // Transform backend response { pitches, totalInvestment } into PortfolioData shape
+      const rawPitches = Array.isArray(data.pitches) ? data.pitches : [];
+      const totalViews = rawPitches.reduce((sum: number, p: any) => sum + (p.view_count ?? p.views ?? 0), 0);
+
+      const portfolio: PortfolioData = {
+        success: true,
+        creator: data.creator ?? {
+          id: user?.id?.toString() ?? '',
+          name: user?.name ?? user?.username ?? 'Creator',
+          username: user?.username ?? '',
+          avatar: user?.profileImageUrl ?? '',
+          bio: (user as any)?.bio ?? '',
+          location: '',
+          joinedDate: user?.createdAt ?? '',
+          stats: {
+            totalPitches: rawPitches.length,
+            totalViews,
+            totalFollowers: 0,
+            avgRating: 0
+          }
+        },
+        pitches: rawPitches.map((p: any) => ({
+          id: p.id?.toString() ?? '',
+          title: p.title ?? 'Untitled',
+          tagline: p.logline ?? '',
+          genre: p.genre ?? '',
+          thumbnail: p.cover_image ?? '',
+          views: p.view_count ?? 0,
+          rating: 0,
+          status: p.status ?? 'draft',
+          budget: p.investment_total ? `$${Number(p.investment_total).toLocaleString()}` : '$0',
+          createdAt: p.created_at ?? '',
+          description: p.logline ?? ''
+        })),
+        achievements: data.achievements ?? []
+      };
+
+      setPortfolio(portfolio);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load portfolio');
     } finally {

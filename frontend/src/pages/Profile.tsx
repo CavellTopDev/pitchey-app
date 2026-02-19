@@ -52,25 +52,20 @@ export default function Profile() {
       
       if (response.ok) {
         const data = await response.json();
-        setProfile(data.user);
-        setEditedProfile(data.user);
-      } else {
-        // Fallback to localStorage user data
-        const userData = localStorage.getItem('user');
-        if (userData) {
-          const userObj = JSON.parse(userData);
-          setProfile(userObj);
-          setEditedProfile(userObj);
-        }
+        const profileData = data.data || data.user || data;
+        setProfile(profileData);
+        setEditedProfile(profileData);
+      } else if (user) {
+        // Fallback to auth store user data
+        setProfile(user as unknown as UserProfile);
+        setEditedProfile(user as unknown as UserProfile);
       }
     } catch (error) {
       console.error('Failed to fetch profile:', error);
-      // Fallback to localStorage user data
-      const userData = localStorage.getItem('user');
-      if (userData) {
-        const userObj = JSON.parse(userData);
-        setProfile(userObj);
-        setEditedProfile(userObj);
+      // Fallback to auth store user data
+      if (user) {
+        setProfile(user as unknown as UserProfile);
+        setEditedProfile(user as unknown as UserProfile);
       }
     } finally {
       setLoading(false);

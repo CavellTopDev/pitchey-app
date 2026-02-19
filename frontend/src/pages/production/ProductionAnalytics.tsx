@@ -279,7 +279,7 @@ export default function ProductionAnalytics() {
                 <Target className="w-5 h-5 text-gray-400" />
               </div>
               <div className="h-64">
-                <ROIChart data={projectPerformance?.map(p => ({
+                <ROIChart data={(projectPerformance ?? []).map(p => ({
                   project: p.title,
                   roi: p.roi,
                   revenue: p.revenue

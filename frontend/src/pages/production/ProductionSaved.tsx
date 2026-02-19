@@ -81,7 +81,7 @@ export default function ProductionSaved() {
       });
 
       // Transform API response to component's SavedPitch interface
-      const transformedPitches: SavedPitch[] = response.savedPitches.map((sp: ApiSavedPitch) => ({
+      const transformedPitches: SavedPitch[] = (response.savedPitches ?? []).map((sp: ApiSavedPitch) => ({
         id: sp.pitchId,
         title: sp.pitch?.title || 'Untitled Pitch',
         creator: sp.pitch?.creator?.username || sp.pitch?.creator?.name || 'Unknown Creator',

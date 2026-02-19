@@ -413,7 +413,10 @@ function App() {
             <Route path="pitches/:id/:slug/analytics" element={<PitchAnalytics />} />
             <Route path="ndas" element={<CreatorNDAManagement />} />
             <Route path="following" element={<Following />} />
-            
+            <Route path="profile" element={<Profile />} />
+            <Route path="settings" element={<Settings />} />
+            <Route path="portfolio" element={<CreatorPortfolio />} />
+
             {/* Enhanced Creator Routes */}
             {AllCreatorRoutes({ isAuthenticated: true, userType: 'creator' })}
           </Route>
@@ -429,7 +432,10 @@ function App() {
             <Route path="following" element={<Following />} />
             <Route path="browse" element={<InvestorBrowse />} />
             <Route path="pitch/:id" element={<InvestorPitchView />} />
-            
+            <Route path="profile" element={<Profile />} />
+            <Route path="messages" element={<Messages />} />
+            <Route path="calendar" element={<Calendar />} />
+
             {/* Enhanced Investor Routes */}
             {AllInvestorRoutes({ isAuthenticated: true, userType: 'investor' })}
           </Route>
@@ -443,7 +449,10 @@ function App() {
             <Route path="dashboard" element={<ProductionDashboard />} />
             <Route path="following" element={<Following />} />
             <Route path="pitch/:id" element={<ProductionPitchView />} />
-            
+            <Route path="profile" element={<Profile />} />
+            <Route path="messages" element={<Messages />} />
+            <Route path="calendar" element={<Calendar />} />
+
             {/* Enhanced Production Routes */}
             {AllProductionRoutes({ isAuthenticated: true, userType: 'production' })}
           </Route>

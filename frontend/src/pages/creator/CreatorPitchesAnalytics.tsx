@@ -159,14 +159,14 @@ export default function CreatorPitchesAnalytics() {
         </div>
 
         {/* Top Performing Pitches from Analytics API */}
-        {analytics && analytics.topPitches.length > 0 && (
+        {analytics && (analytics.topPitches ?? []).length > 0 && (
           <div className="bg-white rounded-lg shadow-sm border mb-8">
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Top Performing Pitches</h2>
               <p className="text-sm text-gray-500 mt-1">Based on overall engagement</p>
             </div>
             <div className="divide-y divide-gray-100">
-              {analytics.topPitches.map((tp, idx) => (
+              {(analytics.topPitches ?? []).map((tp, idx) => (
                 <div key={tp.id} className="p-4 flex items-center gap-4">
                   <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 font-bold text-sm flex items-center justify-center flex-shrink-0">
                     {idx + 1}
@@ -192,7 +192,7 @@ export default function CreatorPitchesAnalytics() {
         )}
 
         {/* Audience Breakdown */}
-        {analytics && analytics.audienceBreakdown.length > 0 && (
+        {analytics && (analytics.audienceBreakdown ?? []).length > 0 && (
           <div className="bg-white rounded-lg shadow-sm border mb-8">
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Audience Breakdown</h2>
@@ -200,7 +200,7 @@ export default function CreatorPitchesAnalytics() {
             </div>
             <div className="p-6">
               <div className="flex gap-6">
-                {analytics.audienceBreakdown.map(seg => (
+                {(analytics.audienceBreakdown ?? []).map(seg => (
                   <div key={seg.userType} className="flex-1">
                     <div className="text-sm text-gray-600 capitalize mb-1">{seg.userType}s</div>
                     <div className="text-2xl font-bold text-gray-900">{seg.percentage.toFixed(0)}%</div>

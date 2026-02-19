@@ -87,10 +87,11 @@ export default function InvestorAnalytics() {
       const analyticsData = await InvestorService.getAnalytics(period);
 
       // Transform API response to analytics metrics
-      const avgROI = analyticsData.genrePerformance?.length > 0
-        ? analyticsData.genrePerformance.reduce((sum: number, g: any) => sum + (g.avgROI || 0), 0) / analyticsData.genrePerformance.length
+      const genrePerf = analyticsData.genrePerformance ?? [];
+      const avgROI = genrePerf.length > 0
+        ? genrePerf.reduce((sum: number, g: any) => sum + (g.avgROI || 0), 0) / genrePerf.length
         : 0;
-      const totalCurrentValue = analyticsData.topPerformers?.reduce((sum: number, inv: any) => sum + (inv.currentValue || 0), 0) ?? 0;
+      const totalCurrentValue = (analyticsData.topPerformers ?? []).reduce((sum: number, inv: any) => sum + (inv.currentValue || 0), 0);
 
       const transformedMetrics: AnalyticsMetric[] = [
         {

@@ -75,7 +75,7 @@ const AllInvestments = () => {
       
       if (response.success && response.data) {
         // Transform API data to match component expectations
-        const transformedInvestments = ((response.data as any).investments || []).map((investment: any) => {
+        const transformedInvestments = ((response.data as any)?.investments || []).map((investment: any) => {
           return {
             id: investment.id,
             pitch_id: investment.pitch_id,
