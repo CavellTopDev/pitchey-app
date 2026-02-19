@@ -122,23 +122,29 @@ const CreatorPortfolio: React.FC = () => {
       const rawPitches = Array.isArray(data.pitches) ? data.pitches : [];
       const totalViews = rawPitches.reduce((sum: number, p: any) => sum + (p.view_count ?? p.views ?? 0), 0);
 
+      const defaultStats = {
+        totalPitches: rawPitches.length,
+        totalViews,
+        totalFollowers: 0,
+        avgRating: 0
+      };
+
+      const creatorData = data.creator
+        ? { ...data.creator, stats: data.creator.stats ?? defaultStats }
+        : {
+            id: user?.id?.toString() ?? '',
+            name: user?.name ?? user?.username ?? 'Creator',
+            username: user?.username ?? '',
+            avatar: user?.profileImageUrl ?? '',
+            bio: (user as any)?.bio ?? '',
+            location: '',
+            joinedDate: user?.createdAt ?? '',
+            stats: defaultStats
+          };
+
       const portfolio: PortfolioData = {
         success: true,
-        creator: data.creator ?? {
-          id: user?.id?.toString() ?? '',
-          name: user?.name ?? user?.username ?? 'Creator',
-          username: user?.username ?? '',
-          avatar: user?.profileImageUrl ?? '',
-          bio: (user as any)?.bio ?? '',
-          location: '',
-          joinedDate: user?.createdAt ?? '',
-          stats: {
-            totalPitches: rawPitches.length,
-            totalViews,
-            totalFollowers: 0,
-            avgRating: 0
-          }
-        },
+        creator: creatorData,
         pitches: rawPitches.map((p: any) => ({
           id: p.id?.toString() ?? '',
           title: p.title ?? 'Untitled',

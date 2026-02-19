@@ -976,7 +976,7 @@ export class PitchService {
       const data = await response.json() as PublicPitchesJson;
       return data.success === true ? (data.data?.pitches ?? []) : [];
     } catch (error) {
-      console.error('Error fetching public trending pitches:', error);
+      console.warn('Error fetching public trending pitches:', error);
       return [];
     }
   }
@@ -1002,7 +1002,7 @@ export class PitchService {
       const data = await response.json() as PublicPitchesJson;
       return data.success === true ? (data.data?.pitches ?? []) : [];
     } catch (error) {
-      console.error('Error fetching public new pitches:', error);
+      console.warn('Error fetching public new pitches:', error);
       return [];
     }
   }
@@ -1028,7 +1028,7 @@ export class PitchService {
       const data = await response.json() as PublicPitchesJson;
       return data.success === true ? (data.data?.pitches ?? []) : [];
     } catch (error) {
-      console.error('Error fetching public featured pitches:', error);
+      console.warn('Error fetching public featured pitches:', error);
       return [];
     }
   }

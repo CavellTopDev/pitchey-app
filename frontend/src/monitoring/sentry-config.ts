@@ -45,9 +45,10 @@ export function initSentry() {
         networkResponseHeaders: ['X-Response-Time']
       }),
 
-      // Capture console errors
+      // Capture console errors (only errors, not warnings — warnings like
+      // "auth required" on login pages are expected and create noise)
       Sentry.captureConsoleIntegration({
-        levels: ['error', 'warn']
+        levels: ['error']
       })
     ],
 
@@ -96,6 +97,15 @@ export function initSentry() {
 
     // User context
     beforeSend(event: Sentry.ErrorEvent, hint: Sentry.EventHint) {
+      // Filter out auth-timing noise (API calls that fire before session is established)
+      const message = (hint.originalException as any)?.message
+        || event.message
+        || event.exception?.values?.[0]?.value
+        || '';
+      if (/Authentication required|not available.*Authentication|Could not get WebSocket token/i.test(message)) {
+        return null;
+      }
+
       // Add custom context
       if (event.exception) {
         const error = hint.originalException as any;
