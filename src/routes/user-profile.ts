@@ -6,6 +6,7 @@
 import { createAuthAdapter } from '../auth/auth-adapter';
 import { neon } from '@neondatabase/serverless';
 import { getCorsHeaders } from '../utils/response';
+import * as bcrypt from 'bcryptjs';
 
 export interface UserProfileUpdate {
   name?: string;
@@ -339,7 +340,40 @@ export class UserProfileRoutes {
       const { password } = await request.json();
 
       // Verify password before deletion
-      // TODO: Implement password verification
+      if (!password) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: { message: 'Password is required' }
+        }), {
+          status: 400,
+          headers: { ...getCorsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
+        });
+      }
+
+      const [user] = await this.sql`SELECT password FROM users WHERE id = ${userId}`;
+      if (!user?.password) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: { message: 'Cannot verify password' }
+        }), {
+          status: 400,
+          headers: { ...getCorsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Support both bcrypt hashes and demo plain-text passwords
+      const isValid = user.password.startsWith('$2')
+        ? await bcrypt.compare(password, user.password)
+        : password === user.password;
+      if (!isValid) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: { message: 'Incorrect password' }
+        }), {
+          status: 403,
+          headers: { ...getCorsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
+        });
+      }
 
       // Soft delete user account
       await this.sql`

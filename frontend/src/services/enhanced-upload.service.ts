@@ -528,7 +528,7 @@ class EnhancedUploadService {
     partNumber: number,
     key: string
   ): Promise<{ ETag: string; PartNumber: number }> {
-    const response = await fetch(`${this.baseUrl}/api/upload/multipart/upload-part`, {
+    const response = await fetch(`${this.baseUrl}/api/upload/multipart/chunk`, {
       method: 'POST',
       body: chunk,
       headers: {

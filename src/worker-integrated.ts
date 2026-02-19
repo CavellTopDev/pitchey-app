@@ -278,6 +278,7 @@ import { SchemaAdapter } from './middleware/schema-adapter';
 // import { R2UploadHandler } from './services/upload-r2';
 import { WorkerFileHandler, createFileResponse } from './services/worker-file-handler';
 import { MultipartUploadHandler } from './worker-modules/multipart-upload';
+import { AdminEndpointsHandler } from './worker-modules/admin-endpoints';
 import { getRateLimiter, createRateLimitMiddleware } from './services/worker-rate-limiter';
 
 // Import polling service for free tier
@@ -637,6 +638,7 @@ class RouteRegistry {
   private notificationRoutes?: NotificationRoutesHandler;
   private redis: any = undefined; // Optional Redis client for rate limiting
   private cache!: UpstashCacheService;
+  private adminHandler?: AdminEndpointsHandler;
 
   constructor(env: Env) {
     this.env = env;
@@ -698,6 +700,18 @@ class RouteRegistry {
         this.auditService = createAuditTrailService(env);
       } catch (auditErr) {
         console.error('Failed to initialize audit trail (non-fatal):', auditErr);
+      }
+
+      // Initialize admin endpoints handler
+      try {
+        const adminLogger = {
+          captureError: async (e: Error) => console.error('[Admin]', e),
+          captureMessage: async (m: string) => console.log('[Admin]', m),
+          captureException: async (e: unknown) => console.error('[Admin]', e),
+        };
+        this.adminHandler = new AdminEndpointsHandler(adminLogger as any, env, this.db);
+      } catch (adminErr) {
+        console.error('Failed to initialize admin handler (non-fatal):', adminErr);
       }
 
       // Initialize legal document handler
@@ -3309,6 +3323,22 @@ class RouteRegistry {
         status: rateLimitResponse.status,
         headers
       });
+    }
+
+    // Delegate admin panel routes to AdminEndpointsHandler
+    // (excludes /api/admin/metrics and /api/admin/health which are monitoring routes)
+    if (this.adminHandler && path.startsWith('/api/admin/') &&
+        !path.startsWith('/api/admin/metrics') && !path.startsWith('/api/admin/health')) {
+      const corsHeaders = getCorsHeaders(request.headers.get('Origin'));
+      const authResult = await this.validateAuth(request);
+      const userAuth = authResult.valid && authResult.user ? {
+        userId: authResult.user.id,
+        email: authResult.user.email,
+        userType: authResult.user.userType,
+        iat: 0,
+        exp: 0
+      } : undefined;
+      return this.adminHandler.handleRequest(request, corsHeaders, userAuth);
     }
 
     // Define public endpoints that don't require authentication

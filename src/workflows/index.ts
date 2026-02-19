@@ -656,9 +656,8 @@ async function handleDocuSignWebhook(
     return Response.json({ error: 'Missing signature' }, { status: 401, headers: corsHeaders });
   }
   
-  // TODO: Validate HMAC signature against env.WEBHOOK_SECRET
-  
-  const body = await request.json() as {
+  // Validate HMAC-SHA256 signature if secret is configured
+  let body: {
     event: string;
     data: {
       envelopeId: string;
@@ -678,6 +677,25 @@ async function handleDocuSignWebhook(
       };
     };
   };
+
+  if (env.WEBHOOK_SECRET) {
+    const bodyText = await request.text();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(env.WEBHOOK_SECRET),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(bodyText));
+    const expected = btoa(String.fromCharCode(...new Uint8Array(sig)));
+    if (signature !== expected) {
+      return Response.json({ error: 'Invalid signature' }, { status: 401, headers: corsHeaders });
+    }
+    body = JSON.parse(bodyText);
+  } else {
+    body = await request.json() as typeof body;
+  }
   
   console.log(`DocuSign webhook received: ${body.event} for envelope ${body.data.envelopeId}`);
   
@@ -750,9 +768,8 @@ async function handleStripeWebhook(
     return Response.json({ error: 'Missing signature' }, { status: 401, headers: corsHeaders });
   }
   
-  // TODO: Validate signature using env.STRIPE_WEBHOOK_SECRET
-  
-  const body = await request.json() as {
+  // Validate Stripe signature (t=timestamp,v1=hash format) if secret is configured
+  let body: {
     type: string;
     data: {
       object: {
@@ -767,6 +784,32 @@ async function handleStripeWebhook(
       };
     };
   };
+
+  if (env.STRIPE_WEBHOOK_SECRET) {
+    const bodyText = await request.text();
+    const parts = Object.fromEntries(
+      signature.split(',').map((p: string) => {
+        const [k, v] = p.split('=');
+        return [k, v];
+      })
+    );
+    const payload = `${parts.t}.${bodyText}`;
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(env.STRIPE_WEBHOOK_SECRET),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload));
+    const expected = [...new Uint8Array(sig)].map(b => b.toString(16).padStart(2, '0')).join('');
+    if (expected !== parts.v1) {
+      return Response.json({ error: 'Invalid signature' }, { status: 401, headers: corsHeaders });
+    }
+    body = JSON.parse(bodyText);
+  } else {
+    body = await request.json() as typeof body;
+  }
   
   console.log(`Stripe webhook received: ${body.type}`);
   

@@ -196,13 +196,25 @@ export async function requestPasswordResetHandler(
     // Send reset email (integrate with email service)
     const resetUrl = `${env.FRONTEND_URL}/reset-password?token=${resetToken}`;
     
-    // TODO: Send actual email via Resend/SendGrid
-    console.log('Password reset requested', {
-      userId: user.id,
-      email: user.email,
-      resetUrl,
-      expiresAt
-    });
+    // Send reset email via Resend
+    if (env.RESEND_API_KEY) {
+      const { WorkerEmailService } = await import('../services/worker-email');
+      const emailService = new WorkerEmailService({
+        apiKey: env.RESEND_API_KEY,
+        fromEmail: 'onboarding@resend.dev',
+        fromName: 'Pitchey'
+      });
+      await emailService.send({
+        to: email,
+        subject: 'Reset your Pitchey password',
+        html: `<h2>Password Reset</h2>
+               <p>Click below to reset your password (expires in 1 hour):</p>
+               <a href="${resetUrl}">Reset Password</a>
+               <p>If you didn't request this, ignore this email.</p>`
+      });
+    } else {
+      console.warn('RESEND_API_KEY not set — password reset email not sent');
+    }
     
     return ApiResponseBuilder.success({
       message: 'If an account exists with this email, a password reset link has been sent'

@@ -3,15 +3,6 @@ import type { ApiResponse } from '../types/api';
 const isDev = import.meta.env.MODE === 'development';
 const API_BASE_URL = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : '');
 
-// Helper function to get auth headers
-const getAuthHeaders = (): Record<string, string> => {
-  const token = localStorage.getItem('token');
-  return {
-    'Content-Type': 'application/json',
-    ...(token && { Authorization: `Bearer ${token}` })
-  };
-};
-
 // Helper function to handle API responses
 const handleResponse = async <T>(response: Response): Promise<T> => {
   if (!response.ok) {
@@ -176,19 +167,19 @@ export interface TransactionFilters {
 class AdminService {
   // Dashboard
   async getDashboardStats(): Promise<DashboardStats> {
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/admin/dashboard`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include' // Send cookies for Better Auth session
+      credentials: 'include'
     });
     return handleResponse<DashboardStats>(response);
   }
 
   async getRecentActivity(): Promise<RecentActivity[]> {
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/admin/moderation-log`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include' // Send cookies for Better Auth session
+      credentials: 'include'
     });
     return handleResponse<RecentActivity[]>(response);
   }
@@ -200,20 +191,21 @@ class AdminService {
       if (value) params.append(key, value.toString());
     });
 
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const response = await fetch(`${API_BASE_URL}/api/admin/users${query}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include' // Send cookies for Better Auth session
+      credentials: 'include'
     });
     return handleResponse<AdminUser[]>(response);
   }
 
   async updateUser(userId: string, updates: Partial<AdminUser>): Promise<AdminUser> {
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/admin/user/${userId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
-      credentials: 'include' // Send cookies for Better Auth session
+      credentials: 'include'
     });
     return handleResponse<AdminUser>(response);
   }
@@ -225,40 +217,40 @@ class AdminService {
       if (value) params.append(key, value.toString());
     });
 
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const response = await fetch(`${API_BASE_URL}/api/admin/content${query}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include' // Send cookies for Better Auth session
+      credentials: 'include'
     });
     return handleResponse<AdminPitch[]>(response);
   }
 
   async approvePitch(pitchId: string, notes?: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
-      method: 'PUT',
+    const response = await fetch(`${API_BASE_URL}/api/admin/content/${pitchId}/feature`, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ notes }),
-      credentials: 'include' // Send cookies for Better Auth session
+      credentials: 'include'
     });
     await handleResponse<void>(response);
   }
 
   async rejectPitch(pitchId: string, reason: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
-      method: 'PUT',
+    const response = await fetch(`${API_BASE_URL}/api/admin/content/${pitchId}`, {
+      method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason }),
-      credentials: 'include' // Send cookies for Better Auth session
+      credentials: 'include'
     });
     await handleResponse<void>(response);
   }
 
   async flagPitch(pitchId: string, reasons: string[], notes: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
-      method: 'PUT',
+    const response = await fetch(`${API_BASE_URL}/api/admin/flags`, {
+      method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reasons, notes }),
-      credentials: 'include' // Send cookies for Better Auth session
+      credentials: 'include'
     });
     await handleResponse<void>(response);
   }
@@ -270,96 +262,93 @@ class AdminService {
       if (value) params.append(key, value.toString());
     });
 
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const response = await fetch(`${API_BASE_URL}/api/admin/reports${query}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include' // Send cookies for Better Auth session
+      credentials: 'include'
     });
     return handleResponse<AdminTransaction[]>(response);
   }
 
   async processRefund(transactionId: string, amount: number, reason: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/admin/bulk-action`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount, reason }),
-      credentials: 'include' // Send cookies for Better Auth session
+      body: JSON.stringify({ action: 'refund', targetId: transactionId, amount, reason }),
+      credentials: 'include'
     });
     await handleResponse<void>(response);
   }
 
   // System Settings
   async getSystemSettings(): Promise<SystemSettings> {
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/admin/settings`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include' // Send cookies for Better Auth session
+      credentials: 'include'
     });
     return handleResponse<SystemSettings>(response);
   }
 
   async updateSystemSettings(settings: SystemSettings): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/admin/settings`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings),
-      credentials: 'include' // Send cookies for Better Auth session
+      credentials: 'include'
     });
     await handleResponse<void>(response);
   }
 
   // Analytics
   async getAnalytics(timeframe: '24h' | '7d' | '30d' | '90d' = '30d'): Promise<any> {
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/admin/analytics?period=${timeframe}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include' // Send cookies for Better Auth session
+      credentials: 'include'
     });
     return handleResponse<any>(response);
   }
 
   // System Health
   async getSystemHealth(): Promise<any> {
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/admin/system/health`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include' // Send cookies for Better Auth session
+      credentials: 'include'
     });
     return handleResponse<any>(response);
   }
 
   // Bulk Operations
   async bulkUpdateUsers(userIds: string[], updates: Partial<AdminUser>): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
-      method: 'PUT',
+    const response = await fetch(`${API_BASE_URL}/api/admin/bulk-action`, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userIds, updates }),
-      credentials: 'include' // Send cookies for Better Auth session
+      body: JSON.stringify({ action: 'update_users', userIds, updates }),
+      credentials: 'include'
     });
     await handleResponse<void>(response);
   }
 
   async bulkModeratePitches(pitchIds: string[], action: 'approve' | 'reject' | 'flag', data?: any): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
-      method: 'PUT',
+    const response = await fetch(`${API_BASE_URL}/api/admin/bulk-action`, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pitchIds, action, data }),
-      credentials: 'include' // Send cookies for Better Auth session
+      body: JSON.stringify({ action: `moderate_${action}`, pitchIds, data }),
+      credentials: 'include'
     });
     await handleResponse<void>(response);
   }
 
   // Export Data
   async exportUsers(filters: UserFilters = {}): Promise<Blob> {
-    const params = new URLSearchParams();
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value.toString());
-    });
-
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
-      method: 'GET',
+    const response = await fetch(`${API_BASE_URL}/api/admin/reports/generate`, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include' // Send cookies for Better Auth session
+      body: JSON.stringify({ type: 'users', filters }),
+      credentials: 'include'
     });
 
     if (!response.ok) {
@@ -370,15 +359,11 @@ class AdminService {
   }
 
   async exportTransactions(filters: TransactionFilters = {}): Promise<Blob> {
-    const params = new URLSearchParams();
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) params.append(key, value.toString());
-    });
-
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
-      method: 'GET',
+    const response = await fetch(`${API_BASE_URL}/api/admin/reports/generate`, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include' // Send cookies for Better Auth session
+      body: JSON.stringify({ type: 'transactions', filters }),
+      credentials: 'include'
     });
 
     if (!response.ok) {
