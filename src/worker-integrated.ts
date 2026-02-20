@@ -14755,7 +14755,7 @@ Signatures: [To be completed upon signing]
 
       const origin = request.headers.get('Origin');
       return new Response(JSON.stringify(result), {
-        headers: getCorsHeaders(origin),
+        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
         status: result.success ? 200 : 400
       });
     } catch (error) {
@@ -14775,7 +14775,7 @@ Signatures: [To be completed upon signing]
 
       const origin = request.headers.get('Origin');
       return new Response(JSON.stringify(result), {
-        headers: getCorsHeaders(origin),
+        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
         status: result.success ? 201 : 400
       });
     } catch (error) {
@@ -14796,7 +14796,7 @@ Signatures: [To be completed upon signing]
 
       const origin = request.headers.get('Origin');
       return new Response(JSON.stringify(result), {
-        headers: getCorsHeaders(origin),
+        headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
         status: result.success ? 200 : 404
       });
     } catch (error) {
