@@ -239,12 +239,13 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
       : null;
     
     // Determine connection strength
+    // Thresholds are for heartbeat ping/pong round-trip over the internet
     let strength: ConnectionQuality['strength'] = 'poor';
-    if (successRate >= 90 && (avgLatency === null || avgLatency < 100)) {
+    if (successRate >= 90 && (avgLatency === null || avgLatency < 500)) {
       strength = 'excellent';
-    } else if (successRate >= 80 && (avgLatency === null || avgLatency < 200)) {
+    } else if (successRate >= 70 && (avgLatency === null || avgLatency < 1500)) {
       strength = 'good';
-    } else if (successRate >= 60 && (avgLatency === null || avgLatency < 500)) {
+    } else if (successRate >= 50 && (avgLatency === null || avgLatency < 3000)) {
       strength = 'fair';
     }
     
@@ -530,12 +531,9 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
           ).slice(-20); // Keep last 20 attempts
         }
         
-        // Load quality metrics
-        const qualitySaved = localStorage.getItem(STORAGE_KEYS.QUALITY_METRICS);
-        if (qualitySaved) {
-          const parsed = JSON.parse(qualitySaved);
-          setConnectionStatus(prev => ({ ...prev, quality: parsed }));
-        }
+        // Quality metrics are assessed fresh each session — don't load stale values
+        // that could show "poor" banners before the WS even connects
+        localStorage.removeItem(STORAGE_KEYS.QUALITY_METRICS);
         
         // Load rate limit state
         const rateLimitSaved = localStorage.getItem(STORAGE_KEYS.RATE_LIMIT);
@@ -790,8 +788,9 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
         // Reset stale connection history so a fresh connect starts clean
         connectionHistoryRef.current = [];
 
-        // Record successful connection
-        updateConnectionQuality(true, connectionLatency);
+        // Record successful connection — don't use handshake latency as quality signal
+        // (TCP+TLS+upgrade easily takes 500ms+, only heartbeat pings measure real latency)
+        updateConnectionQuality(true);
         recordCircuitBreakerSuccess();
         reconnectAttemptRef.current = 0;
         
