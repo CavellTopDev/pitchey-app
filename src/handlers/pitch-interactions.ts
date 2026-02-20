@@ -20,13 +20,40 @@ function extractPitchId(request: Request): string {
   const parts = url.pathname.split('/');
   // /api/creator/pitches/:id/like -> id is at index with 'like' after it
   // /api/pitches/:id/save -> id is at index with 'save' after it
+  // /api/pitches/:id/like-status -> id is at index with 'like-status' after it
   for (let i = 0; i < parts.length; i++) {
-    if ((parts[i] === 'like' || parts[i] === 'save' || parts[i] === 'publish' || parts[i] === 'archive') && i > 0) {
+    if ((parts[i] === 'like' || parts[i] === 'like-status' || parts[i] === 'save' || parts[i] === 'publish' || parts[i] === 'archive') && i > 0) {
       return parts[i - 1];
     }
   }
   // fallback: second-to-last segment
   return parts[parts.length - 2];
+}
+
+/**
+ * GET /api/pitches/:id/like-status
+ */
+export async function pitchLikeStatusHandler(request: Request, env: Env): Promise<Response> {
+  const origin = request.headers.get('Origin');
+  const sql = getDb(env);
+  const userId = await getUserId(request, env);
+
+  if (!userId) {
+    return jsonResponse({ success: true, data: { liked: false } }, 200, origin);
+  }
+  if (!sql) {
+    return jsonResponse({ success: true, data: { liked: false } }, 200, origin);
+  }
+
+  try {
+    const pitchId = extractPitchId(request);
+    const [row] = await sql`SELECT 1 FROM likes WHERE user_id = ${userId} AND pitch_id = ${pitchId} LIMIT 1`;
+
+    return jsonResponse({ success: true, data: { liked: !!row } }, 200, origin);
+  } catch (error) {
+    console.error('Pitch like status error:', error);
+    return jsonResponse({ success: true, data: { liked: false } }, 200, origin);
+  }
 }
 
 /**

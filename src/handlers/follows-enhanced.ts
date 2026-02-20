@@ -491,8 +491,8 @@ export async function mutualFollowersHandler(request: Request, env: DbEnv): Prom
     const rows = await sql`
       SELECT u.id, u.username, u.name, u.user_type, u.profile_image, u.bio
       FROM follows f1
-      JOIN follows f2 ON f1.creator_id = f2.creator_id
-      JOIN users u ON f1.creator_id = u.id
+      JOIN follows f2 ON f1.following_id = f2.following_id
+      JOIN users u ON f1.following_id = u.id
       WHERE f1.follower_id = ${authenticatedUserId}
         AND f2.follower_id = ${targetUserId}
         AND u.is_active = true

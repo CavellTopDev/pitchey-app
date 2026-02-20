@@ -9,6 +9,7 @@ import { useBetterAuthStore } from '../store/betterAuthStore';
 import FollowButton from '../components/FollowButton';
 import { config } from '../config';
 import FormatDisplay from '../components/FormatDisplay';
+import { followService } from '../services/follow.service';
 
 interface CreatorData {
   id: number;
@@ -81,6 +82,13 @@ const CreatorProfile = () => {
       if (response.ok) {
         const data = await response.json();
         setCreator(data);
+        // Check if current user follows this creator
+        try {
+          const following = await followService.isFollowing(creatorId);
+          setIsFollowing(following);
+        } catch {
+          // Non-critical — leave as default false
+        }
       } else {
         console.error('Failed to fetch creator:', response.status, response.statusText);
         setCreator(null);
@@ -116,9 +124,15 @@ const CreatorProfile = () => {
     }
   };
 
-  const handleFollowToggle = () => {
-    setIsFollowing(!isFollowing);
-    // In production, call API to follow/unfollow
+  const handleFollowToggle = async () => {
+    const action = isFollowing ? 'unfollow' : 'follow';
+    const previous = isFollowing;
+    setIsFollowing(!isFollowing); // optimistic
+    try {
+      await followService.toggleFollow(String(creator?.id ?? ''), action);
+    } catch {
+      setIsFollowing(previous); // revert on error
+    }
   };
 
   const handleContactCreator = () => {

@@ -73,6 +73,7 @@ import {
 
 // Import real pitch interaction handlers
 import {
+  pitchLikeStatusHandler,
   pitchLikeHandler as realPitchLikeHandler,
   pitchUnlikeHandler as realPitchUnlikeHandler,
   pitchSaveHandler as realPitchSaveHandler,
@@ -2125,6 +2126,7 @@ class RouteRegistry {
     this.register('GET', '/api/pitches/trending', this.getTrending.bind(this));  // Add trending BEFORE :id
     this.register('GET', '/api/pitches/featured', this.getPublicFeaturedPitches.bind(this));  // Alias for /api/pitches/public/featured
     this.register('GET', '/api/pitches/saved', this.getSavedPitches.bind(this));  // Alias for /api/saved-pitches
+    this.register('GET', '/api/pitches/:id/like-status', (req) => pitchLikeStatusHandler(req, this.env));
     this.register('GET', '/api/pitches/:id', this.getPitch.bind(this));
     this.register('GET', '/api/pitches/:id/attachments/:filename', this.getPitchAttachment.bind(this));
     this.register('GET', '/api/trending', this.getTrending.bind(this));
@@ -4946,9 +4948,25 @@ pitchey_analytics_datapoints_per_minute 1250
 
       const counts = countResult[0] || { view_count: 0, investment_count: 0 };
 
+      // Check if the authenticated user has liked this pitch (non-blocking)
+      let isLiked = false;
+      try {
+        const authResult = await this.validateAuth(request);
+        if (authResult.valid && authResult.user) {
+          const likeResult = await this.db.query(
+            `SELECT 1 FROM likes WHERE user_id = $1 AND pitch_id = $2 LIMIT 1`,
+            [authResult.user.id, params.id]
+          );
+          isLiked = likeResult.length > 0;
+        }
+      } catch {
+        // Auth check is optional for public pitch viewing
+      }
+
       // Combine the data with proper creator object
       const fullPitch = {
         ...pitch,
+        isLiked,
         view_count: counts.view_count,
         investment_count: counts.investment_count,
         // Format creator info as an object for frontend

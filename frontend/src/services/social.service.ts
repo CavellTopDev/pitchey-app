@@ -321,13 +321,12 @@ export class SocialService {
   }
 
   // Check if liked
-  // NOTE: No dedicated like-status endpoint exists on the backend.
-  // Returns false gracefully until the endpoint is implemented.
-  static async checkLikeStatus(_pitchId: number): Promise<boolean> {
+  static async checkLikeStatus(pitchId: number): Promise<boolean> {
     try {
-      // Backend does not have a /like-status route yet.
-      // This could be derived from pitch detail data if available.
-      return false;
+      const response = await apiClient.get<{ liked: boolean }>(
+        `/api/pitches/${pitchId.toString()}/like-status`
+      );
+      return response.success === true && response.data?.liked === true;
     } catch {
       return false;
     }
