@@ -14993,33 +14993,102 @@ Signatures: [To be completed upon signing]
 
       const handler = new (await import('./handlers/investor-portfolio')).InvestorPortfolioHandler(this.db);
       const result = await handler.getAnalytics(authCheck.user.id);
+      const userId = authCheck.user.id;
+
+      // Fetch real risk distribution from investments table
+      // Categorise by ROI: negative = high risk, 0-15% = medium, >15% = low risk
+      let riskAnalysis = { lowRisk: 0, mediumRisk: 0, highRisk: 0 };
+      try {
+        const riskRows = await this.db!.query(
+          `SELECT
+            COUNT(*) FILTER (WHERE COALESCE(roi_percentage, 0) > 15) as low_risk,
+            COUNT(*) FILTER (WHERE COALESCE(roi_percentage, 0) BETWEEN 0 AND 15) as medium_risk,
+            COUNT(*) FILTER (WHERE COALESCE(roi_percentage, 0) < 0) as high_risk,
+            COUNT(*) as total
+           FROM investments
+           WHERE investor_id = $1 OR user_id = $1`,
+          [userId]
+        );
+        const r = riskRows?.[0];
+        const total = Number(r?.total) || 0;
+        if (total > 0) {
+          riskAnalysis = {
+            lowRisk: Math.round((Number(r.low_risk) / total) * 100),
+            mediumRisk: Math.round((Number(r.medium_risk) / total) * 100),
+            highRisk: Math.round((Number(r.high_risk) / total) * 100)
+          };
+        }
+      } catch (e) {
+        console.warn('[Analytics] Risk distribution query failed, using defaults:', e);
+      }
+
+      // Fetch real genre performance from investments joined with pitches
+      let genrePerformance: { genre: string; investments: number; totalValue: number; avgROI: number }[] = [];
+      try {
+        const genreRows = await this.db!.query(
+          `SELECT
+            COALESCE(p.genre, 'Other') as genre,
+            COUNT(*) as investments,
+            COALESCE(SUM(i.amount), 0) as total_value,
+            COALESCE(AVG(i.roi_percentage), 0) as avg_roi
+           FROM investments i
+           JOIN pitches p ON i.pitch_id = p.id
+           WHERE i.investor_id = $1 OR i.user_id = $1
+           GROUP BY p.genre
+           ORDER BY total_value DESC`,
+          [userId]
+        );
+        genrePerformance = (genreRows || []).map((g: any) => ({
+          genre: g.genre,
+          investments: Number(g.investments),
+          totalValue: Number(g.total_value),
+          avgROI: Number(g.avg_roi)
+        }));
+      } catch (e) {
+        console.warn('[Analytics] Genre performance query failed:', e);
+      }
+
+      // Fetch top performing investments
+      let topPerformers: any[] = [];
+      try {
+        topPerformers = await this.db!.query(
+          `SELECT i.id, i.amount, i.roi_percentage, i.status, i.invested_at as created_at,
+                  COALESCE(i.amount * (1 + COALESCE(i.roi_percentage, 0) / 100), i.amount) as current_value,
+                  p.title as pitch_title, p.genre
+           FROM investments i
+           JOIN pitches p ON i.pitch_id = p.id
+           WHERE i.investor_id = $1 OR i.user_id = $1
+           ORDER BY COALESCE(i.roi_percentage, 0) DESC
+           LIMIT 10`,
+          [userId]
+        ) || [];
+      } catch (e) {
+        console.warn('[Analytics] Top performers query failed:', e);
+      }
 
       // Transform result to expected frontend format
       const transformedResult = {
         success: result.success,
         data: {
           analytics: {
-            // Transform historical data to performance array
             performance: (result.data?.historical || []).map((h: any) => ({
               date: h.period || h.period_start?.slice(0, 7),
               value: h.total_returns || 0,
               invested: h.total_invested || 0,
               returns: h.total_returns || 0
             })),
-            // Generate top performers from current data
-            topPerformers: [],
-            // Generate risk analysis
-            riskAnalysis: {
-              lowRisk: 45,
-              mediumRisk: 35,
-              highRisk: 20
-            },
-            // Generate genre performance
-            genrePerformance: [
-              { genre: 'Sci-Fi', investments: 0, totalValue: 0, avgROI: 0 },
-              { genre: 'Drama', investments: 0, totalValue: 0, avgROI: 0 },
-              { genre: 'Thriller', investments: 0, totalValue: 0, avgROI: 0 }
-            ]
+            topPerformers: topPerformers.map((inv: any) => ({
+              id: inv.id,
+              amount: Number(inv.amount),
+              currentValue: Number(inv.current_value),
+              roiPercentage: Number(inv.roi_percentage || 0),
+              pitchTitle: inv.pitch_title,
+              genre: inv.genre,
+              status: inv.status,
+              createdAt: inv.created_at
+            })),
+            riskAnalysis,
+            genrePerformance
           }
         }
       };
