@@ -3,26 +3,18 @@ import {
   Shield,
   CheckCircle,
   XCircle,
-  Clock,
-  AlertTriangle,
-  Eye,
-  Download,
   Send,
   MessageSquare,
   Calendar,
   User,
   Building,
-  FileText,
   Mail,
-  Phone,
-  Filter,
   Search,
   SortAsc,
   SortDesc
 } from 'lucide-react';
 import { useToast } from '../Toast/ToastProvider';
 import { ndaService } from '../../services/nda.service';
-import type { NDA } from '../../types/api';
 
 export interface NDAApprovalRequest {
   id: number;
@@ -78,12 +70,13 @@ export default function NDAApprovalWorkflow({
   const [urgencyFilter, setUrgencyFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'date' | 'urgency' | 'requester'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [showBulkActions, setShowBulkActions] = useState(false);
-  
+  const [_showBulkActions, setShowBulkActions] = useState(false);
+
   const { success, error } = useToast();
 
   useEffect(() => {
-    loadNDARequests();
+    void loadNDARequests();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [creatorId]);
 
   const loadNDARequests = async () => {
@@ -156,10 +149,11 @@ export default function NDAApprovalWorkflow({
         case 'date':
           comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
           break;
-        case 'urgency':
+        case 'urgency': {
           const urgencyOrder = { high: 3, medium: 2, low: 1 };
           comparison = urgencyOrder[a.urgency] - urgencyOrder[b.urgency];
           break;
+        }
         case 'requester':
           comparison = a.requesterName.localeCompare(b.requesterName);
           break;
@@ -171,7 +165,7 @@ export default function NDAApprovalWorkflow({
     return filtered;
   }, [requests, searchTerm, statusFilter, urgencyFilter, sortBy, sortOrder]);
 
-  const handleApprovalAction = async (request: NDAApprovalRequest, action: 'approve' | 'reject') => {
+  const handleApprovalAction = (request: NDAApprovalRequest, action: 'approve' | 'reject') => {
     setApprovalModalData({ request, action });
     setShowApprovalModal(true);
   };
@@ -234,7 +228,7 @@ export default function NDAApprovalWorkflow({
       setSelectedRequests(new Set());
       setShowBulkActions(false);
       
-    } catch (err) {
+    } catch (_err) {
       error('Bulk Action Failed', 'Unable to complete bulk action. Please try again.');
     }
   };
@@ -323,7 +317,7 @@ export default function NDAApprovalWorkflow({
           <div className="flex items-center gap-2">
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
+              onChange={(e) => setSortBy(e.target.value as 'date' | 'urgency' | 'requester')}
               className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="date">Sort by Date</option>
@@ -351,7 +345,7 @@ export default function NDAApprovalWorkflow({
             
             <div className="flex items-center gap-2">
               <button
-                onClick={() => handleBulkAction('approve')}
+                onClick={() => { void handleBulkAction('approve'); }}
                 className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
               >
                 Bulk Approve
@@ -482,7 +476,7 @@ export default function NDAApprovalWorkflow({
                 )}
                 
                 <button
-                  onClick={() => ndaService.sendReminder(request.id)}
+                  onClick={() => { void ndaService.sendReminder(request.id); }}
                   className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
                   <Send className="w-4 h-4" />
@@ -520,7 +514,7 @@ export default function NDAApprovalWorkflow({
 interface ApprovalModalProps {
   request: NDAApprovalRequest;
   action: 'approve' | 'reject';
-  onConfirm: (notes: string, customTerms?: string, expiryDays?: number) => void;
+  onConfirm: (notes: string, customTerms?: string, expiryDays?: number) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -532,7 +526,7 @@ function ApprovalModal({ request, action, onConfirm, onCancel }: ApprovalModalPr
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onConfirm(notes, customTerms, expiryDays);
+    void onConfirm(notes, customTerms, expiryDays);
   };
 
   return (

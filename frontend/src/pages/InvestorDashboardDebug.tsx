@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBetterAuthStore } from '../store/betterAuthStore';
-import { DollarSign, TrendingUp, PieChart, Eye, Star, Briefcase, LogOut, Search, Filter, CreditCard, Coins, Users, Heart, Shield, Building2, User } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 
 // Import components one by one for testing
 // import { NotificationBell } from '../components/NotificationBell';
@@ -15,7 +15,7 @@ import { DollarSign, TrendingUp, PieChart, Eye, Star, Briefcase, LogOut, Search,
 export default function InvestorDashboardDebug() {
   const navigate = useNavigate();
   const { logout } = useBetterAuthStore();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{ id: number; email: string; username: string; userType: string; companyName: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [testPhase, setTestPhase] = useState(1);
@@ -46,7 +46,7 @@ export default function InvestorDashboardDebug() {
   }, [testPhase]);
 
   const handleLogout = () => {
-    logout();
+    void logout();
   };
 
   const nextPhase = () => {
@@ -68,7 +68,7 @@ export default function InvestorDashboardDebug() {
     );
   }
 
-  if (error) {
+  if (error !== null) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center p-8 bg-white rounded-lg shadow-lg max-w-md">
@@ -129,7 +129,7 @@ export default function InvestorDashboardDebug() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-8">
               <button
-                onClick={() => navigate('/')}
+                onClick={() => { void navigate('/'); }}
                 className="text-2xl font-bold text-blue-600"
               >
                 Pitchey
@@ -164,7 +164,7 @@ export default function InvestorDashboardDebug() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Welcome back, {user?.companyName || 'Investor'}!</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Welcome back, {user?.companyName ?? 'Investor'}!</h1>
           <p className="text-gray-600">Here's your investment portfolio overview</p>
         </div>
 

@@ -24,7 +24,7 @@ vi.mock('react-router-dom', async () => {
 vi.mock('framer-motion', () => {
   const createMotionComponent = (tag: string) => {
     const Component = ({ children, ...props }: any) => {
-      const { initial, animate, exit, transition, whileHover, whileTap, variants, layout, ...rest } = props
+      const { initial: _initial, animate: _animate, exit: _exit, transition: _transition, whileHover: _whileHover, whileTap: _whileTap, variants: _variants, layout: _layout, ...rest } = props
       const Tag = tag as any
       return <Tag {...rest}>{children}</Tag>
     }

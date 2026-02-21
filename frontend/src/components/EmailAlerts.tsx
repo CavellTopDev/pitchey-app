@@ -1,17 +1,16 @@
 import { useState, useEffect } from 'react';
-import { 
-  Bell, 
+import {
+  Bell,
   BellPlus,
   BellOff,
   Mail,
-  Trash2, 
+  Trash2,
   Edit2,
   Save,
   X,
   Clock,
   Calendar,
   Zap,
-  CheckCircle,
   AlertCircle,
   TrendingUp
 } from 'lucide-react';
@@ -55,21 +54,20 @@ export default function EmailAlerts({
 
   useEffect(() => {
     if (user) {
-      loadEmailAlerts();
-      checkEmailPreferences();
+      void loadEmailAlerts();
+      void checkEmailPreferences();
     }
   }, [user]);
 
   const checkEmailPreferences = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_URL}/api/endpoint`, {
-      method: 'GET',
-      credentials: 'include' // Send cookies for Better Auth session
-    });
-      
+      const response = await fetch(`${API_URL}/api/endpoint`, {
+        method: 'GET',
+        credentials: 'include' // Send cookies for Better Auth session
+      });
+
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as { alertPreferences?: { emailAlerts?: boolean } };
         setEmailEnabled(data.alertPreferences?.emailAlerts !== false);
       }
     } catch (error) {
@@ -80,15 +78,14 @@ export default function EmailAlerts({
   const loadEmailAlerts = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_URL}/api/endpoint`, {
-      method: 'GET',
-      credentials: 'include' // Send cookies for Better Auth session
-    });
-      
+      const response = await fetch(`${API_URL}/api/endpoint`, {
+        method: 'GET',
+        credentials: 'include' // Send cookies for Better Auth session
+      });
+
       if (response.ok) {
-        const data = await response.json();
-        setEmailAlerts(data.alerts || []);
+        const data = await response.json() as { alerts?: EmailAlert[] };
+        setEmailAlerts(data.alerts ?? []);
       }
     } catch (error) {
       console.error('Failed to load email alerts:', error);
@@ -110,21 +107,6 @@ export default function EmailAlerts({
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
-      
-      const payload = {
-        name: alertName,
-        filters: currentFilters,
-        frequency,
-        isActive
-      };
-
-      const url = editingAlert 
-        ? `${API_URL}/api/alerts/email/${editingAlert.id}`
-        : `${API_URL}/api/alerts/email`;
-      
-      const method = editingAlert ? 'PUT' : 'POST';
-      
     const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
@@ -147,15 +129,13 @@ export default function EmailAlerts({
     }
   };
 
-  const deleteAlert = async (alertId: number) => {
+  const deleteAlert = async (_alertId: number) => {
     if (!confirm('Are you sure you want to delete this email alert?')) {
       return;
     }
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
-      
     const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'DELETE',
       credentials: 'include' // Send cookies for Better Auth session
@@ -178,8 +158,6 @@ export default function EmailAlerts({
   const toggleAlert = async (alert: EmailAlert) => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
-      
     const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'PUT',
       credentials: 'include' // Send cookies for Better Auth session
@@ -219,11 +197,11 @@ export default function EmailAlerts({
       currentFilters.formats.length > 0 ||
       currentFilters.developmentStages.length > 0 ||
       currentFilters.creatorTypes.length > 0 ||
-      (currentFilters.budgetMin && currentFilters.budgetMin > 0) ||
-      (currentFilters.budgetMax && currentFilters.budgetMax < 999999999) ||
-      currentFilters.searchQuery ||
-      currentFilters.hasNDA ||
-      currentFilters.seekingInvestment
+      (currentFilters.budgetMin !== undefined && currentFilters.budgetMin > 0) ||
+      (currentFilters.budgetMax !== undefined && currentFilters.budgetMax < 999999999) ||
+      currentFilters.searchQuery !== '' ||
+      currentFilters.hasNDA === true ||
+      currentFilters.seekingInvestment === true
     );
   };
 
@@ -338,7 +316,7 @@ export default function EmailAlerts({
                               {getFrequencyIcon(alert.frequency)}
                               {getFrequencyLabel(alert.frequency)}
                             </span>
-                            {alert.lastSentAt && (
+                            {alert.lastSentAt !== undefined && (
                               <span className="flex items-center gap-1">
                                 <Mail className="w-3 h-3" />
                                 Last sent: {new Date(alert.lastSentAt).toLocaleDateString()}
@@ -353,7 +331,7 @@ export default function EmailAlerts({
                         
                         <div className="flex items-center gap-1">
                           <button
-                            onClick={() => toggleAlert(alert)}
+                            onClick={() => { void toggleAlert(alert); }}
                             className={`p-1.5 rounded transition-colors ${
                               alert.isActive 
                                 ? 'text-green-600 hover:bg-green-50' 
@@ -371,7 +349,7 @@ export default function EmailAlerts({
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => deleteAlert(alert.id)}
+                            onClick={() => { void deleteAlert(alert.id); }}
                             className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
                             title="Delete Alert"
                           >
@@ -484,7 +462,7 @@ export default function EmailAlerts({
                 Cancel
               </button>
               <button
-                onClick={createAlert}
+                onClick={() => { void createAlert(); }}
                 disabled={!alertName.trim() || loading || !emailEnabled}
                 className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >

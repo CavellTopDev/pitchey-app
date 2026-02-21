@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Save, Play, Edit, Bell, Clock, Filter, Plus, Trash2, Users, TrendingUp } from 'lucide-react';
+import { Search, Play, Edit, Bell, Clock, Plus, Trash2, Users, TrendingUp } from 'lucide-react';
+
+interface SearchFilters {
+  genres?: string[];
+  budget_range?: string;
+  format?: string;
+  [key: string]: unknown;
+}
 
 interface SavedSearch {
   id: number;
   name: string;
   description?: string;
   search_query: string;
-  filters: any;
+  filters: SearchFilters;
   use_count: number;
   last_used?: string;
   is_public: boolean;
@@ -17,14 +24,14 @@ interface SavedSearch {
 }
 
 interface SavedSearchesProps {
-  onSearchExecute: (query: string, filters: any, searchName: string) => void;
-  onCreateSearch: (searchData: Partial<SavedSearch>) => void;
+  onSearchExecute: (query: string, filters: SearchFilters, searchName: string) => void;
+  onCreateSearch?: (searchData: Partial<SavedSearch>) => void;
   className?: string;
 }
 
 export const SavedSearches: React.FC<SavedSearchesProps> = ({
   onSearchExecute,
-  onCreateSearch,
+  onCreateSearch: _onCreateSearch,
   className = ''
 }) => {
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
@@ -32,11 +39,11 @@ export const SavedSearches: React.FC<SavedSearchesProps> = ({
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'mine' | 'popular'>('mine');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingSearch, setEditingSearch] = useState<SavedSearch | null>(null);
+  const [_editingSearch, setEditingSearch] = useState<SavedSearch | null>(null);
 
   useEffect(() => {
-    loadSavedSearches();
-    loadPopularSearches();
+    void loadSavedSearches();
+    void loadPopularSearches();
   }, []);
 
   const loadSavedSearches = async () => {
@@ -48,8 +55,8 @@ export const SavedSearches: React.FC<SavedSearchesProps> = ({
       });
       
       if (response.ok) {
-        const data = await response.json();
-        setSavedSearches(data.savedSearches || []);
+        const data = await response.json() as { savedSearches?: SavedSearch[] };
+        setSavedSearches(data.savedSearches ?? []);
       }
     } catch (error) {
       console.error('Failed to load saved searches:', error);
@@ -64,10 +71,10 @@ export const SavedSearches: React.FC<SavedSearchesProps> = ({
         method: 'GET',
         credentials: 'include'
       });
-      
+
       if (response.ok) {
-        const data = await response.json();
-        setPopularSearches(data.popularSearches || []);
+        const data = await response.json() as { popularSearches?: SavedSearch[] };
+        setPopularSearches(data.popularSearches ?? []);
       }
     } catch (error) {
       console.error('Failed to load popular searches:', error);
@@ -82,7 +89,6 @@ export const SavedSearches: React.FC<SavedSearchesProps> = ({
       });
       
       if (response.ok) {
-        const result = await response.json();
         onSearchExecute(search.search_query, search.filters, search.name);
         
         // Update use count locally
@@ -112,12 +118,12 @@ export const SavedSearches: React.FC<SavedSearchesProps> = ({
     }
   };
 
-  const getFilterSummary = (query: string, filters: any) => {
-    const parts = [];
+  const getFilterSummary = (query: string, filters: SearchFilters) => {
+    const parts: string[] = [];
     if (query) parts.push(`"${query}"`);
-    if (filters?.genres?.length) parts.push(`${filters.genres.length} genre(s)`);
-    if (filters?.budget_range) parts.push(`Budget: ${filters.budget_range}`);
-    if (filters?.format) parts.push(`Format: ${filters.format}`);
+    if (filters?.genres != null && filters.genres.length > 0) parts.push(`${filters.genres.length} genre(s)`);
+    if (filters?.budget_range != null && filters.budget_range !== '') parts.push(`Budget: ${filters.budget_range}`);
+    if (filters?.format != null && filters.format !== '') parts.push(`Format: ${filters.format}`);
     return parts.join(' • ') || 'No filters';
   };
 
@@ -151,7 +157,7 @@ export const SavedSearches: React.FC<SavedSearchesProps> = ({
         });
         
         if (response.ok) {
-          const newSearch = await response.json();
+          const newSearch = await response.json() as SavedSearch;
           setSavedSearches(prev => [newSearch, ...prev]);
           setShowCreateModal(false);
           setFormData({
@@ -173,7 +179,7 @@ export const SavedSearches: React.FC<SavedSearchesProps> = ({
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-6 w-full max-w-md">
           <h3 className="text-lg font-semibold mb-4">Save Search</h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={(e) => { void handleSubmit(e); }} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
               <input
@@ -268,13 +274,13 @@ export const SavedSearches: React.FC<SavedSearchesProps> = ({
         
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => executeSearch(search)}
+            onClick={() => { void executeSearch(search); }}
             className="p-2 text-green-600 hover:bg-green-50 rounded"
             title="Execute search"
           >
             <Play className="h-4 w-4" />
           </button>
-          
+
           {!isPopular && (
             <>
               <button
@@ -284,9 +290,9 @@ export const SavedSearches: React.FC<SavedSearchesProps> = ({
               >
                 <Edit className="h-4 w-4" />
               </button>
-              
+
               <button
-                onClick={() => deleteSearch(search.id)}
+                onClick={() => { void deleteSearch(search.id); }}
                 className="p-2 text-red-600 hover:bg-red-50 rounded"
                 title="Delete search"
               >

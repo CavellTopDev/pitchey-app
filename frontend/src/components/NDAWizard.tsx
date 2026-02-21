@@ -1,17 +1,16 @@
-import { useState, useEffect } from 'react';
-import { 
-  X, 
-  Shield, 
-  FileText, 
-  CheckCircle, 
-  Clock, 
+import React, { useState, useEffect } from 'react';
+import {
+  X,
+  Shield,
+  FileText,
+  CheckCircle,
+  Clock,
   AlertTriangle,
   ArrowRight,
   ArrowLeft,
   Download,
   PenTool,
-  Mail,
-  Users
+  Mail
 } from 'lucide-react';
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import { ndaService, type NDA } from '../services/nda.service';
@@ -31,7 +30,7 @@ interface StepConfig {
   id: WizardStep;
   title: string;
   description: string;
-  icon: React.ComponentType<any>;
+  icon: React.ComponentType<{ className?: string }>;
 }
 
 const steps: StepConfig[] = [
@@ -108,8 +107,9 @@ export default function NDAWizard({
   // Check existing NDA status when wizard opens
   useEffect(() => {
     if (isOpen && pitchId) {
-      checkNDAStatus();
+      void checkNDAStatus();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, pitchId]);
 
   const checkNDAStatus = async () => {
@@ -184,41 +184,36 @@ export default function NDAWizard({
       }
       
       onStatusChange?.();
-    } catch (err: any) {
+    } catch (rawErr: unknown) {
       // Handle different error formats
       let errorMessage = 'Failed to submit NDA request';
-      
-      console.error('NDA request error:', err);
-      console.error('Error type:', typeof err);
-      console.error('Error constructor:', err?.constructor?.name);
-      
+
+      console.error('NDA request error:', rawErr);
+      console.error('Error type:', typeof rawErr);
+
       // Extract message from various error formats
-      if (typeof err === 'string') {
-        errorMessage = err;
-      } else if (err instanceof Error && err.message) {
+      if (typeof rawErr === 'string') {
+        errorMessage = rawErr;
+      } else if (rawErr instanceof Error) {
         // Standard Error object
-        errorMessage = err.message;
-      } else if (typeof err?.message === 'string') {
-        // Has a message property that's a string
-        errorMessage = err.message;
-      } else if (typeof err?.error?.message === 'string') {
-        // Nested error.message
-        errorMessage = err.error.message;
-      } else if (typeof err?.response?.error?.message === 'string') {
-        // Deeply nested response.error.message
-        errorMessage = err.response.error.message;
-      } else if (err && typeof err === 'object') {
-        // Last resort - try to make sense of the object
-        console.error('Unknown error object structure:', err);
-        errorMessage = 'An unexpected error occurred. Please try again.';
+        errorMessage = rawErr.message;
+      } else if (rawErr !== null && typeof rawErr === 'object') {
+        const errObj = rawErr as Record<string, unknown>;
+        const msg = errObj['message'];
+        const nestedMsg = (errObj['error'] as Record<string, unknown> | undefined)?.['message'];
+        const deepMsg = ((errObj['response'] as Record<string, unknown> | undefined)?.['error'] as Record<string, unknown> | undefined)?.['message'];
+        if (typeof msg === 'string') {
+          errorMessage = msg;
+        } else if (typeof nestedMsg === 'string') {
+          errorMessage = nestedMsg;
+        } else if (typeof deepMsg === 'string') {
+          errorMessage = deepMsg;
+        } else {
+          console.error('Unknown error object structure:', rawErr);
+          errorMessage = 'An unexpected error occurred. Please try again.';
+        }
       }
-      
-      // Final safety check - ensure it's ALWAYS a string
-      if (typeof errorMessage !== 'string') {
-        console.error('ERROR: errorMessage is not a string!', errorMessage, typeof errorMessage);
-        errorMessage = String(errorMessage) || 'An unexpected error occurred';
-      }
-      
+
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -246,42 +241,42 @@ export default function NDAWizard({
       
       setCurrentStep('complete');
       onStatusChange?.();
-    } catch (err: any) {
+    } catch (rawErr: unknown) {
       // Handle different error formats
       let errorMessage = 'Failed to sign NDA';
-      
-      console.error('NDA sign error:', err);
-      
-      if (typeof err === 'string') {
-        errorMessage = err;
-      } else if (err?.message) {
-        errorMessage = err.message;
-      } else if (err?.error?.message) {
-        errorMessage = err.error.message;
-      } else if (err?.response?.error?.message) {
-        errorMessage = err.response.error.message;
-      } else if (err && typeof err === 'object') {
-        // If it's an object without a message, try to stringify it
-        try {
-          // Check if it's actually the error object itself being set
-          const stringified = JSON.stringify(err);
-          // Don't show the raw object, show a meaningful message
-          if (stringified === '{}' || stringified.includes('"success":false')) {
-            errorMessage = 'Failed to sign NDA. Please try again.';
-          } else {
-            errorMessage = 'An unexpected error occurred';
+
+      console.error('NDA sign error:', rawErr);
+
+      if (typeof rawErr === 'string') {
+        errorMessage = rawErr;
+      } else if (rawErr instanceof Error) {
+        errorMessage = rawErr.message;
+      } else if (rawErr !== null && typeof rawErr === 'object') {
+        const errObj = rawErr as Record<string, unknown>;
+        const msg = errObj['message'];
+        const nestedMsg = (errObj['error'] as Record<string, unknown> | undefined)?.['message'];
+        const deepMsg = ((errObj['response'] as Record<string, unknown> | undefined)?.['error'] as Record<string, unknown> | undefined)?.['message'];
+        if (typeof msg === 'string') {
+          errorMessage = msg;
+        } else if (typeof nestedMsg === 'string') {
+          errorMessage = nestedMsg;
+        } else if (typeof deepMsg === 'string') {
+          errorMessage = deepMsg;
+        } else {
+          // If it's an object without a message, try to stringify it
+          try {
+            const stringified = JSON.stringify(rawErr);
+            if (stringified === '{}' || stringified.includes('"success":false')) {
+              errorMessage = 'Failed to sign NDA. Please try again.';
+            } else {
+              errorMessage = 'An unexpected error occurred';
+            }
+          } catch {
+            errorMessage = 'Failed to sign NDA';
           }
-        } catch {
-          errorMessage = 'Failed to sign NDA';
         }
       }
-      
-      // Ensure we never set an object as the error
-      if (typeof errorMessage !== 'string') {
-        console.error('Error message is not a string:', errorMessage);
-        errorMessage = 'An unexpected error occurred';
-      }
-      
+
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -329,7 +324,7 @@ export default function NDAWizard({
 
   if (!isOpen) return null;
 
-  const currentStepConfig = steps.find(step => step.id === currentStep);
+  const _currentStepConfig = steps.find(step => step.id === currentStep);
   const currentStepIndex = getCurrentStepIndex();
 
   return (
@@ -410,7 +405,7 @@ export default function NDAWizard({
                 <h3 className="font-medium text-red-800">Error</h3>
                 <p className="text-sm text-red-700 mt-1">
                   {typeof error === 'string' ? error :
-                   typeof error === 'object' && error !== null && 'message' in error ? (error as any).message :
+                   typeof error === 'object' && error !== null && 'message' in error ? (error as Record<string, unknown>)['message'] as string :
                    'An unexpected error occurred'}
                 </p>
               </div>
@@ -537,8 +532,8 @@ export default function NDAWizard({
                         <h4 className="font-medium text-gray-900 mb-2">Your Profile</h4>
                         <div className="space-y-1 text-sm text-gray-600">
                           <p><span className="font-medium">Name:</span> {user?.username}</p>
-                          <p><span className="font-medium">Type:</span> {user?.userType || 'User'}</p>
-                          {user?.companyName && (
+                          <p><span className="font-medium">Type:</span> {user?.userType ?? 'User'}</p>
+                          {user?.companyName != null && (
                             <p><span className="font-medium">Company:</span> {user.companyName}</p>
                           )}
                         </div>
@@ -566,7 +561,7 @@ export default function NDAWizard({
                       <div className="bg-blue-50 rounded-lg p-6">
                         <h4 className="font-semibold text-blue-900 mb-3">Request Details</h4>
                         <div className="space-y-2 text-sm text-blue-800">
-                          <p><span className="font-medium">Submitted:</span> {new Date(ndaData.createdAt || ndaData.requestedAt || new Date()).toLocaleDateString()}</p>
+                          <p><span className="font-medium">Submitted:</span> {new Date(ndaData.createdAt ?? ndaData.requestedAt ?? new Date()).toLocaleDateString()}</p>
                           <p><span className="font-medium">Status:</span> {ndaData.status === 'approved' ? 'Approved - Ready to Sign' : 'Pending Review'}</p>
                           <p><span className="font-medium">Pitch:</span> {pitchTitle}</p>
                         </div>
@@ -591,7 +586,7 @@ export default function NDAWizard({
                               You'll be notified when the creator responds to your request.
                             </p>
                             <button
-                              onClick={checkNDAStatus}
+                              onClick={() => { void checkNDAStatus(); }}
                               className="px-4 py-2 text-purple-600 hover:text-purple-700 font-medium"
                             >
                               Check Status
@@ -638,7 +633,7 @@ export default function NDAWizard({
                             </div>
                           </div>
                           <button
-                            onClick={downloadNDA}
+                            onClick={() => { void downloadNDA(); }}
                             className="flex items-center space-x-2 px-3 py-2 text-purple-600 hover:text-purple-700"
                           >
                             <Download className="w-4 h-4" />
@@ -808,7 +803,7 @@ export default function NDAWizard({
             <div className="flex space-x-3">
               {currentStep === 'request' && (
                 <button
-                  onClick={submitNDARequest}
+                  onClick={() => { void submitNDARequest(); }}
                   disabled={loading}
                   className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -827,7 +822,7 @@ export default function NDAWizard({
 
               {currentStep === 'sign' && (
                 <button
-                  onClick={signNDA}
+                  onClick={() => { void signNDA(); }}
                   disabled={loading || !signature.fullName || !signature.acceptTerms}
                   className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >

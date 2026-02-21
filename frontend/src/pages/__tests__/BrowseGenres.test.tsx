@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '../../test/utils'
+import { render, screen, waitFor } from '../../test/utils'
 import BrowseGenres from '../BrowseGenres'
 
 // Mock config

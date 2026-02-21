@@ -72,7 +72,7 @@ export default function OnboardingPage() {
 
   const handleSignOut = async () => {
     await logout();
-    navigate('/login', { replace: true });
+    void navigate('/login', { replace: true });
   };
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -103,7 +103,7 @@ export default function OnboardingPage() {
       const name = `${firstName.trim()} ${lastName.trim()}`;
       await UserService.updateProfile({ name, bio: bio.trim() });
       await checkSession();
-      navigate(`/${userType}/dashboard`, { replace: true });
+      void navigate(`/${userType}/dashboard`, { replace: true });
     } catch (err) {
       const e = err instanceof Error ? err : new Error(String(err));
       setError(e.message || 'Something went wrong. Please try again.');
@@ -120,7 +120,7 @@ export default function OnboardingPage() {
           <p className="mt-2 text-gray-600">{cfg.subtitle}</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-lg p-8 space-y-6">
+        <form onSubmit={(e) => { void handleSubmit(e); }} className="bg-white rounded-2xl shadow-lg p-8 space-y-6">
           {/* Profile Photo */}
           <div className="flex flex-col items-center">
             <button
@@ -213,7 +213,7 @@ export default function OnboardingPage() {
 
           <p className="text-center text-sm text-gray-500 mt-4">
             Wrong account?{' '}
-            <button type="button" onClick={handleSignOut} className="text-red-600 hover:text-red-700 font-medium">
+            <button type="button" onClick={() => { void handleSignOut(); }} className="text-red-600 hover:text-red-700 font-medium">
               Sign out
             </button>
           </p>

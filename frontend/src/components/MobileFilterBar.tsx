@@ -1,26 +1,38 @@
 import { useState, useEffect, useCallback } from 'react';
-import { 
-  X, 
-  ChevronDown, 
-  Filter, 
-  SlidersHorizontal,
+import {
+  X,
+  Filter,
   Check,
   Search,
-  DollarSign,
-  Calendar,
   TrendingUp,
+  Calendar,
   Eye,
   Heart,
-  Film,
-  Layers,
-  Menu
+  DollarSign,
 } from 'lucide-react';
+
+interface FilterValues {
+  genres: string[];
+  formats: string[];
+  searchQuery: string;
+  budgetMin: number | undefined;
+  budgetMax: number | undefined;
+  developmentStages: string[];
+  creatorTypes: string[];
+  hasNDA: boolean | undefined;
+  seekingInvestment: boolean | undefined;
+}
+
+interface SortValues {
+  field: string;
+  order: 'asc' | 'desc';
+}
 
 interface MobileFilterBarProps {
   genres?: string[];
   formats?: string[];
-  onFiltersChange: (filters: any) => void;
-  onSortChange: (sort: any) => void;
+  onFiltersChange: (filters: FilterValues) => void;
+  onSortChange: (sort: SortValues) => void;
   className?: string;
 }
 

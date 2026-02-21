@@ -55,7 +55,7 @@ export default function CreatorPitchesReview() {
   };
 
   useEffect(() => {
-    loadReviewPitches();
+    void loadReviewPitches();
   }, []);
 
   const filteredPitches = pitches.filter(p =>
@@ -112,7 +112,7 @@ export default function CreatorPitchesReview() {
             <p className="text-red-600 text-sm mt-1">{error}</p>
           </div>
           <button
-            onClick={loadReviewPitches}
+            onClick={() => { void loadReviewPitches(); }}
             className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center gap-2"
           >
             <RefreshCw className="w-4 h-4" />
@@ -171,7 +171,7 @@ export default function CreatorPitchesReview() {
               When you submit a pitch for review, it will appear here. You can track its status and any feedback from reviewers.
             </p>
             <button
-              onClick={() => navigate('/creator/pitches')}
+              onClick={() => { void navigate('/creator/pitches'); }}
               className="px-6 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition inline-flex items-center gap-2"
             >
               <FileText className="w-4 h-4" />
@@ -212,7 +212,7 @@ export default function CreatorPitchesReview() {
                       </div>
                     </div>
                     <button
-                      onClick={() => navigate(`/creator/pitches/${pitch.id}/edit`)}
+                      onClick={() => { void navigate(`/creator/pitches/${pitch.id}/edit`); }}
                       className="ml-4 px-4 py-2 text-sm text-purple-600 border border-purple-200 rounded-lg hover:bg-purple-50 transition flex items-center gap-1.5 flex-shrink-0"
                     >
                       View Details

@@ -1,10 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent, waitForElementToBeRemoved } from '../../test/utils'
+import { render, screen, waitFor, getMockAuthStore } from '../../test/utils'
 import userEvent from '@testing-library/user-event'
 import CreatePitch from '../../pages/CreatePitch'
-import { getMockAuthStore } from '../../test/utils'
 import { pitchService } from '../../services/pitch.service'
-import { uploadService } from '../../services/upload.service'
 import { a11y } from '../../utils/accessibility'
 
 // Mock dependencies
@@ -208,7 +206,7 @@ vi.mock('../../utils/characterUtils', () => ({
 
 // Mock CharacterManagement component
 vi.mock('../../components/CharacterManagement', () => ({
-  CharacterManagement: vi.fn(({ characters, onChange }) => (
+  CharacterManagement: vi.fn(({ characters, onChange: _onChange }) => (
     <div data-testid="character-management">
       <h3>Character Management</h3>
       <div>{characters.length} characters</div>
@@ -218,7 +216,7 @@ vi.mock('../../components/CharacterManagement', () => ({
 
 // Mock DocumentUpload component
 vi.mock('../../components/DocumentUpload', () => ({
-  DocumentUpload: vi.fn(({ documents, onAdd, onRemove }) => (
+  DocumentUpload: vi.fn(({ documents, onAdd: _onAdd, onRemove: _onRemove }) => (
     <div data-testid="document-upload">
       <h3>Document Upload</h3>
       <div>{documents?.length || 0} documents</div>
@@ -325,7 +323,7 @@ describe('PitchForm (CreatePitch)', () => {
   const user = userEvent.setup()
 
   // Helper to wait for async component loading
-  const waitForFormReady = async () => {
+  const _waitForFormReady = async () => {
     // Wait for the form to be rendered with fields
     await waitFor(() => {
       // Check if basic elements are present
@@ -607,7 +605,7 @@ describe('PitchForm (CreatePitch)', () => {
         await waitFor(() => {
           const removeButton = screen.queryByRole('button', { name: /remove|delete|clear/i })
           if (removeButton) {
-            user.click(removeButton)
+            void user.click(removeButton)
           }
         }, { timeout: 1000 }).catch(() => {})
       }
@@ -829,7 +827,7 @@ describe('PitchForm (CreatePitch)', () => {
         await user.click(submitButton)
         // Check if mock was called
         expect(vi.mocked(pitchService.create)).toHaveBeenCalled()
-      } catch (error) {
+      } catch (_error) {
         // Form might not submit due to validation or missing fields
         expect(true).toBe(true)
       }

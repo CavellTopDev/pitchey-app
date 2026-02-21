@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Camera, Mail, Phone, MapPin, Building2, Calendar, Edit3, Save, X } from 'lucide-react';
+import { ArrowLeft, Camera, Mail, Phone, MapPin, Building2, Calendar, Edit3, Save, X } from 'lucide-react';
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import { API_URL } from '../config';
-import { config } from '../config';
 
 interface UserProfile {
   id: number;
@@ -38,24 +37,24 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetchProfile();
-    fetchSocialStats();
+    void fetchProfile();
+    void fetchSocialStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchProfile = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_URL}/api/user/profile`, {
-      method: 'GET',
-      credentials: 'include' // Send cookies for Better Auth session
-    });
-      
+      const response = await fetch(`${API_URL}/api/user/profile`, {
+        method: 'GET',
+        credentials: 'include' // Send cookies for Better Auth session
+      });
+
       if (response.ok) {
-        const data = await response.json();
-        const profileData = data.data || data.user || data;
+        const rawData = await response.json() as Record<string, unknown>;
+        const profileData = (rawData['data'] ?? rawData['user'] ?? rawData) as UserProfile;
         setProfile(profileData);
         setEditedProfile(profileData);
-      } else if (user) {
+      } else if (user != null) {
         // Fallback to auth store user data
         setProfile(user as unknown as UserProfile);
         setEditedProfile(user as unknown as UserProfile);
@@ -63,7 +62,7 @@ export default function Profile() {
     } catch (error) {
       console.error('Failed to fetch profile:', error);
       // Fallback to auth store user data
-      if (user) {
+      if (user != null) {
         setProfile(user as unknown as UserProfile);
         setEditedProfile(user as unknown as UserProfile);
       }
@@ -74,30 +73,29 @@ export default function Profile() {
 
   const fetchSocialStats = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token || !user?.id) return;
+      if (user?.id == null) return;
 
-      const apiUrl = API_URL;
-    const response = await fetch(`${API_URL}/api/user/profile`, {
-      method: 'GET',
-      credentials: 'include' // Send cookies for Better Auth session
-    });
-      
+      const response = await fetch(`${API_URL}/api/user/profile`, {
+        method: 'GET',
+        credentials: 'include' // Send cookies for Better Auth session
+      });
+
       if (response.ok) {
-        const data = await response.json();
-        const followers = data.followerCount || 0;
-        
+        const rawData = await response.json() as Record<string, unknown>;
+        const followers = (rawData['followerCount'] as number | undefined) ?? 0;
+
         // Get following count
-        const followingResponse = await fetch(`${apiUrl}/api/users/following/count`, {
+        const followingResponse = await fetch(`${API_URL}/api/users/following/count`, {
           credentials: 'include' // Send cookies for Better Auth session
         });
-        
+
         let following = 0;
         if (followingResponse.ok) {
-          const followingData = await followingResponse.json();
-          following = followingData.counts?.creators || 0;
+          const followingData = await followingResponse.json() as Record<string, unknown>;
+          const counts = followingData['counts'] as Record<string, number> | undefined;
+          following = counts?.['creators'] ?? 0;
         }
-        
+
         setSocialStats({ followers, following });
       }
     } catch (error) {
@@ -108,22 +106,22 @@ export default function Profile() {
   const handleSaveProfile = async () => {
     try {
       setSaving(true);
-      const token = localStorage.getItem('authToken');
-      
-    const response = await fetch(`${API_URL}/api/user/profile`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-      credentials: 'include' // Send cookies for Better Auth session
-    });
-      
+
+      const response = await fetch(`${API_URL}/api/user/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+        credentials: 'include' // Send cookies for Better Auth session
+      });
+
       if (response.ok) {
-        const data = await response.json();
-        setProfile(data.user);
+        const rawData = await response.json() as Record<string, unknown>;
+        const updatedUser = rawData['user'] as UserProfile;
+        setProfile(updatedUser);
         setIsEditing(false);
-        
+
         // Update localStorage user data
-        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('user', JSON.stringify(updatedUser));
       } else {
         // For demo purposes, just update locally
         setProfile(editedProfile as UserProfile);
@@ -142,10 +140,10 @@ export default function Profile() {
   };
 
   const getInitials = (firstName?: string, lastName?: string, username?: string) => {
-    if (firstName && lastName) {
+    if (firstName != null && firstName.length > 0 && lastName != null && lastName.length > 0) {
       return `${firstName[0]}${lastName[0]}`.toUpperCase();
     }
-    if (username) {
+    if (username != null && username.length > 0) {
       return username.slice(0, 2).toUpperCase();
     }
     return 'U';
@@ -186,7 +184,7 @@ export default function Profile() {
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Profile Not Found</h2>
           <p className="text-gray-600 mb-4">Unable to load your profile information.</p>
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => { void navigate(-1); }}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
           >
             Go Back
@@ -204,7 +202,7 @@ export default function Profile() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => navigate(-1)}
+                onClick={() => { void navigate(-1); }}
                 className="p-2 text-gray-500 hover:text-gray-700 transition rounded-lg hover:bg-gray-100"
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -229,7 +227,7 @@ export default function Profile() {
                     Cancel
                   </button>
                   <button
-                    onClick={handleSaveProfile}
+                    onClick={() => { void handleSaveProfile(); }}
                     disabled={saving}
                     className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
                   >
@@ -258,7 +256,7 @@ export default function Profile() {
             <div className="flex items-start gap-6">
               <div className="relative">
                 <div className="w-24 h-24 bg-white/20 backdrop-blur rounded-full flex items-center justify-center">
-                  {profile.profileImage ? (
+                  {profile.profileImage != null ? (
                     <img
                       src={profile.profileImage}
                       alt="Profile"
@@ -280,7 +278,7 @@ export default function Profile() {
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
                   <h2 className="text-2xl font-bold text-white">
-                    {profile.firstName && profile.lastName 
+                    {profile.firstName != null && profile.firstName.length > 0 && profile.lastName != null && profile.lastName.length > 0
                       ? `${profile.firstName} ${profile.lastName}`
                       : profile.username
                     }
@@ -294,14 +292,14 @@ export default function Profile() {
                 {/* Social Stats */}
                 <div className="flex items-center gap-6 mb-3">
                   <button 
-                    onClick={() => navigate(`/creator/${profile.id}`)}
+                    onClick={() => { void navigate(`/creator/${profile.id}`); }}
                     className="text-purple-100 hover:text-white transition-colors"
                   >
                     <span className="font-semibold">{socialStats.followers}</span>
                     <span className="text-sm"> followers</span>
                   </button>
                   <button 
-                    onClick={() => navigate('/following')}
+                    onClick={() => { void navigate('/following'); }}
                     className="text-purple-100 hover:text-white transition-colors"
                   >
                     <span className="font-semibold">{socialStats.following}</span>
@@ -309,7 +307,7 @@ export default function Profile() {
                   </button>
                 </div>
                 
-                {profile.companyName && (
+                {profile.companyName != null && (
                   <div className="flex items-center gap-2 text-purple-100">
                     <Building2 className="w-4 h-4" />
                     <span>{profile.companyName}</span>
@@ -331,13 +329,13 @@ export default function Profile() {
                     {isEditing ? (
                       <input
                         type="text"
-                        value={editedProfile.firstName || ''}
+                        value={editedProfile.firstName ?? ''}
                         onChange={(e) => handleInputChange('firstName', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                         placeholder="Enter your first name"
                       />
                     ) : (
-                      <p className="text-gray-900">{profile.firstName || 'Not provided'}</p>
+                      <p className="text-gray-900">{profile.firstName ?? 'Not provided'}</p>
                     )}
                   </div>
                   
@@ -346,13 +344,13 @@ export default function Profile() {
                     {isEditing ? (
                       <input
                         type="text"
-                        value={editedProfile.lastName || ''}
+                        value={editedProfile.lastName ?? ''}
                         onChange={(e) => handleInputChange('lastName', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                         placeholder="Enter your last name"
                       />
                     ) : (
-                      <p className="text-gray-900">{profile.lastName || 'Not provided'}</p>
+                      <p className="text-gray-900">{profile.lastName ?? 'Not provided'}</p>
                     )}
                   </div>
                   
@@ -369,7 +367,7 @@ export default function Profile() {
                     {isEditing ? (
                       <input
                         type="tel"
-                        value={editedProfile.phone || ''}
+                        value={editedProfile.phone ?? ''}
                         onChange={(e) => handleInputChange('phone', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                         placeholder="Enter your phone number"
@@ -377,7 +375,7 @@ export default function Profile() {
                     ) : (
                       <div className="flex items-center gap-2">
                         <Phone className="w-4 h-4 text-gray-400" />
-                        <p className="text-gray-900">{profile.phone || 'Not provided'}</p>
+                        <p className="text-gray-900">{profile.phone ?? 'Not provided'}</p>
                       </div>
                     )}
                   </div>
@@ -387,7 +385,7 @@ export default function Profile() {
                     {isEditing ? (
                       <input
                         type="text"
-                        value={editedProfile.location || ''}
+                        value={editedProfile.location ?? ''}
                         onChange={(e) => handleInputChange('location', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                         placeholder="Enter your location"
@@ -395,7 +393,7 @@ export default function Profile() {
                     ) : (
                       <div className="flex items-center gap-2">
                         <MapPin className="w-4 h-4 text-gray-400" />
-                        <p className="text-gray-900">{profile.location || 'Not provided'}</p>
+                        <p className="text-gray-900">{profile.location ?? 'Not provided'}</p>
                       </div>
                     )}
                   </div>
@@ -413,13 +411,13 @@ export default function Profile() {
                         {isEditing ? (
                           <input
                             type="text"
-                            value={editedProfile.companyName || ''}
+                            value={editedProfile.companyName ?? ''}
                             onChange={(e) => handleInputChange('companyName', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                             placeholder="Enter your company name"
                           />
                         ) : (
-                          <p className="text-gray-900">{profile.companyName || 'Not provided'}</p>
+                          <p className="text-gray-900">{profile.companyName ?? 'Not provided'}</p>
                         )}
                       </div>
                       
@@ -427,7 +425,7 @@ export default function Profile() {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Company Type</label>
                         {isEditing ? (
                           <select
-                            value={editedProfile.companyType || ''}
+                            value={editedProfile.companyType ?? ''}
                             onChange={(e) => handleInputChange('companyType', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                           >
@@ -439,7 +437,7 @@ export default function Profile() {
                             <option value="other">Other</option>
                           </select>
                         ) : (
-                          <p className="text-gray-900 capitalize">{profile.companyType || 'Not provided'}</p>
+                          <p className="text-gray-900 capitalize">{profile.companyType ?? 'Not provided'}</p>
                         )}
                       </div>
                     </>
@@ -450,14 +448,14 @@ export default function Profile() {
                     {isEditing ? (
                       <input
                         type="url"
-                        value={editedProfile.website || ''}
+                        value={editedProfile.website ?? ''}
                         onChange={(e) => handleInputChange('website', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                         placeholder="https://your-website.com"
                       />
                     ) : (
                       <p className="text-gray-900">
-                        {profile.website ? (
+                        {profile.website != null ? (
                           <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:text-purple-700">
                             {profile.website}
                           </a>
@@ -472,14 +470,14 @@ export default function Profile() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
                     {isEditing ? (
                       <textarea
-                        value={editedProfile.bio || ''}
+                        value={editedProfile.bio ?? ''}
                         onChange={(e) => handleInputChange('bio', e.target.value)}
                         rows={4}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                         placeholder="Tell us about yourself..."
                       />
                     ) : (
-                      <p className="text-gray-900">{profile.bio || 'No bio provided'}</p>
+                      <p className="text-gray-900">{profile.bio ?? 'No bio provided'}</p>
                     )}
                   </div>
                   
@@ -488,7 +486,7 @@ export default function Profile() {
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-gray-400" />
                       <p className="text-gray-900">
-                        {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'Unknown'}
+                        {profile.createdAt != null ? new Date(profile.createdAt).toLocaleDateString() : 'Unknown'}
                       </p>
                     </div>
                   </div>
@@ -503,7 +501,7 @@ export default function Profile() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Actions</h3>
           <div className="space-y-3">
             <button
-              onClick={() => navigate('/settings')}
+              onClick={() => { void navigate('/settings'); }}
               className="w-full sm:w-auto px-4 py-2 text-purple-600 border border-purple-600 rounded-lg hover:bg-purple-50 transition"
             >
               Account Settings
@@ -511,8 +509,8 @@ export default function Profile() {
             <button
               onClick={() => {
                 if (confirm('Are you sure you want to sign out?')) {
-                  logout();
-                  navigate('/');
+                  void logout();
+                  void navigate('/');
                 }
               }}
               className="w-full sm:w-auto ml-0 sm:ml-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"

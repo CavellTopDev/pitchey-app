@@ -1,11 +1,9 @@
-import { useNavigate } from 'react-router-dom';
 import { Shield } from 'lucide-react';
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import ComprehensiveNDAManagement from '../components/NDA/ComprehensiveNDAManagement';
 import BackButton from '../components/BackButton';
 
 export default function InvestorNDAHistory() {
-  const navigate = useNavigate();
   const { user, isAuthenticated } = useBetterAuthStore();
 
   return (

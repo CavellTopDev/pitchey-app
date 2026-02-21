@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { 
-  FileText, Video, BookOpen, BarChart3, DollarSign, 
-  Calendar, Download, Eye, Lock, X, Maximize2, Image as ImageIcon 
+  FileText, Video, BookOpen, BarChart3, DollarSign,
+  Calendar, Download, Eye, Lock, X, Image as ImageIcon
 } from 'lucide-react';
 
 interface MediaItem {

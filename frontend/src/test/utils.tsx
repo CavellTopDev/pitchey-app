@@ -1,7 +1,6 @@
 import React, { type ReactElement } from 'react'
 import { render, RenderOptions } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
-import { WebSocketProvider } from '../contexts/WebSocketContext'
 import { NotificationToastProvider } from '../components/Toast/NotificationToastContainer'
 import { vi } from 'vitest'
 

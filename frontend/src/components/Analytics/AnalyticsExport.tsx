@@ -4,13 +4,13 @@ import { Download, FileSpreadsheet, FileText } from 'lucide-react';
 // Export functionality temporarily disabled to resolve JavaScript initialization errors
 
 interface AnalyticsExportProps {
-  data: any[];
-  title: string;
+  data: Record<string, unknown>[];
+  title?: string;
 }
 
-export const AnalyticsExport: React.FC<AnalyticsExportProps> = ({ 
-  data, 
-  title 
+export const AnalyticsExport: React.FC<AnalyticsExportProps> = ({
+  data: _data,
+  title: _title
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -20,7 +20,7 @@ export const AnalyticsExport: React.FC<AnalyticsExportProps> = ({
     setMenuOpen(false);
   };
 
-  const exportToPDF = async (chartRef: React.RefObject<HTMLDivElement>) => {
+  const exportToPDF = (_chartRef?: React.RefObject<HTMLDivElement>) => {
     // Temporarily disabled - html-to-image library causing initialization errors  
     alert('PDF export temporarily unavailable');
     setMenuOpen(false);
@@ -45,8 +45,8 @@ export const AnalyticsExport: React.FC<AnalyticsExportProps> = ({
             <FileSpreadsheet className="w-4 h-4 text-green-500" />
             Export to Excel
           </button>
-          <button 
-            onClick={() => exportToPDF}
+          <button
+            onClick={() => exportToPDF()}
             className="flex items-center gap-2 w-full px-4 py-2 hover:bg-gray-100"
           >
             <FileText className="w-4 h-4 text-red-500" />

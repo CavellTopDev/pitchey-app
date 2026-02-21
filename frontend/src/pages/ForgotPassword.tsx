@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
 import { authAPI } from '../lib/api';
@@ -17,7 +17,7 @@ export default function ForgotPassword() {
     try {
       await authAPI.requestPasswordReset(email);
       setSubmitted(true);
-    } catch (error: any) {
+    } catch (_error: unknown) {
       // Generic error message to prevent user enumeration
       setError('If an account exists with this email, you will receive a password reset link.');
       setSubmitted(true);
@@ -45,7 +45,7 @@ export default function ForgotPassword() {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-gray-800 py-8 px-4 shadow-xl sm:rounded-lg sm:px-10 border border-gray-700">
           {!submitted ? (
-            <form className="space-y-6" onSubmit={handleSubmit}>
+            <form className="space-y-6" onSubmit={(e) => { void handleSubmit(e); }}>
               {error && (
                 <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg flex items-center">
                   <AlertCircle className="h-5 w-5 mr-2" />

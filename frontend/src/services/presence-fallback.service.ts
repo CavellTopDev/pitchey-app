@@ -5,7 +5,7 @@
 
 
 const isDev = import.meta.env.MODE === 'development';
-const API_BASE_URL = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : '');
+const API_BASE_URL: string = (import.meta.env.VITE_API_URL as string | undefined) ?? (isDev ? 'http://localhost:8001' : '');
 
 interface PresenceData {
   userId: number;
@@ -21,14 +21,14 @@ interface PresenceUpdateData {
 }
 
 class PresenceFallbackService {
-  private pollInterval: NodeJS.Timeout | null = null;
+  private pollInterval: ReturnType<typeof setInterval> | null = null;
   private readonly POLL_INTERVAL = 30000; // Poll every 30 seconds
   private readonly HEARTBEAT_INTERVAL = 60000; // Send heartbeat every 60 seconds
   private readonly MAX_CONSECUTIVE_FAILURES = 3;
   private isPolling = false;
   private consecutiveFailures = 0;
-  private subscribers: ((users: PresenceData[]) => void)[] = [];
-  private heartbeatTimeout: NodeJS.Timeout | null = null;
+  private readonly subscribers: ((users: PresenceData[]) => void)[] = [];
+  private heartbeatTimeout: ReturnType<typeof setTimeout> | null = null;
   private currentStatus: 'online' | 'away' | 'offline' | 'dnd' = 'offline';
   private currentActivity?: string;
 
@@ -46,14 +46,14 @@ class PresenceFallbackService {
 
     // Start polling for presence updates
     this.pollInterval = setInterval(() => {
-      this.fetchPresence();
+      void this.fetchPresence();
     }, this.POLL_INTERVAL);
 
     // Start heartbeat to maintain presence
     this.startHeartbeat();
 
     // Initial fetch
-    this.fetchPresence();
+    void this.fetchPresence();
   }
 
   /**
@@ -129,7 +129,7 @@ class PresenceFallbackService {
         return false;
       }
 
-      const result = await response.json();
+      const result = await response.json() as { success: boolean };
       this.consecutiveFailures = 0; // Reset on success
       if (result.success) {
         this.currentStatus = data.status;
@@ -138,7 +138,7 @@ class PresenceFallbackService {
       } else {
         return false;
       }
-    } catch (error) {
+    } catch (_error) {
       this.consecutiveFailures++;
       if (this.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
         console.warn('Presence update: too many failures, stopping service');
@@ -191,10 +191,11 @@ class PresenceFallbackService {
         return [];
       }
 
-      const result = await response.json();
+      type RawUser = Omit<PresenceData, 'lastSeen'> & { lastSeen: string };
+      const result = await response.json() as { success: boolean; data?: { users?: RawUser[] } };
       this.consecutiveFailures = 0; // Reset on success
-      if (result.success && result.data) {
-        const users = (result.data.users || []).map((user: any) => ({
+      if (result.success && result.data != null) {
+        const users: PresenceData[] = (result.data.users ?? []).map((user: RawUser) => ({
           ...user,
           lastSeen: new Date(user.lastSeen),
         }));
@@ -213,7 +214,7 @@ class PresenceFallbackService {
       } else {
         return [];
       }
-    } catch (error) {
+    } catch (_error) {
       this.consecutiveFailures++;
       if (this.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
         console.warn('Presence fetch: too many failures, stopping service');
@@ -242,11 +243,11 @@ class PresenceFallbackService {
    * Start heartbeat to maintain online status
    */
   private startHeartbeat(): void {
-    const sendHeartbeat = async () => {
+    const sendHeartbeat = () => {
       if (!this.isPolling) return; // Service was stopped — don't reschedule
 
       if (this.currentStatus !== 'offline') {
-        await this.updatePresence({
+        void this.updatePresence({
           status: this.currentStatus,
           activity: this.currentActivity
         });
@@ -258,7 +259,7 @@ class PresenceFallbackService {
       }
     };
 
-    sendHeartbeat();
+    void sendHeartbeat();
   }
 
   /**
@@ -299,7 +300,7 @@ class PresenceFallbackService {
         return { available: false, error: 'Endpoint returned non-JSON response' };
       }
 
-      const result = await response.json();
+      const result = await response.json() as { websocketAvailable: boolean; error?: string };
       return {
         available: result.websocketAvailable === true,
         error: result.websocketAvailable ? undefined : result.error,

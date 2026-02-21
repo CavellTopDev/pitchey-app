@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '../../test/utils'
+import { render, screen, createMockPitch } from '../../test/utils'
 import userEvent from '@testing-library/user-event'
 import PitchCard from '../portfolio/PitchCard'
-import { createMockPitch } from '../../test/utils'
 
 const mockPitch = createMockPitch({
   id: '1',
@@ -111,7 +110,7 @@ describe('PitchCard', () => {
     })
 
     it('should navigate when view details button is clicked', async () => {
-      const { navigate } = render(<PitchCard pitch={mockPitch} />)
+      const { navigate: _navigate } = render(<PitchCard pitch={mockPitch} />)
 
       const detailsLink = screen.getByRole('link', { name: /view details/i })
       await user.click(detailsLink)

@@ -63,14 +63,15 @@ export class AuthService {
 
       // Better Auth handles cookie setting automatically
       // Return compatible response structure
-      const userData = response.data as any;
+      const userData = response.data as Record<string, unknown>;
       return {
         success: true,
         user: userData.user as unknown as User,
-        token: userData.token || 'session', // Session ID for compatibility
+        token: (userData.token as string) || 'session', // Session ID for compatibility
       };
-    } catch (error: any) {
-      throw new Error(error.message || 'Login failed');
+    } catch (err: unknown) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      throw new Error(e.message || 'Login failed');
     }
   }
 
@@ -97,17 +98,17 @@ export class AuthService {
       const response = await authClient.signUp.email({
         email: data.email,
         password: data.password,
-        name: (data as any).name || data.email.split('@')[0],
+        name: (data as unknown as Record<string, unknown>).name as string || data.email.split('@')[0],
         callbackURL: `/${data.userType}/dashboard`,
         // Pass additional data as metadata
         fetchOptions: {
           headers: {
             'X-Portal-Type': data.userType
           }
-        } as any
+        } as Record<string, unknown>
       });
 
-      const regData = response as any;
+      const regData = response as { data?: { user?: unknown; token?: string } };
       if (!regData.data) {
         throw new Error('Registration failed - no data returned');
       }
@@ -117,8 +118,9 @@ export class AuthService {
         user: regData.data.user as unknown as User,
         token: regData.data.token || 'session',
       };
-    } catch (error: any) {
-      throw new Error(error.message || 'Registration failed');
+    } catch (err: unknown) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      throw new Error(e.message || 'Registration failed');
     }
   }
 
@@ -144,7 +146,7 @@ export class AuthService {
       await authClient.signOut({
         fetchOptions: {
           redirect: false
-        } as any
+        } as Record<string, unknown>
       });
     } catch (error) {
       console.error('Logout error:', error);
@@ -173,12 +175,13 @@ export class AuthService {
         return { valid: false };
       }
 
+      const sessionAny = session as Record<string, unknown>;
       return {
         valid: true,
         user: session.user as unknown as User,
-        exp: (session as any).expiresAt ? new Date((session as any).expiresAt).getTime() : undefined
+        exp: sessionAny.expiresAt ? new Date(sessionAny.expiresAt as string | number).getTime() : undefined
       };
-    } catch (error) {
+    } catch (_error) {
       cleanupJWTArtifacts();
       return { valid: false };
     }
@@ -225,10 +228,12 @@ export class AuthService {
     // Better Auth uses cookies, but we can add session ID for tracking
     const { data: session } = await authClient.getSession();
 
-    if (session && (session as any).id) {
+    const sessionAny = session as Record<string, unknown> | null;
+    const sessionUserAny = session?.user as Record<string, unknown> | undefined;
+    if (sessionAny?.id) {
       return {
-        'X-Session-ID': (session as any).id,
-        'X-User-Type': (session.user as any)?.userType || ''
+        'X-Session-ID': String(sessionAny.id),
+        'X-User-Type': (sessionUserAny?.userType as string) || ''
       };
     }
 

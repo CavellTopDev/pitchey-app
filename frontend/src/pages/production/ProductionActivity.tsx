@@ -1,13 +1,12 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Activity, Clock, Users, Eye, Heart, MessageSquare,
+  Activity, Users, Eye, Heart, MessageSquare,
   FileText, Film, Star, ArrowRight, Bell, Filter,
-  RefreshCw, CheckCircle, AlertCircle, Info, Zap,
-  User, Calendar, TrendingUp, Download, Share,
-  Bookmark, ThumbsUp, Play, Upload, Edit, Trash2, DollarSign
+  RefreshCw, CheckCircle, AlertCircle, TrendingUp,
+  User, DollarSign,
 } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { config, API_URL } from '../../config';
+import { API_URL } from '../../config';
 
 interface ActivityItem {
   id: string;
@@ -45,7 +44,7 @@ interface ActivityFilters {
 }
 
 export default function ProductionActivity() {
-    const { user, logout } = useBetterAuthStore();
+  useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -60,12 +59,14 @@ export default function ProductionActivity() {
 
   // Load activity feed from API
   useEffect(() => {
-    loadActivityFeed();
+    void loadActivityFeed();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Apply filters when activities or filters change
   useEffect(() => {
     applyFilters();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activities, filters]);
 
   const loadActivityFeed = async () => {
@@ -80,8 +81,8 @@ export default function ProductionActivity() {
         throw new Error(`Activity feed API error: ${response.status}`);
       }
 
-      const data = await response.json();
-      setActivities(data.data?.activities || data.activities || []);
+      const data = await response.json() as { data?: { activities?: ActivityItem[] }; activities?: ActivityItem[] };
+      setActivities(data.data?.activities ?? data.activities ?? []);
       
     } catch (err) {
       console.error('Failed to load activity feed:', err);
@@ -259,7 +260,7 @@ export default function ProductionActivity() {
             </button>
             
             <button
-              onClick={handleRefresh}
+              onClick={() => { void handleRefresh(); }}
               disabled={refreshing}
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
@@ -270,7 +271,7 @@ export default function ProductionActivity() {
         </div>
 
         {/* Error Alert */}
-        {error && (
+        {error != null && error !== '' && (
           <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-md p-4">
             <div className="flex">
               <AlertCircle className="w-5 h-5 text-yellow-400" />
@@ -301,7 +302,7 @@ export default function ProductionActivity() {
               </label>
               <select
                 value={filters.type}
-                onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value as any }))}
+                onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value as ActivityFilters['type'] }))}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">All Activities</option>
@@ -320,7 +321,7 @@ export default function ProductionActivity() {
               </label>
               <select
                 value={filters.timeRange}
-                onChange={(e) => setFilters(prev => ({ ...prev, timeRange: e.target.value as any }))}
+                onChange={(e) => setFilters(prev => ({ ...prev, timeRange: e.target.value as ActivityFilters['timeRange'] }))}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="1h">Last Hour</option>
@@ -338,7 +339,7 @@ export default function ProductionActivity() {
               </label>
               <select
                 value={filters.importance}
-                onChange={(e) => setFilters(prev => ({ ...prev, importance: e.target.value as any }))}
+                onChange={(e) => setFilters(prev => ({ ...prev, importance: e.target.value as ActivityFilters['importance'] }))}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">All</option>
@@ -354,7 +355,7 @@ export default function ProductionActivity() {
               </label>
               <select
                 value={filters.readStatus}
-                onChange={(e) => setFilters(prev => ({ ...prev, readStatus: e.target.value as any }))}
+                onChange={(e) => setFilters(prev => ({ ...prev, readStatus: e.target.value as ActivityFilters['readStatus'] }))}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">All</option>

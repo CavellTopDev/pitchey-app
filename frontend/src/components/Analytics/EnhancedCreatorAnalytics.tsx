@@ -1,25 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  TrendingUp, 
-  Eye, 
-  Heart, 
-  Share2, 
-  Users, 
+import {
+  TrendingUp,
+  Eye,
+  Heart,
+  Share2,
+  Users,
   DollarSign,
   Film,
   MessageSquare,
-  Calendar,
-  Download,
-  Filter,
   RefreshCw
 } from 'lucide-react';
 
 import { AnalyticCard } from './AnalyticCard';
 import { TimeRangeFilter } from './TimeRangeFilter';
-import { PerformanceChart } from './PerformanceChart';
 import { AnalyticsExport } from './AnalyticsExport';
 import { analyticsService } from '../../services/analytics.service';
-import type { TimeRange } from '../../services/analytics.service';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { 
   LineChart, 
@@ -82,7 +77,7 @@ interface CreatorAnalyticsData {
 }
 
 export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
-  pitchPerformance,
+  pitchPerformance: _pitchPerformance,
   disableRemoteFetch = false,
 }) => {
   const { user } = useBetterAuthStore();
@@ -110,9 +105,22 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
         return;
       }
 
+      const now = new Date();
+      const rangeStart = new Date(now);
+      if (preset === 'week') rangeStart.setDate(now.getDate() - 7);
+      else if (preset === 'month') rangeStart.setMonth(now.getMonth() - 1);
+      else if (preset === 'quarter') rangeStart.setMonth(now.getMonth() - 3);
+      else rangeStart.setFullYear(now.getFullYear() - 1);
+
+      const timeRangeArg = {
+        start: rangeStart.toISOString(),
+        end: now.toISOString(),
+        preset: preset as 'week' | 'month' | 'quarter' | 'year',
+      };
+
       const [dashboardMetrics, userAnalytics] = await Promise.all([
-        analyticsService.getDashboardMetrics({ preset } as any),
-        analyticsService.getUserAnalytics(user.id, { preset } as any)
+        analyticsService.getDashboardMetrics(timeRangeArg),
+        analyticsService.getUserAnalytics(user.id, timeRangeArg)
       ]);
 
       // Transform the data with null safety checks
@@ -159,15 +167,15 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
         },
         charts: {
           pitchViews: (performance.engagementTrend && performance.engagementTrend.length > 0)
-            ? performance.engagementTrend.map((item: any) => ({
-                date: item?.date || new Date().toISOString(),
-                value: item?.views || item?.value || 0
+            ? performance.engagementTrend.map((item) => ({
+                date: item.date,
+                value: item.rate
               }))
             : [],
           engagementTrends: (performance.engagementTrend && performance.engagementTrend.length > 0)
-            ? performance.engagementTrend.map((item: any) => ({
-                date: item?.date || new Date().toISOString(),
-                value: item?.rate || item?.value || 0
+            ? performance.engagementTrend.map((item) => ({
+                date: item.date,
+                value: item.rate
               }))
             : [],
           fundingProgress: [],
@@ -194,7 +202,7 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [timeRange, disableRemoteFetch, user?.id]);
+  }, [timeRange, user?.id]);
 
   useEffect(() => {
     if (disableRemoteFetch) {
@@ -204,14 +212,14 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
       return;
     }
 
-    fetchAnalyticsData();
-    
+    void fetchAnalyticsData();
+
     // Set up auto-refresh every 5 minutes if enabled
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval> | undefined;
     if (autoRefresh && !disableRemoteFetch) {
-      interval = setInterval(fetchAnalyticsData, 5 * 60 * 1000);
+      interval = setInterval(() => { void fetchAnalyticsData(); }, 5 * 60 * 1000);
     }
-    
+
     return () => {
       if (interval) clearInterval(interval);
     };
@@ -231,7 +239,7 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
         <p className="mb-2">{error ? `Error: ${error}` : 'No analytics data available yet.'}</p>
         {!disableRemoteFetch && (
           <button
-            onClick={fetchAnalyticsData}
+            onClick={() => { void fetchAnalyticsData(); }}
             className="text-blue-600 hover:text-blue-800 underline text-sm"
           >
             Retry
@@ -271,7 +279,7 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
             />
             
             <AnalyticsExport
-              data={analyticsData as any}
+              data={[analyticsData] as unknown as Record<string, unknown>[]}
               title="Creator Analytics"
             />
           </div>

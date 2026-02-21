@@ -1,14 +1,13 @@
 import React from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { 
-  Home, Globe, Briefcase, Users, Search, Settings, Bell, 
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  Home, Globe, Briefcase, Users, Settings, Bell,
   ChevronDown, CircleUser, TrendingUp, Star, Award, FileText,
-  MessageSquare, Calendar, DollarSign, Eye, Activity, FolderOpen,
-  Target, LogOut, User, CreditCard, HelpCircle, BarChart3,
+  Calendar, DollarSign, Activity,
+  LogOut, User, HelpCircle, BarChart3,
   PieChart, Shield, Bookmark, HandshakeIcon, TrendingDown,
   Wallet, Building2, Filter, ArrowUpRight, History, LineChart,
-  Menu, X, ChevronRight, Clock, CheckCircle, AlertTriangle, Film,
-  FileCheck, FileX, FileSearch, FileClock, FileSignature
+  Menu
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -33,19 +32,24 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
+interface InvestorUser {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}
+
 interface InvestorNavigationProps {
-  user: any;
+  user: InvestorUser | null;
   onLogout: () => void;
 }
 
 export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [notificationCount, setNotificationCount] = React.useState(3);
+  const [notificationCount] = React.useState(3);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
   const handleNavigation = (path: string) => {
-    navigate(path);
+    void navigate(path);
     setIsMobileMenuOpen(false); // Close mobile menu after navigation
   };
 
@@ -357,7 +361,7 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
                     <CircleUser className="w-6 h-6 text-green-600" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold">{user?.firstName || 'Investor'} {user?.lastName || ''}</p>
+                    <p className="text-sm font-semibold">{user?.firstName ?? 'Investor'} {user?.lastName ?? ''}</p>
                     <p className="text-xs text-gray-500">{user?.email}</p>
                   </div>
                 </div>
@@ -606,7 +610,7 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
           <DropdownMenuContent align="end" className="w-56 bg-white">
             <DropdownMenuLabel>
               <div className="flex flex-col">
-                <span className="font-semibold">{user?.firstName || 'Investor'} {user?.lastName || ''}</span>
+                <span className="font-semibold">{user?.firstName ?? 'Investor'} {user?.lastName ?? ''}</span>
                 <span className="text-sm text-gray-500">{user?.email}</span>
                 <span className="text-xs text-green-600 mt-1">Accredited Investor</span>
               </div>

@@ -1,6 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home, Copy, ExternalLink } from 'lucide-react';
-import { config } from '../config';
 // Sentry temporarily removed to resolve initialization errors
 
 interface Props {
@@ -77,9 +76,10 @@ export class ErrorBoundary extends Component<Props, State> {
     console.groupEnd();
 
     // Store error globally for debugging
-    (window as any).__errorBoundaryError = error;
-    (window as any).__errorBoundaryInfo = errorInfo;
-    (window as any).__errorBoundaryReport = errorReport;
+    const winDebug = window as unknown as Record<string, unknown>;
+    winDebug['__errorBoundaryError'] = error;
+    winDebug['__errorBoundaryInfo'] = errorInfo;
+    winDebug['__errorBoundaryReport'] = errorReport;
     
     // Send to error reporting service if enabled
     // Sentry reporting temporarily disabled to resolve initialization errors

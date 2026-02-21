@@ -203,5 +203,5 @@ export interface NDAStatusProps {
 export interface NDAError {
   code: string;
   message: string;
-  details?: any;
+  details?: unknown;
 }

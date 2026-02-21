@@ -93,7 +93,7 @@ const InvestorSettings = () => {
         setLoading(false);
       }
     };
-    fetchSettings();
+    void fetchSettings();
   }, []);
 
   const handleSaveSettings = async (section: string) => {
@@ -214,7 +214,7 @@ const InvestorSettings = () => {
               </label>
 
               <Button
-                onClick={() => handleSaveSettings('Notification')}
+                onClick={() => { void handleSaveSettings('Notification'); }}
                 disabled={saving}
                 className="w-full"
               >
@@ -288,7 +288,7 @@ const InvestorSettings = () => {
               </label>
 
               <Button
-                onClick={() => handleSaveSettings('Privacy')}
+                onClick={() => { void handleSaveSettings('Privacy'); }}
                 disabled={saving}
                 className="w-full"
               >
@@ -345,7 +345,7 @@ const InvestorSettings = () => {
               </label>
 
               <Button
-                onClick={() => handleSaveSettings('Security')}
+                onClick={() => { void handleSaveSettings('Security'); }}
                 disabled={saving}
                 className="w-full"
               >
@@ -368,7 +368,7 @@ const InvestorSettings = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <Button
-                onClick={() => navigate('/investor/profile')}
+                onClick={() => { void navigate('/investor/profile'); }}
                 variant="outline"
                 className="w-full justify-start"
               >
@@ -377,7 +377,7 @@ const InvestorSettings = () => {
               </Button>
 
               <Button
-                onClick={() => navigate('/investor/tax-documents')}
+                onClick={() => { void navigate('/investor/tax-documents'); }}
                 variant="outline"
                 className="w-full justify-start"
               >
@@ -386,7 +386,7 @@ const InvestorSettings = () => {
               </Button>
 
               <Button
-                onClick={() => navigate('/investor/payment-methods')}
+                onClick={() => { void navigate('/investor/payment-methods'); }}
                 variant="outline"
                 className="w-full justify-start"
               >

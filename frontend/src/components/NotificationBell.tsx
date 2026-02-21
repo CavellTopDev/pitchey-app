@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Bell, BellRing, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../contexts/WebSocketContext';
-import { NotificationsService } from '../services/notifications.service';
-import { useNotificationToast } from './Toast/NotificationToastContainer';
+import { NotificationsService, type Notification as ApiNotification } from '../services/notifications.service';
 
 interface NotificationBellProps {
   className?: string;
@@ -18,9 +17,8 @@ export function NotificationBell({
 }: NotificationBellProps) {
   const navigate = useNavigate();
   const { notifications: wsNotifications } = useNotifications();
-  const toast = useNotificationToast();
-  
-  const [apiNotifications, setApiNotifications] = useState<any[]>([]);
+
+  const [apiNotifications, setApiNotifications] = useState<ApiNotification[]>([]);
   const [hasNewNotifications, setHasNewNotifications] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const previousCountRef = useRef(0);
@@ -38,10 +36,10 @@ export function NotificationBell({
       }
     };
 
-    loadNotifications();
-    
+    void loadNotifications();
+
     // Refresh every 30 seconds
-    const interval = setInterval(loadNotifications, 30000);
+    const interval = setInterval(() => { void loadNotifications(); }, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -80,14 +78,14 @@ export function NotificationBell({
     // Reset new notification indicator
     setHasNewNotifications(false);
     setIsAnimating(false);
-    
+
     // Navigate to notification center
-    navigate('/notifications');
+    void navigate('/notifications');
   };
 
   const handleSettingsClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate('/notifications?tab=preferences');
+    void navigate('/notifications?tab=preferences');
   };
 
   return (

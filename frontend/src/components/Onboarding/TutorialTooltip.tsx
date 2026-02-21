@@ -44,7 +44,7 @@ export const TutorialTooltip: React.FC<TutorialTooltipProps> = ({
   const [visible, setVisible] = useState(false);
   const [targetElement, setTargetElement] = useState<HTMLElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
+  const _overlayRef = useRef<HTMLDivElement>(null);
   const { preferences } = useOnboardingStore();
 
   // Calculate tooltip position based on target element

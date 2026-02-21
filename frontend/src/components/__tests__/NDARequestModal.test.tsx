@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '../../test/utils'
+import { render, screen, waitFor, getMockAuthStore } from '../../test/utils'
 import userEvent from '@testing-library/user-event'
 import NDAModal from '../NDAModal'
-import { getMockAuthStore } from '../../test/utils'
 import { ndaService } from '../../services/nda.service'
 
 // Mock the NDA service
@@ -40,7 +39,7 @@ const mockInvestorUser = {
   role: 'investor',
 }
 
-const mockPitchData = {
+const _mockPitchData = {
   id: '1',
   title: 'Test Pitch',
   creator: {

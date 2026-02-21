@@ -9,7 +9,7 @@ export default function Terms() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-12">
         <button
-          onClick={() => navigate('/')}
+          onClick={() => { void navigate('/'); }}
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-8 transition"
         >
           <ArrowLeft className="w-4 h-4" />

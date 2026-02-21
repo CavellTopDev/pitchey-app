@@ -1,10 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '../../test/utils'
+import { render, screen, waitFor, getMockAuthStore, getMockNavigate } from '../../test/utils'
 import userEvent from '@testing-library/user-event'
 import CreatorLogin from '../../pages/CreatorLogin'
 import InvestorLogin from '../../pages/InvestorLogin'
 import ProductionLogin from '../../pages/ProductionLogin'
-import { getMockAuthStore, getMockNavigate } from '../../test/utils'
 
 // Mock BackButton component
 vi.mock('../../components/BackButton', () => ({

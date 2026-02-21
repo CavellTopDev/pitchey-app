@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Film, Clock, CheckCircle, AlertCircle, TrendingUp, DollarSign, Calendar, Users, MoreVertical, Eye, Edit, Trash2 } from 'lucide-react';
+import { Film, AlertCircle, TrendingUp, DollarSign, Users, MoreVertical, Eye, Edit, Trash2 } from 'lucide-react';
 import { ProductionService, type ProductionProject as ApiProject } from '../../services/production.service';
 
 interface Project {
@@ -78,7 +78,7 @@ export default function ProductionProjects() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadProjects();
+    void loadProjects();
   }, []);
 
   const loadProjects = async () => {
@@ -125,7 +125,7 @@ export default function ProductionProjects() {
               <AlertCircle className="w-5 h-5 text-red-600" />
               <p className="text-red-700">{error}</p>
               <button
-                onClick={loadProjects}
+                onClick={() => { void loadProjects(); }}
                 className="ml-auto text-red-600 hover:text-red-800 font-medium"
               >
                 Retry

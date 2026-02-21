@@ -35,7 +35,7 @@ const InvestorDiscover = () => {
   const fetchRequestIdRef = useRef(0);
 
   // Get current tab from URL params or default to 'featured'
-  const currentTab = searchParams.get('tab') || 'featured';
+  const currentTab = searchParams.get('tab') ?? 'featured';
 
   // Derive pitches from per-tab state
   const pitches = tabStates[currentTab]?.pitches ?? [];
@@ -70,7 +70,7 @@ const InvestorDiscover = () => {
 
   const handleTabChange = (tabId: string) => {
     if (tabId === 'genres') {
-      navigate('/investor/discover/genres');
+      void navigate('/investor/discover/genres');
     } else {
       setSearchParams({ tab: tabId });
     }
@@ -85,7 +85,8 @@ const InvestorDiscover = () => {
 
   // Load pitches on mount and when filters change
   useEffect(() => {
-    loadPitches();
+    void loadPitches();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTab, selectedGenre]);
 
   const loadPitches = async () => {
@@ -123,16 +124,17 @@ const InvestorDiscover = () => {
       if (requestId !== fetchRequestIdRef.current) return;
 
       // Transform API response to match component interface
-      const transformedPitches: PitchItem[] = (response.opportunities ?? []).map((opp: InvestmentOpportunity) => ({
+      const opportunities = (response.opportunities ?? []) as InvestmentOpportunity[];
+      const transformedPitches: PitchItem[] = opportunities.map((opp: InvestmentOpportunity) => ({
         id: opp.id,
-        title: opp.title || 'Untitled',
-        genre: opp.genre || 'Unknown',
-        budget: formatBudget(opp.minInvestment || opp.targetAmount || 0),
-        roi: opp.expectedROI ? `${opp.expectedROI}%` : 'TBD',
-        status: mapStatus(opp.status || 'active'),
-        thumbnail: opp.thumbnailUrl || '/images/pitch-placeholder.svg',
-        description: opp.logline || opp.description || '',
-        rating: opp.matchScore ? opp.matchScore / 20 : 4.5  // Convert match score to 5-star rating
+        title: opp.title ?? 'Untitled',
+        genre: opp.genre ?? 'Unknown',
+        budget: formatBudget(opp.minInvestment ?? opp.targetAmount ?? 0),
+        roi: opp.expectedROI !== undefined && opp.expectedROI !== null ? `${opp.expectedROI}%` : 'TBD',
+        status: mapStatus(opp.status ?? 'active'),
+        thumbnail: opp.thumbnailUrl ?? '/images/pitch-placeholder.svg',
+        description: opp.logline ?? opp.description ?? '',
+        rating: opp.matchScore !== undefined && opp.matchScore !== null ? opp.matchScore / 20 : 4.5  // Convert match score to 5-star rating
       }));
 
       setTabStates(prev => ({
@@ -189,7 +191,7 @@ const InvestorDiscover = () => {
     if (loading) {
       return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, i) => (
+          {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="bg-white rounded-lg shadow-sm overflow-hidden animate-pulse">
               <div className="w-full h-48 bg-gray-200" />
               <div className="p-4 space-y-3">
@@ -208,13 +210,13 @@ const InvestorDiscover = () => {
     }
 
     // Error state
-    if (error) {
+    if (error !== null) {
       return (
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-red-800 mb-2">Failed to load opportunities</h3>
           <p className="text-red-600 mb-4">{error}</p>
-          <Button onClick={loadPitches} variant="outline" className="text-red-700 border-red-300">
+          <Button onClick={() => { void loadPitches(); }} variant="outline" className="text-red-700 border-red-300">
             <RefreshCw className="w-4 h-4 mr-2" />
             Try Again
           </Button>
@@ -295,7 +297,7 @@ const InvestorDiscover = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate('/investor/dashboard')}
+            onClick={() => { void navigate('/investor/dashboard'); }}
             className="flex items-center gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -388,7 +390,7 @@ const InvestorDiscover = () => {
   );
 };
 
-const PitchCard = ({ pitch, viewMode }: { pitch: any; viewMode: 'grid' | 'list' }) => {
+const PitchCard = ({ pitch, viewMode }: { pitch: PitchItem; viewMode: 'grid' | 'list' }) => {
   if (viewMode === 'list') {
     return (
       <div className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">

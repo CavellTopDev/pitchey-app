@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import { Film, Briefcase, DollarSign, LogIn, Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react';
@@ -25,13 +25,13 @@ export default function Login() {
     try {
       if (selectedPortal === 'creator') {
         await loginCreator(formData.email, formData.password);
-        navigate('/creator/dashboard');
+        void navigate('/creator/dashboard');
       } else if (selectedPortal === 'investor') {
         await loginInvestor(formData.email, formData.password);
-        navigate('/investor/dashboard');
+        void navigate('/investor/dashboard');
       } else if (selectedPortal === 'production') {
         await loginProduction(formData.email, formData.password);
-        navigate('/production/dashboard');
+        void navigate('/production/dashboard');
       }
     } catch (error) {
       console.error('Login failed:', error);
@@ -123,7 +123,7 @@ export default function Login() {
                 return (
                   <button
                     key={portal.id}
-                    onClick={() => setSelectedPortal(portal.id as any)}
+                    onClick={() => setSelectedPortal(portal.id as 'creator' | 'investor' | 'production')}
                     className={`w-full p-4 rounded-lg border-2 transition-all duration-200 hover:scale-[1.02] bg-gray-700/50 border-gray-600 hover:border-${portal.color}-500 hover:bg-gray-700`}
                   >
                     <div className="flex items-center space-x-4">
@@ -141,7 +141,7 @@ export default function Login() {
             </div>
           ) : (
             /* Login Form */
-            <form className="space-y-6" onSubmit={handleSubmit}>
+            <form className="space-y-6" onSubmit={(e) => { void handleSubmit(e); }}>
               <div className="mb-4">
                 <button
                   type="button"

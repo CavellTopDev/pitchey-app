@@ -6,8 +6,18 @@
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 // Temporary: Disable Sentry integration for console monitoring
-const Sentry = null;
 import { AlertTriangle, RefreshCw, Home, ChevronDown, ChevronUp } from 'lucide-react';
+
+interface SentryScope {
+  setLevel: (level: string) => void;
+  setContext: (key: string, ctx: Record<string, unknown>) => void;
+  addBreadcrumb: (breadcrumb: Record<string, unknown>) => void;
+}
+
+interface SentryGlobalType {
+  withScope: (fn: (scope: SentryScope) => void) => void;
+  captureException: (error: Error) => void;
+}
 
 interface Props {
   children: ReactNode;
@@ -37,7 +47,7 @@ interface ConsoleError {
 }
 
 export class ConsoleErrorBoundary extends Component<Props, State> {
-  private originalConsole = {
+  private readonly originalConsole = {
     error: console.error,
     warn: console.warn,
   };
@@ -49,7 +59,7 @@ export class ConsoleErrorBoundary extends Component<Props, State> {
       error: null,
       errorInfo: null,
       errorCount: 0,
-      showDetails: props.showDetails || false,
+      showDetails: props.showDetails ?? false,
       consoleErrors: [],
       reportSent: false
     };
@@ -58,7 +68,7 @@ export class ConsoleErrorBoundary extends Component<Props, State> {
   componentDidMount() {
     // Intercept console methods to track errors
     this.interceptConsole();
-    
+
     // Listen for unhandled promise rejections
     window.addEventListener('unhandledrejection', this.handleUnhandledRejection);
   }
@@ -66,34 +76,35 @@ export class ConsoleErrorBoundary extends Component<Props, State> {
   componentWillUnmount() {
     // Restore original console methods
     this.restoreConsole();
-    
+
     // Remove event listeners
     window.removeEventListener('unhandledrejection', this.handleUnhandledRejection);
   }
 
-  private interceptConsole = () => {
+  private readonly interceptConsole = () => {
     // Intercept console.error
-    console.error = (...args: any[]) => {
+    console.error = (...args: unknown[]) => {
       this.logConsoleError('error', args);
-      this.originalConsole.error.apply(console, args);
+      this.originalConsole.error.apply(console, args as Parameters<typeof console.error>);
     };
 
     // Intercept console.warn
-    console.warn = (...args: any[]) => {
+    console.warn = (...args: unknown[]) => {
       this.logConsoleError('warn', args);
-      this.originalConsole.warn.apply(console, args);
+      this.originalConsole.warn.apply(console, args as Parameters<typeof console.warn>);
     };
 
-    if (process.env.NODE_ENV === 'production') {
+    if (import.meta.env.MODE === 'production') {
+      // intentionally empty
     }
   };
 
-  private restoreConsole = () => {
+  private readonly restoreConsole = () => {
     console.error = this.originalConsole.error;
     console.warn = this.originalConsole.warn;
   };
 
-  private logConsoleError = (type: 'error' | 'warn' | 'log', args: any[]) => {
+  private readonly logConsoleError = (type: 'error' | 'warn' | 'log', args: unknown[]) => {
     const message = args.map(arg => {
       try {
         return typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg);
@@ -117,20 +128,20 @@ export class ConsoleErrorBoundary extends Component<Props, State> {
 
     // Send critical errors to monitoring
     if (type === 'error' && message.includes('Cannot read property')) {
-      this.sendToMonitoring(error);
+      void this.sendToMonitoring(error);
     }
   };
 
-  private getComponentName = (): string => {
+  private readonly getComponentName = (): string => {
     // Try to extract component name from stack trace
-    const stack = new Error().stack || '';
+    const stack = new Error().stack ?? '';
     const match = stack.match(/at (\w+Component|\w+Page|\w+View|\w+Modal)/);
-    return match ? match[1] : 'Unknown';
+    return match?.[1] ?? 'Unknown';
   };
 
-  private handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-    const error = new Error(`Unhandled Promise Rejection: ${event.reason}`);
-    this.logError(error, { context: 'unhandledRejection' });
+  private readonly handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+    const error = new Error(`Unhandled Promise Rejection: ${String(event.reason)}`);
+    void this.logError(error, { context: 'unhandledRejection' });
   };
 
   static getDerivedStateFromError(error: Error): Partial<State> {
@@ -152,9 +163,9 @@ export class ConsoleErrorBoundary extends Component<Props, State> {
     );
 
     // Send to Sentry if available
-    const SentryGlobal = (window as any).Sentry;
-    if (SentryGlobal) {
-      SentryGlobal.withScope((scope: any) => {
+    const SentryGlobal = (window as unknown as Record<string, unknown>).Sentry as SentryGlobalType | undefined;
+    if (SentryGlobal !== undefined) {
+      SentryGlobal.withScope((scope: SentryScope) => {
         scope.setLevel('error');
         scope.setContext('errorBoundary', {
           level,
@@ -188,10 +199,10 @@ export class ConsoleErrorBoundary extends Component<Props, State> {
     onError?.(error, errorInfo);
 
     // Log to backend for analysis
-    this.logError(error, errorInfo);
+    void this.logError(error, errorInfo);
   }
 
-  private logError = async (error: Error, context: any) => {
+  private readonly logError = async (error: Error, context: Record<string, unknown> | ErrorInfo) => {
     try {
       await fetch('/api/errors/log', {
         method: 'POST',
@@ -205,7 +216,7 @@ export class ConsoleErrorBoundary extends Component<Props, State> {
           url: window.location.href,
           userAgent: navigator.userAgent,
           timestamp: new Date().toISOString(),
-          level: this.props.level || 'component'
+          level: this.props.level ?? 'component'
         })
       });
     } catch (err) {
@@ -214,7 +225,7 @@ export class ConsoleErrorBoundary extends Component<Props, State> {
     }
   };
 
-  private sendToMonitoring = async (error: ConsoleError) => {
+  private readonly sendToMonitoring = async (error: ConsoleError) => {
     // Send critical console errors to monitoring service
     try {
       await fetch('/api/monitoring/console-error', {
@@ -228,7 +239,7 @@ export class ConsoleErrorBoundary extends Component<Props, State> {
     }
   };
 
-  private handleReset = () => {
+  private readonly handleReset = () => {
     this.setState({
       hasError: false,
       error: null,
@@ -239,15 +250,15 @@ export class ConsoleErrorBoundary extends Component<Props, State> {
     });
   };
 
-  private handleReload = () => {
+  private readonly handleReload = () => {
     window.location.reload();
   };
 
-  private handleHome = () => {
+  private readonly handleHome = () => {
     window.location.href = '/';
   };
 
-  private toggleDetails = () => {
+  private readonly toggleDetails = () => {
     this.setState(prevState => ({
       showDetails: !prevState.showDetails
     }));
@@ -257,9 +268,9 @@ export class ConsoleErrorBoundary extends Component<Props, State> {
     const { hasError, error, errorInfo, showDetails, errorCount, reportSent, consoleErrors } = this.state;
     const { children, fallback, level = 'component' } = this.props;
 
-    if (hasError && error) {
+    if (hasError && error !== null) {
       // Use custom fallback if provided
-      if (fallback) {
+      if (fallback !== undefined) {
         return <>{fallback}</>;
       }
 
@@ -273,18 +284,18 @@ export class ConsoleErrorBoundary extends Component<Props, State> {
                   <AlertTriangle className="text-red-500 mt-1" size={24} />
                   <div className="flex-1">
                     <h2 className="text-lg font-semibold text-red-900 mb-2">
-                      {level === 'global' ? 'Application Error' : 
-                       level === 'page' ? 'Page Error' : 
+                      {level === 'global' ? 'Application Error' :
+                       level === 'page' ? 'Page Error' :
                        'Component Error'}
                     </h2>
-                    
+
                     <p className="text-red-700 mb-4">
-                      {error.message || 'An unexpected error occurred'}
+                      {error.message !== '' ? error.message : 'An unexpected error occurred'}
                     </p>
 
                     {reportSent && (
                       <p className="text-sm text-red-600 mb-4">
-                        ✓ Error report has been sent to our team
+                        Error report has been sent to our team
                       </p>
                     )}
 
@@ -297,14 +308,14 @@ export class ConsoleErrorBoundary extends Component<Props, State> {
                         <RefreshCw size={16} />
                         Try Again
                       </button>
-                      
+
                       <button
                         onClick={this.handleReload}
                         className="px-4 py-2 bg-white border border-red-300 text-red-700 rounded hover:bg-red-50 transition-colors"
                       >
                         Reload Page
                       </button>
-                      
+
                       {level !== 'global' && (
                         <button
                           onClick={this.handleHome}
@@ -331,7 +342,7 @@ export class ConsoleErrorBoundary extends Component<Props, State> {
                         <div className="mb-2">
                           <strong>Error Count:</strong> {errorCount}
                         </div>
-                        
+
                         <div className="mb-2">
                           <strong>Error Message:</strong>
                           <pre className="mt-1 whitespace-pre-wrap break-all">
@@ -339,7 +350,7 @@ export class ConsoleErrorBoundary extends Component<Props, State> {
                           </pre>
                         </div>
 
-                        {error.stack && (
+                        {error.stack !== undefined && (
                           <div className="mb-2">
                             <strong>Stack Trace:</strong>
                             <pre className="mt-1 whitespace-pre-wrap break-all text-[10px] max-h-40 overflow-auto">
@@ -348,7 +359,7 @@ export class ConsoleErrorBoundary extends Component<Props, State> {
                           </div>
                         )}
 
-                        {errorInfo?.componentStack && (
+                        {errorInfo?.componentStack != null && (
                           <div className="mb-2">
                             <strong>Component Stack:</strong>
                             <pre className="mt-1 whitespace-pre-wrap break-all text-[10px] max-h-40 overflow-auto">
@@ -382,7 +393,7 @@ export class ConsoleErrorBoundary extends Component<Props, State> {
                 </div>
               </div>
 
-              {process.env.NODE_ENV === 'development' && (
+              {import.meta.env.MODE === 'development' && (
                 <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <p className="text-sm text-yellow-800">
                     <strong>Development Mode:</strong> Check browser console for detailed error information
@@ -410,7 +421,7 @@ export function withErrorBoundary<P extends object>(
     </ConsoleErrorBoundary>
   );
 
-  WrappedComponent.displayName = `withErrorBoundary(${Component.displayName || Component.name})`;
+  WrappedComponent.displayName = `withErrorBoundary(${Component.displayName ?? Component.name})`;
 
   return WrappedComponent;
 }

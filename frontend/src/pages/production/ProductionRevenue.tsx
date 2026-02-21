@@ -35,7 +35,7 @@ function ChartSkeleton() {
       </CardHeader>
       <CardContent>
         <div className="h-64 flex items-end justify-between gap-4">
-          {[...Array(6)].map((_, i) => (
+          {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="flex-1 flex flex-col items-center">
               <Skeleton className="h-3 w-8 mb-2" />
               <Skeleton className="w-full rounded-t" style={{ height: `${40 + Math.random() * 120}px` }} />
@@ -60,7 +60,7 @@ function TransactionsSkeleton() {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {[...Array(5)].map((_, i) => (
+          {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="flex items-center justify-between py-3 border-b">
               <Skeleton className="h-4 w-32" />
               <Skeleton className="h-4 w-16" />
@@ -111,7 +111,7 @@ export default function ProductionRevenue() {
   });
 
   useEffect(() => {
-    fetchRevenueData();
+    void fetchRevenueData();
   }, [timeRange]);
 
   const fetchRevenueData = async () => {
@@ -200,7 +200,7 @@ export default function ProductionRevenue() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={fetchRevenueData}
+                onClick={() => { void fetchRevenueData(); }}
                 className="flex items-center gap-2"
               >
                 <RefreshCw className="w-4 h-4" />

@@ -1,11 +1,10 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import { UserPlus, Mail, Lock, User, Briefcase, AlertCircle, CheckCircle } from 'lucide-react';
 
 
 export default function Register() {
-  const navigate = useNavigate();
   const { register, loading, error } = useBetterAuthStore();
   const [registrationComplete, setRegistrationComplete] = useState(false);
   const [formData, setFormData] = useState({
@@ -26,20 +25,20 @@ export default function Register() {
     }
 
     try {
-      const result = await register({
+      await register({
         email: formData.email,
         username: formData.username,
         password: formData.password,
         userType: formData.userType,
         companyName: formData.companyName,
       });
-      
+
       // Store email for verification resend if needed
       localStorage.setItem('pendingVerificationEmail', formData.email);
-      
+
       // Show verification message instead of redirecting
       setRegistrationComplete(true);
-    } catch (error) {
+    } catch (_error) {
       // Error is handled in the store
     }
   };
@@ -97,7 +96,7 @@ export default function Register() {
               </div>
             </div>
           ) : (
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-6" onSubmit={(e) => { void handleSubmit(e); }}>
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center">
                 <AlertCircle className="h-5 w-5 mr-2" />

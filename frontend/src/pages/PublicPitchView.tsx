@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Eye, Heart, Share2, Tag, Film, Clock, Calendar, User, Shield, Lock, DollarSign, Briefcase, LogIn, Building2, Wallet } from 'lucide-react';
+import { ArrowLeft, Eye, Heart, Share2, Tag, Film, Calendar, User, Shield, Lock, DollarSign, Briefcase, LogIn, Building2, Wallet } from 'lucide-react';
 import { pitchAPI } from '../lib/api';
 import type { Pitch } from '../lib/api';
 import { useBetterAuthStore } from '../store/betterAuthStore';
-import { ndaAPI } from '../lib/apiServices';
 import { ndaService } from '../services/nda.service';
 import NDAWizard from '../components/NDAWizard';
 import FormatDisplay from '../components/FormatDisplay';
@@ -26,25 +25,25 @@ export default function PublicPitchView() {
 
   useEffect(() => {
     if (id) {
-      fetchPitch(parseInt(id));
+      void fetchPitch(parseInt(id));
     }
   }, [id]);
 
   // Separate effect for checking NDA status with business rules
   useEffect(() => {
     if (id && pitch && isAuthenticated && user) {
-      checkOwnershipAndNDAStatus(parseInt(id));
+      void checkOwnershipAndNDAStatus(parseInt(id));
     }
   }, [id, pitch, isAuthenticated, user]);
 
   const fetchPitch = async (pitchId: number) => {
     try {
-      const pitchData = await pitchAPI.getPublicById(pitchId);
-      
+      const pitchData = await pitchAPI.getPublicById(pitchId) as Pitch & { hasSignedNDA?: boolean } | null;
+
       // The API now returns the pitch data directly
-      if (pitchData && pitchData.id) {
+      if (pitchData?.id) {
         setPitch(pitchData);
-        setHasSignedNDA(pitchData.hasSignedNDA || false);
+        setHasSignedNDA(pitchData.hasSignedNDA ?? false);
       } else {
         setError('Pitch not found');
       }
@@ -57,24 +56,25 @@ export default function PublicPitchView() {
   };
 
   // Business rule validation for NDA access
-  const validateNDAAccess = (pitch: Pitch, user: any): { canRequest: boolean; reason?: string } => {
+  const validateNDAAccess = (pitch: Pitch, currentUser: { id: string | number; userType?: string }): { canRequest: boolean; reason?: string } => {
     // Rule 1: Users cannot request NDAs for their own pitches
-    if ((pitch as any).creatorId === user.id || pitch.creator?.id === user.id) {
+    const pitchWithCreatorId = pitch as Pitch & { creatorId?: string | number };
+    if (pitchWithCreatorId.creatorId === currentUser.id || pitch.creator?.id === currentUser.id) {
       return { canRequest: false, reason: 'Cannot request NDA for your own pitch' };
     }
 
     // Rule 2: Only investors and production companies can request NDAs
-    if (user.userType === 'creator') {
+    if (currentUser.userType === 'creator') {
       return { canRequest: false, reason: 'Creators cannot request NDA access to other pitches' };
     }
 
     // Rule 3: User must be authenticated
-    if (!user || !user.id) {
+    if (!currentUser.id) {
       return { canRequest: false, reason: 'Must be authenticated to request NDA access' };
     }
 
     // Rule 4: User type must be investor or production
-    if (!['investor', 'production'].includes(user.userType)) {
+    if (!['investor', 'production'].includes(currentUser.userType ?? '')) {
       return { canRequest: false, reason: 'Only investors and production companies can request NDA access' };
     }
 
@@ -88,8 +88,9 @@ export default function PublicPitchView() {
     
     try {
       // Check if user owns this pitch
+      const pitchWithCreatorId = pitch as Pitch & { creatorId?: string | number };
       const userOwnsThisPitch = pitch && user &&
-        ((pitch as any).creatorId === user.id || pitch.creator?.id === user.id);
+        (pitchWithCreatorId.creatorId === user.id || pitch.creator?.id === user.id);
       
       setIsOwner(!!userOwnsThisPitch);
 
@@ -137,7 +138,8 @@ export default function PublicPitchView() {
     if (response.hasNDA && response.nda) {
       setNdaRequestStatus(response.nda.status as 'none' | 'pending' | 'approved' | 'rejected');
       // Check if NDA grants access (approved or signed status)
-      if (response.nda.status === 'approved' || response.nda.status === 'signed' || (response.nda as any).accessGranted) {
+      const ndaWithAccess = response.nda as typeof response.nda & { accessGranted?: boolean };
+      if (response.nda.status === 'approved' || response.nda.status === 'signed' || ndaWithAccess.accessGranted === true) {
         setHasSignedNDA(true);
         setCanRequestNDA(false); // Can't request if already have NDA
       }
@@ -151,22 +153,6 @@ export default function PublicPitchView() {
     // Refresh the NDA status from the server
     if (pitch) {
       await checkNDAStatus(pitch.id);
-    }
-  };
-
-  const handleNDARequest = async (pitchId: number, requestData: any) => {
-    try {
-      const response = await ndaAPI.requestNDA(pitchId, requestData);
-      if (response && response.success) {
-        // You might want to show a success message to the user
-        return { success: true };
-      } else {
-        console.error('Failed to submit NDA request:', response?.error);
-        return { success: false, error: response?.error || 'Failed to submit request' };
-      }
-    } catch (error) {
-      console.error('Error submitting NDA request:', error);
-      return { success: false, error: 'Network error occurred' };
     }
   };
 
@@ -184,7 +170,7 @@ export default function PublicPitchView() {
         <div className="text-center">
           <p className="text-gray-600 mb-4">{error || 'Pitch not found'}</p>
           <button
-            onClick={() => navigate('/marketplace')}
+            onClick={() => { void navigate('/marketplace'); }}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
           >
             Back to Marketplace
@@ -194,8 +180,9 @@ export default function PublicPitchView() {
     );
   }
 
-  const isProduction = (pitch.creator as any)?.type === 'production';
-  const isInvestor = (pitch.creator as any)?.type === 'investor';
+  const creatorWithType = pitch.creator as (typeof pitch.creator & { type?: string }) | undefined;
+  const isProduction = creatorWithType?.type === 'production';
+  const isInvestor = creatorWithType?.type === 'investor';
   const creatorHidden = pitch.creator?.name === 'Hidden (NDA Required)';
 
   return (
@@ -206,7 +193,7 @@ export default function PublicPitchView() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             {/* Back Navigation */}
             <button
-              onClick={() => navigate('/marketplace')}
+              onClick={() => { void navigate('/marketplace'); }}
               className="flex items-center gap-2 text-gray-600 hover:text-purple-600 transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -249,9 +236,9 @@ export default function PublicPitchView() {
                     onClick={() => {
                       const userType = user?.userType || localStorage.getItem('userType');
                       if (userType) {
-                        navigate(`/${userType}/dashboard`);
+                        void navigate(`/${userType}/dashboard`);
                       } else {
-                        navigate('/portals');
+                        void navigate('/portals');
                       }
                     }}
                     className="px-4 py-2 text-sm text-purple-600 hover:text-purple-700 font-medium bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
@@ -262,7 +249,7 @@ export default function PublicPitchView() {
                   {/* Sign Out */}
                   <button
                     onClick={() => {
-                      logout();
+                      void logout();
                       localStorage.removeItem('userType');
                       window.location.href = '/portals';
                     }}
@@ -273,7 +260,7 @@ export default function PublicPitchView() {
                 </>
               ) : (
                 <button
-                  onClick={() => navigate('/portals')}
+                  onClick={() => { void navigate('/portals'); }}
                   className="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 font-medium shadow-sm transition-colors"
                 >
                   <LogIn className="w-4 h-4" />
@@ -286,11 +273,11 @@ export default function PublicPitchView() {
       </header>
 
       {/* Hero Image */}
-      {(pitch.titleImage || (pitch as any).title_image) && (
+      {pitch.titleImage && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
           <div className="relative aspect-[21/9] overflow-hidden rounded-xl bg-gray-100">
             <img
-              src={pitch.titleImage || (pitch as any).title_image}
+              src={pitch.titleImage}
               alt={pitch.title}
               className="w-full h-full object-cover"
             />
@@ -371,16 +358,19 @@ export default function PublicPitchView() {
                     <div>
                       <h4 className="font-medium text-gray-900 mb-1">Budget</h4>
                       <p className="text-gray-700">{pitch.budget}</p>
-                      {pitch.budgetBreakdown && (
-                        <div className="mt-2 p-3 bg-gray-50 rounded-lg">
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div>Development: ${pitch.budgetBreakdown.development?.toLocaleString()}</div>
-                            <div>Production: ${pitch.budgetBreakdown.production?.toLocaleString()}</div>
-                            <div>Post-Production: ${pitch.budgetBreakdown.postProduction?.toLocaleString()}</div>
-                            <div>Marketing: ${pitch.budgetBreakdown.marketing?.toLocaleString()}</div>
+                      {pitch.budgetBreakdown != null ? (() => {
+                        const bd = pitch.budgetBreakdown as { development?: number; production?: number; postProduction?: number; marketing?: number };
+                        return (
+                          <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div>Development: ${bd.development?.toLocaleString()}</div>
+                              <div>Production: ${bd.production?.toLocaleString()}</div>
+                              <div>Post-Production: ${bd.postProduction?.toLocaleString()}</div>
+                              <div>Marketing: ${bd.marketing?.toLocaleString()}</div>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })() : null}
                     </div>
                   )}
                   {pitch.targetAudience && (
@@ -484,7 +474,7 @@ export default function PublicPitchView() {
                             <button 
                               onClick={() => {
                                 if (id && pitch) {
-                                  checkOwnershipAndNDAStatus(parseInt(id));
+                                  void checkOwnershipAndNDAStatus(parseInt(id));
                                 }
                               }}
                               className="mt-2 text-xs text-red-600 underline hover:text-red-800"
@@ -603,7 +593,7 @@ export default function PublicPitchView() {
                           </div>
                         ) : (
                           <button
-                            onClick={() => navigate('/portals')}
+                            onClick={() => { void navigate('/portals'); }}
                             className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
                           >
                             <LogIn className="w-5 h-5" />
@@ -801,7 +791,7 @@ export default function PublicPitchView() {
                 
                 {!isAuthenticated && (
                   <button
-                    onClick={() => navigate('/portals')}
+                    onClick={() => { void navigate('/portals'); }}
                     className="w-full flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
                   >
                     Sign In to Request Access
@@ -813,9 +803,9 @@ export default function PublicPitchView() {
                     onClick={() => {
                       const userType = user?.userType || localStorage.getItem('userType');
                       if (userType) {
-                        navigate(`/${userType}/dashboard`);
+                        void navigate(`/${userType}/dashboard`);
                       } else {
-                        navigate('/portals');
+                        void navigate('/portals');
                       }
                     }}
                     className="w-full flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition"
@@ -823,19 +813,19 @@ export default function PublicPitchView() {
                     Manage This Pitch
                   </button>
                 )}
-                
+
                 {!isOwner && isAuthenticated && user?.userType === 'production' && (
                   <button
-                    onClick={() => navigate('/production/dashboard')}
+                    onClick={() => { void navigate('/production/dashboard'); }}
                     className="w-full flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition"
                   >
                     Go to Dashboard
                   </button>
                 )}
-                
+
                 {!isOwner && isAuthenticated && user?.userType === 'investor' && (
                   <button
-                    onClick={() => navigate('/investor/dashboard')}
+                    onClick={() => { void navigate('/investor/dashboard'); }}
                     className="w-full flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition"
                   >
                     Go to Dashboard
@@ -855,9 +845,11 @@ export default function PublicPitchView() {
           pitchId={pitch.id}
           pitchTitle={pitch.title}
           creatorName={pitch.creator?.username || pitch.creator?.companyName || 'Creator'}
-          onStatusChange={async () => {
-            await handleNDASigned();
-            setShowNDAWizard(false);
+          onStatusChange={() => {
+            void (async () => {
+              await handleNDASigned();
+              setShowNDAWizard(false);
+            })();
           }}
         />
       )}

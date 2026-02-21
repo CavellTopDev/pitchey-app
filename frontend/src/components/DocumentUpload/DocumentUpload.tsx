@@ -1,11 +1,9 @@
 import React, { useState, useRef, useCallback, useMemo } from 'react';
-import { 
-  Upload, 
-  X, 
-  FileText, 
-  File as FileIcon, 
-  Shield, 
-  Video, 
+import {
+  Upload,
+  FileText,
+  File as FileIcon,
+  Shield,
   Image as ImageIcon,
   CheckCircle,
   AlertCircle,
@@ -13,7 +11,6 @@ import {
   Plus,
   Eye,
   Download,
-  Play,
   Pause,
   RotateCcw,
   Trash2,
@@ -128,7 +125,7 @@ export default function DocumentUpload({
   onUploadError
 }: DocumentUploadProps) {
   const [isDragOver, setIsDragOver] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  const [_isUploading, _setIsUploading] = useState(false);
   const [currentViewMode, setCurrentViewMode] = useState<'grid' | 'list'>(viewMode);
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
   const [uploadQueue, setUploadQueue] = useState<string[]>([]);
@@ -167,7 +164,7 @@ export default function DocumentUpload({
   const validateFile = useCallback((file: File): { valid: boolean; error?: string } => {
     // Check file type
     if (!allowedTypes.includes(file.type)) {
-      const fileExt = file.name.split('.').pop()?.toLowerCase();
+      const _fileExt = file.name.split('.').pop()?.toLowerCase();
       const supportedExtensions = Object.keys(FILE_EXTENSIONS).join(', ');
       return {
         valid: false,
@@ -213,7 +210,7 @@ export default function DocumentUpload({
   }, []);
 
   // Process files for upload
-  const processFiles = useCallback(async (files: FileList | File[]) => {
+  const processFiles = useCallback((files: FileList | File[]) => {
     const fileArray = Array.from(files);
     
     // Check total file limit
@@ -267,8 +264,8 @@ export default function DocumentUpload({
   // Handle file selection
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files && files.length > 0) {
-      processFiles(files);
+    if (files !== null && files.length > 0) {
+      void processFiles(files);
     }
     // Reset input value to allow selecting the same file again
     if (fileInputRef.current) {
@@ -299,8 +296,8 @@ export default function DocumentUpload({
     if (disabled || !enableDragDrop) return;
 
     const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      processFiles(files);
+    if (files.length > 0) {
+      void processFiles(files);
     }
   }, [disabled, enableDragDrop, processFiles]);
 
@@ -394,24 +391,25 @@ export default function DocumentUpload({
       success('Upload completed', `${document.title} uploaded successfully.`);
       onUploadComplete?.(document);
       
-    } catch (err: any) {
-      if (err.name === 'AbortError') {
-        updateDocument(document.id, { 
-          uploadStatus: 'idle', 
+    } catch (err: unknown) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      if (e.name === 'AbortError') {
+        updateDocument(document.id, {
+          uploadStatus: 'idle',
           uploadProgress: 0,
           error: 'Upload cancelled'
         });
       } else {
-        const retryCount = (document.retryCount || 0) + 1;
-        updateDocument(document.id, { 
-          uploadStatus: 'error', 
+        const retryCount = (document.retryCount ?? 0) + 1;
+        updateDocument(document.id, {
+          uploadStatus: 'error',
           uploadProgress: 0,
-          error: err.message || 'Upload failed',
+          error: e.message !== '' ? e.message : 'Upload failed',
           retryCount
         });
-        
-        error('Upload failed', err.message || `Failed to upload ${document.title}`);
-        onUploadError?.(document, err.message || 'Upload failed');
+
+        error('Upload failed', e.message !== '' ? e.message : `Failed to upload ${document.title}`);
+        onUploadError?.(document, e.message !== '' ? e.message : 'Upload failed');
       }
       
       abortControllers.current.delete(document.id);
@@ -460,7 +458,7 @@ export default function DocumentUpload({
     );
     selectedDocs.forEach(doc => {
       if (activeUploads.size < maxConcurrentUploads) {
-        uploadDocument(doc);
+        void uploadDocument(doc);
       } else {
         setUploadQueue(prev => [...prev, doc.id]);
       }
@@ -482,17 +480,17 @@ export default function DocumentUpload({
     }
   }, [updateDocument]);
 
-  const resumeUpload = useCallback((documentId: string) => {
+  const _resumeUpload = useCallback((documentId: string) => {
     const document = documents.find(d => d.id === documentId);
-    if (document && document.uploadStatus === 'paused') {
-      uploadDocument(document);
+    if (document !== undefined && document.uploadStatus === 'paused') {
+      void uploadDocument(document);
     }
   }, [documents, uploadDocument]);
 
   const retryUpload = useCallback((documentId: string) => {
     const document = documents.find(d => d.id === documentId);
-    if (document && (document.uploadStatus === 'error' || document.uploadStatus === 'paused')) {
-      uploadDocument(document);
+    if (document !== undefined && (document.uploadStatus === 'error' || document.uploadStatus === 'paused')) {
+      void uploadDocument(document);
     }
   }, [documents, uploadDocument]);
 
@@ -516,9 +514,9 @@ export default function DocumentUpload({
       const nextUploadId = uploadQueue[0];
       const document = documents.find(d => d.id === nextUploadId);
       
-      if (document && document.uploadStatus === 'idle') {
+      if (document !== undefined && document.uploadStatus === 'idle') {
         setUploadQueue(prev => prev.slice(1));
-        uploadDocument(document);
+        void uploadDocument(document);
       }
     }
   }, [uploadQueue, activeUploads.size, maxConcurrentUploads, documents, uploadDocument, enableConcurrentUploads]);
@@ -675,7 +673,7 @@ export default function DocumentUpload({
               }
             </p>
             <div className="text-xs text-gray-500 space-y-1">
-              <p>Supported: {Object.entries(FILE_EXTENSIONS).map(([ext, type]) => ext.toUpperCase()).join(', ')}</p>
+              <p>Supported: {Object.entries(FILE_EXTENSIONS).map(([ext, _type]) => ext.toUpperCase()).join(', ')}</p>
               <p>Max file size: {maxFileSize}MB • Max files: {maxFiles}</p>
               <p>Current: {documents.length}/{maxFiles} files</p>
               {enableConcurrentUploads && (
@@ -741,16 +739,16 @@ export default function DocumentUpload({
                       .forEach((doc, index) => {
                         if (enableConcurrentUploads) {
                           if (activeUploads.size + index < maxConcurrentUploads) {
-                            uploadDocument(doc);
+                            void uploadDocument(doc);
                           } else {
                             setUploadQueue(prev => [...prev, doc.id]);
                           }
                         } else {
-                          uploadDocument(doc);
+                          void uploadDocument(doc);
                         }
                       });
                   }}
-                  disabled={isUploading && !enableConcurrentUploads}
+                  disabled={_isUploading && !enableConcurrentUploads}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
                   <Upload className="w-4 h-4" />
@@ -968,7 +966,7 @@ export default function DocumentUpload({
                       {document.uploadStatus === 'idle' && (
                         <button
                           type="button"
-                          onClick={() => uploadDocument(document)}
+                          onClick={() => { void uploadDocument(document); }}
                           className="p-2 text-gray-500 hover:text-blue-600 transition-colors rounded"
                           title="Upload document"
                         >

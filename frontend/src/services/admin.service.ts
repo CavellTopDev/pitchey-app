@@ -1,15 +1,13 @@
-import type { ApiResponse } from '../types/api';
-
-const isDev = import.meta.env.MODE === 'development';
-const API_BASE_URL = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : '');
+const isDev = String(import.meta.env.MODE ?? '') === 'development';
+const API_BASE_URL = String(import.meta.env.VITE_API_URL ?? '') || (isDev ? 'http://localhost:8001' : '');
 
 // Helper function to handle API responses
 const handleResponse = async <T>(response: Response): Promise<T> => {
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ message: 'Network error' }));
-    throw new Error(errorData.message || `HTTP ${response.status}`);
+    const errorData = await response.json().catch(() => ({ message: 'Network error' })) as { message?: string };
+    throw new Error(errorData.message ?? `HTTP ${response.status}`);
   }
-  return response.json();
+  return response.json() as Promise<T>;
 };
 
 export interface DashboardStats {

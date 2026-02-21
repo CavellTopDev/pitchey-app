@@ -50,7 +50,7 @@ export interface PitchFormData {
 
 // React hook state interface
 export interface ValidationHookState {
-  validationData: any | null; // Using any to avoid circular import issues
+  validationData: unknown | null; // Using unknown to avoid circular import issues
   loading: boolean;
   error: string | null;
 }

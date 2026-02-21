@@ -47,7 +47,7 @@ const getCachedAuthState = () => {
   const cached = sessionCache.get();
   if (cached && cached.user) {
     return {
-      user: cached.user,
+      user: cached.user as User,
       isAuthenticated: true,
       loading: true, // Must validate with backend before trusting cache
       error: null

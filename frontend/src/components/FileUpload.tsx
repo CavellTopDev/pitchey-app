@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import { Upload, X, File, Image, Video, FileText, AlertCircle, CheckCircle } from 'lucide-react';
 import { API_URL } from '../config';
 
@@ -42,7 +42,6 @@ const FileUpload: React.FC<FileUploadProps> = ({
 }) => {
   const [files, setFiles] = useState<FileWithProgress[]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Get accepted file types based on context
@@ -142,7 +141,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
     // Auto-upload valid files
     newFiles.forEach(file => {
       if (file.status === 'pending') {
-        uploadFile(file);
+        void uploadFile(file);
       }
     });
   };
@@ -159,7 +158,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
     formData.append('file', file);
     formData.append('context', context);
     formData.append('requireNDA', requireNDA.toString());
-    if (pitchId) {
+    if (pitchId !== undefined) {
       formData.append('pitchId', pitchId.toString());
     }
 
@@ -179,8 +178,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
       xhr.upload.addEventListener('progress', (e) => {
         if (e.lengthComputable) {
           const progress = Math.round((e.loaded / e.total) * 100);
-          setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
-          setFiles(prev => prev.map(f => 
+          setFiles(prev => prev.map(f =>
             f === file ? { ...f, progress } : f
           ));
         }
@@ -189,27 +187,28 @@ const FileUpload: React.FC<FileUploadProps> = ({
       // Handle completion
       xhr.addEventListener('load', () => {
         if (xhr.status === 200) {
-          const response = JSON.parse(xhr.responseText);
-          if (response.success) {
-            setFiles(prev => prev.map(f => 
-              f === file ? { 
-                ...f, 
-                status: 'completed' as const, 
+          const response = JSON.parse(xhr.responseText) as { success?: boolean; data?: UploadedFile; error?: { message?: string } };
+          if (response.success === true) {
+            const uploadedData = response.data;
+            setFiles(prev => prev.map(f =>
+              f === file ? {
+                ...f,
+                status: 'completed' as const,
                 progress: 100,
-                result: response.data 
+                result: uploadedData
               } : f
             ));
 
             // Notify parent component
-            if (onFilesUploaded) {
+            if (onFilesUploaded !== undefined && uploadedData !== undefined) {
               const uploadedFiles = files
                 .filter(f => f.status === 'completed' && f.result)
                 .map(f => f.result!);
-              uploadedFiles.push(response.data);
+              uploadedFiles.push(uploadedData);
               onFilesUploaded(uploadedFiles);
             }
           } else {
-            throw new Error(response.error?.message || 'Upload failed');
+            throw new Error(response.error?.message ?? 'Upload failed');
           }
         } else {
           throw new Error('Upload failed');
@@ -229,7 +228,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
       // Send request
       xhr.open('POST', `${API_URL}${endpoint}`);
-      if (token) {
+      if (token !== null) {
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       }
       xhr.send(formData);
@@ -268,8 +267,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
           context: context 
         },
         onProgress: (progress) => {
-          setUploadProgress(prev => ({ ...prev, [file.name]: progress.percentage }));
-          setFiles(prev => prev.map(f => 
+          setFiles(prev => prev.map(f =>
             f === file ? { ...f, progress: progress.percentage } : f
           ));
         }
@@ -292,7 +290,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
       ));
 
       // Notify parent component
-      if (onFilesUploaded) {
+      if (onFilesUploaded !== undefined) {
         const uploadedFiles = files
           .filter(f => f.status === 'completed' && f.result)
           .map(f => f.result!);
@@ -320,11 +318,11 @@ const FileUpload: React.FC<FileUploadProps> = ({
   };
 
   // Multipart upload for large files (legacy fallback)
-  const uploadMultipart = async (file: FileWithProgress) => {
+  const _uploadMultipart = async (file: FileWithProgress) => {
     try {
       const token = localStorage.getItem('authToken');
       const chunkSize = 10 * 1024 * 1024; // 10MB chunks
-      
+
       // Initialize multipart upload
       const initResponse = await fetch(`${API_URL}/api/upload/multipart/init`, {
         method: 'POST',
@@ -341,11 +339,13 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
       if (!initResponse.ok) throw new Error('Failed to initialize upload');
 
-      const { data: { uploadId, key } } = await initResponse.json();
-      
+      const initData = await initResponse.json() as { data?: { uploadId?: string; key?: string } };
+      const uploadId = initData.data?.uploadId;
+      const key = initData.data?.key;
+
       // Upload chunks
       const chunks = Math.ceil(file.size / chunkSize);
-      const parts: any[] = [];
+      const parts: { partNumber: number; etag: string }[] = [];
 
       for (let i = 0; i < chunks; i++) {
         const start = i * chunkSize;
@@ -357,7 +357,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
           {
             method: 'PUT',
             headers: {
-              'Authorization': `Bearer ${token}`
+              'Authorization': `Bearer ${token ?? ''}`
             },
             body: chunk
           }
@@ -365,12 +365,14 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
         if (!partResponse.ok) throw new Error(`Failed to upload part ${i + 1}`);
 
-        const { data: part } = await partResponse.json();
-        parts.push(part);
+        const partData = await partResponse.json() as { data?: { partNumber: number; etag: string } };
+        if (partData.data) {
+          parts.push(partData.data);
+        }
 
         // Update progress
         const progress = Math.round(((i + 1) / chunks) * 100);
-        setFiles(prev => prev.map(f => 
+        setFiles(prev => prev.map(f =>
           f === file ? { ...f, progress } : f
         ));
       }
@@ -387,19 +389,20 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
       if (!completeResponse.ok) throw new Error('Failed to complete upload');
 
-      const { data: result } = await completeResponse.json();
+      const completeData = await completeResponse.json() as { data?: UploadedFile };
+      const result = completeData.data;
 
-      setFiles(prev => prev.map(f => 
-        f === file ? { 
-          ...f, 
-          status: 'completed' as const, 
+      setFiles(prev => prev.map(f =>
+        f === file ? {
+          ...f,
+          status: 'completed' as const,
           progress: 100,
-          result 
+          result
         } : f
       ));
 
       // Notify parent
-      if (onFilesUploaded) {
+      if (onFilesUploaded !== undefined && result !== undefined) {
         const uploadedFiles = files
           .filter(f => f.status === 'completed' && f.result)
           .map(f => f.result!);

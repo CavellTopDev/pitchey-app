@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Menu, X, LogOut, Plus, Eye, Coins, CreditCard,
-  Users, Home, Film, Search, Bell, Shield, BarChart3,
-  Settings, UserCircle, ChevronDown
+  Users, Home, Film, Search, Shield, BarChart3,
+  Settings, ChevronDown
 } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
 import { NDANotificationBadge } from './NDANotifications';
@@ -16,12 +16,27 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+interface DashboardUser {
+  username?: string;
+  email?: string;
+  name?: string;
+}
+
+interface DashboardCredits {
+  balance?: { credits?: number };
+}
+
+interface DashboardSubscription {
+  tier?: string;
+  status?: string;
+}
+
 interface DashboardHeaderProps {
-  user: any;
+  user: DashboardUser | null;
   userType: 'creator' | 'investor' | 'production';
   title: string;
-  credits?: any;
-  subscription?: any;
+  credits?: DashboardCredits;
+  subscription?: DashboardSubscription;
   onLogout: () => void;
   children?: React.ReactNode;
   useEnhancedNav?: boolean;
@@ -45,7 +60,7 @@ export default function DashboardHeader({
 
   // Use enhanced navigation for better dropdown experience
   // FORCE enhanced navigation to always render for testing
-  if (true || useEnhancedNav) {
+  if (useEnhancedNav) {
     return (
       <>
         <EnhancedNavigationShadcn
@@ -112,7 +127,7 @@ export default function DashboardHeader({
       case 'creator':
         return (
           <button
-            onClick={() => navigate('/creator/pitch/new')}
+            onClick={() => { void navigate('/creator/pitch/new'); }}
             className="hidden sm:flex items-center gap-2 px-3 lg:px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:shadow-lg hover:scale-105 transition-all text-sm font-medium"
           >
             <Plus className="w-4 h-4" />
@@ -122,7 +137,7 @@ export default function DashboardHeader({
       case 'investor':
         return (
           <button
-            onClick={() => navigate('/marketplace')}
+            onClick={() => { void navigate('/marketplace'); }}
             className="hidden sm:flex items-center gap-2 px-3 lg:px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:shadow-lg hover:scale-105 transition-all text-sm font-medium"
           >
             <Eye className="w-4 h-4" />
@@ -132,7 +147,7 @@ export default function DashboardHeader({
       case 'production':
         return (
           <button
-            onClick={() => navigate('/marketplace')}
+            onClick={() => { void navigate('/marketplace'); }}
             className="hidden sm:flex items-center gap-2 px-3 lg:px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg hover:shadow-lg hover:scale-105 transition-all text-sm font-medium"
           >
             <Search className="w-4 h-4" />
@@ -235,7 +250,7 @@ export default function DashboardHeader({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
-                      onClick={() => navigate('/creator/billing?tab=credits')}
+                      onClick={() => { void navigate('/creator/billing?tab=credits'); }}
                       className="hidden sm:flex items-center gap-2 px-2 lg:px-3 py-1.5 lg:py-2 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors group"
                     >
                       <Coins className="w-4 h-4 text-purple-600" />
@@ -269,7 +284,7 @@ export default function DashboardHeader({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
-                      onClick={() => navigate('/creator/billing?tab=subscription')}
+                      onClick={() => { void navigate('/creator/billing?tab=subscription'); }}
                       className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm"
                     >
                       <span className="font-medium text-gray-700 truncate max-w-[100px]">
@@ -343,7 +358,7 @@ export default function DashboardHeader({
               {userType === 'creator' && (
                 <button
                   onClick={() => {
-                    navigate('/creator/pitch/new');
+                    void navigate('/creator/pitch/new');
                     setMobileMenuOpen(false);
                   }}
                   className="flex items-center gap-3 w-full px-3 py-2.5 text-base text-purple-600 hover:bg-purple-50 rounded-lg transition-colors font-medium"
@@ -356,7 +371,7 @@ export default function DashboardHeader({
               {userType === 'investor' && (
                 <button
                   onClick={() => {
-                    navigate('/marketplace');
+                    void navigate('/marketplace');
                     setMobileMenuOpen(false);
                   }}
                   className="flex items-center gap-3 w-full px-3 py-2.5 text-base text-green-600 hover:bg-green-50 rounded-lg transition-colors font-medium"
@@ -369,7 +384,7 @@ export default function DashboardHeader({
               {userType === 'production' && (
                 <button
                   onClick={() => {
-                    navigate('/marketplace');
+                    void navigate('/marketplace');
                     setMobileMenuOpen(false);
                   }}
                   className="flex items-center gap-3 w-full px-3 py-2.5 text-base text-orange-600 hover:bg-orange-50 rounded-lg transition-colors font-medium"

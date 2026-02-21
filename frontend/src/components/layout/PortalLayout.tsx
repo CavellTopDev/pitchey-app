@@ -12,7 +12,7 @@ interface PortalLayoutProps {
 
 export function PortalLayout({ userType }: PortalLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Closed by default on mobile
-  const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false);
+  const [isDesktopSidebarCollapsed, _setIsDesktopSidebarCollapsed] = useState(false);
   const location = useLocation();
 
   const toggleSidebar = () => {

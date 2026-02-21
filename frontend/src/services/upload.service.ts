@@ -203,7 +203,7 @@ class UploadService {
   private getStoredUploadStates(): Record<string, ChunkedUploadState> {
     try {
       const stored = localStorage.getItem(this.CHUNKED_UPLOAD_STORAGE_KEY);
-      return stored ? JSON.parse(stored) : {};
+      return stored ? (JSON.parse(stored) as Record<string, ChunkedUploadState>) : {};
     } catch {
       return {};
     }

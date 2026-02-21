@@ -64,7 +64,7 @@ export const formatRelativeTime = (value: unknown, fallback = 'Unknown'): string
 /**
  * Format duration safely
  */
-export const formatDuration = (minutes: unknown, fallback = '0 min'): string => {
+export const formatDuration = (minutes: unknown, _fallback = '0 min'): string => {
   const safeMinutes = safeNumber(minutes, 0);
   
   if (safeMinutes < 60) {

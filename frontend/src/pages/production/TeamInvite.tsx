@@ -44,7 +44,7 @@ const permissions = [
 export default function TeamInvite() {
   const navigate = useNavigate();
   const { user, logout } = useBetterAuthStore();
-  const userType = user?.userType || 'production';
+  const userType = user?.userType ?? 'production';
   const { teamId } = useCurrentTeam();
 
   const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
@@ -63,7 +63,7 @@ export default function TeamInvite() {
   const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
-    fetchPendingInvitations();
+    void fetchPendingInvitations();
   }, []);
 
   const fetchPendingInvitations = async () => {
@@ -73,22 +73,28 @@ export default function TeamInvite() {
 
       const invites = await TeamService.getInvitations();
 
-      const mapped: PendingInvitation[] = invites.map(inv => ({
-        id: String(inv.id),
-        email: inv.email || (inv as any).invitedEmail || '',
-        name: (inv as any).invitedByName || ((inv.email || (inv as any).invitedEmail || '').split('@')[0]),
-        role: inv.role || 'viewer',
-        department: 'Not specified',
-        invitedBy: (inv as any).invitedByName || 'Team member',
-        sentAt: inv.createdAt,
-        expiresAt: inv.expiresAt,
-        status: inv.status as PendingInvitation['status'],
-        inviteLink: (inv as any).token ? `${window.location.origin}/invite/${(inv as any).token}` : undefined,
-        message: inv.message,
-      }));
+      type InviteRaw = Record<string, unknown>;
+      const mapped: PendingInvitation[] = invites.map(inv => {
+        const invRaw = inv as unknown as InviteRaw;
+        const email = (inv.email as string | undefined) ?? (invRaw.invitedEmail as string | undefined) ?? '';
+        const invitedByName = (invRaw.invitedByName as string | undefined) ?? 'Team member';
+        return {
+          id: String(inv.id),
+          email,
+          name: invitedByName !== 'Team member' ? invitedByName : (email.split('@')[0] ?? 'Unknown'),
+          role: (inv.role as string | undefined) ?? 'viewer',
+          department: 'Not specified',
+          invitedBy: invitedByName,
+          sentAt: inv.createdAt as string,
+          expiresAt: inv.expiresAt as string,
+          status: inv.status as PendingInvitation['status'],
+          inviteLink: invRaw.token != null ? `${window.location.origin}/invite/${invRaw.token as string}` : undefined,
+          message: inv.message as string | undefined,
+        };
+      });
 
       setPendingInvitations(mapped);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to fetch invitations:', err);
       setError('Failed to load pending invitations');
     } finally {
@@ -98,7 +104,7 @@ export default function TeamInvite() {
 
   const handleInputChange = (field: keyof InviteFormData, value: string | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    if (error) setError('');
+    if (error !== '') setError('');
   };
 
   const handlePermissionToggle = (permission: string) => {
@@ -139,8 +145,8 @@ export default function TeamInvite() {
 
       await TeamService.inviteToTeam(teamId, {
         email: formData.email,
-        role: roleMap[formData.role] || 'viewer',
-        message: formData.message || undefined,
+        role: roleMap[formData.role] ?? 'viewer',
+        message: formData.message !== '' ? formData.message : undefined,
       });
 
       setSuccessMessage('Invitation sent successfully!');
@@ -155,9 +161,10 @@ export default function TeamInvite() {
       setShowInviteForm(false);
 
       await fetchPendingInvitations();
-    } catch (err: any) {
-      console.error('Failed to send invitation:', err);
-      setError(err.message || 'Failed to send invitation. Please try again.');
+    } catch (err: unknown) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to send invitation:', e);
+      setError(e.message !== '' ? e.message : 'Failed to send invitation. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -169,9 +176,10 @@ export default function TeamInvite() {
       await TeamService.resendInvitation(inviteId);
       setSuccessMessage('Invitation resent successfully!');
       await fetchPendingInvitations();
-    } catch (err: any) {
-      console.error('Failed to resend invitation:', err);
-      setError(err.message || 'Failed to resend invitation');
+    } catch (err: unknown) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to resend invitation:', e);
+      setError(e.message !== '' ? e.message : 'Failed to resend invitation');
     }
   };
 
@@ -181,14 +189,15 @@ export default function TeamInvite() {
       await TeamService.cancelInvitation(inviteId);
       setPendingInvitations(prev => prev.filter(inv => inv.id !== inviteId));
       setSuccessMessage('Invitation cancelled successfully');
-    } catch (err: any) {
-      console.error('Failed to cancel invitation:', err);
-      setError(err.message || 'Failed to cancel invitation');
+    } catch (err: unknown) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to cancel invitation:', e);
+      setError(e.message !== '' ? e.message : 'Failed to cancel invitation');
     }
   };
 
   const copyInviteLink = (link: string) => {
-    navigator.clipboard.writeText(link);
+    void navigator.clipboard.writeText(link);
     setSuccessMessage('Invite link copied to clipboard!');
   };
 
@@ -322,7 +331,7 @@ export default function TeamInvite() {
         />
       </div>
 
-      {error && (
+      {error !== '' && (
         <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-lg">
           <p className="text-red-700 text-sm">{error}</p>
         </div>
@@ -337,7 +346,7 @@ export default function TeamInvite() {
           Cancel
         </button>
         <button
-          onClick={handleSubmitInvitation}
+          onClick={() => { void handleSubmitInvitation(); }}
           disabled={submitting}
           className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:bg-purple-400 flex items-center justify-center gap-2"
         >
@@ -361,16 +370,16 @@ export default function TeamInvite() {
     <div className="min-h-screen bg-gray-50">
       <DashboardHeader
         user={user}
-        userType={userType as any}
+        userType={userType as 'creator' | 'investor' | 'production'}
         title="Team Invitations"
-        onLogout={logout}
+        onLogout={() => { void logout(); }}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Navigation */}
         <div className="flex items-center gap-4 mb-6">
           <button
-            onClick={() => navigate('/production/team')}
+            onClick={() => { void navigate('/production/team'); }}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -460,7 +469,7 @@ export default function TeamInvite() {
                           </div>
                         </div>
 
-                        {invitation.message && (
+                        {invitation.message != null && (
                           <div className="mt-3 p-3 bg-gray-100 rounded-lg">
                             <p className="text-sm text-gray-700">"{invitation.message}"</p>
                           </div>
@@ -478,7 +487,7 @@ export default function TeamInvite() {
                               <Copy className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => handleResendInvitation(invitation.id)}
+                              onClick={() => { void handleResendInvitation(invitation.id); }}
                               className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition"
                               title="Resend invitation"
                             >
@@ -497,7 +506,7 @@ export default function TeamInvite() {
                         )}
                         {(invitation.status === 'pending' || invitation.status === 'expired') && (
                           <button
-                            onClick={() => handleCancelInvitation(invitation.id)}
+                            onClick={() => { void handleCancelInvitation(invitation.id); }}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
                             title="Cancel invitation"
                           >

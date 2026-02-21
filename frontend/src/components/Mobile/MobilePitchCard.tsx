@@ -60,7 +60,7 @@ export default function MobilePitchCard({
   );
 
   // Handle long press for context menu
-  const { bindLongPress } = useLongPress((position) => {
+  const { bindLongPress } = useLongPress((_position) => {
     setShowActions(true);
     // Add haptic feedback if available
     if ('vibrate' in navigator) {

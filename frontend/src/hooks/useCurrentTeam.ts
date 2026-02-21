@@ -27,9 +27,10 @@ export function useCurrentTeam() {
 
       localStorage.setItem(TEAM_ID_KEY, String(selected.id));
       setTeam(selected);
-    } catch (err: any) {
-      console.error('Failed to fetch teams:', err);
-      setError(err.message || 'Failed to load team');
+    } catch (err: unknown) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to fetch teams:', e);
+      setError(e.message || 'Failed to load team');
     } finally {
       setLoading(false);
     }
@@ -46,9 +47,10 @@ export function useCurrentTeam() {
       localStorage.setItem(TEAM_ID_KEY, String(newTeam.id));
       setTeam(newTeam);
       return newTeam;
-    } catch (err: any) {
-      setError(err.message || 'Failed to create team');
-      throw err;
+    } catch (err: unknown) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      setError(e.message || 'Failed to create team');
+      throw e;
     } finally {
       setLoading(false);
     }

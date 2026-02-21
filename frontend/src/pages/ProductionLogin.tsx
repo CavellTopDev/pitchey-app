@@ -16,7 +16,7 @@ export default function ProductionLogin() {
     e.preventDefault();
     try {
       await loginProduction(formData.email, formData.password);
-      navigate('/production/dashboard');
+      void navigate('/production/dashboard');
     } catch (error) {
       console.error('Production login failed:', error);
     }
@@ -32,7 +32,7 @@ export default function ProductionLogin() {
     // Auto-submit the form with demo credentials
     try {
       await loginProduction(demoData.email, demoData.password);
-      navigate('/production/dashboard');
+      void navigate('/production/dashboard');
     } catch (error) {
       console.error('Demo production login failed:', error);
     }
@@ -67,7 +67,7 @@ export default function ProductionLogin() {
           )}
 
           {/* Login Form */}
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-6" onSubmit={(e) => { void handleSubmit(e); }}>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Email address
@@ -142,7 +142,7 @@ export default function ProductionLogin() {
               <p className="text-orange-700 text-xs text-center mb-3">Try our demo account</p>
               <button
                 type="button"
-                onClick={setDemoCredentials}
+                onClick={() => { void setDemoCredentials(); }}
                 className="w-full py-2 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded-lg text-sm font-medium transition border border-orange-300"
               >
                 Use Demo Production Account

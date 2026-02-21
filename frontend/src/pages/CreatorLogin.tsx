@@ -16,7 +16,7 @@ export default function CreatorLogin() {
     e.preventDefault();
     try {
       await loginCreator(formData.email, formData.password);
-      navigate('/creator/dashboard');
+      void navigate('/creator/dashboard');
     } catch (error) {
       console.error('Creator login failed:', error);
     }
@@ -32,7 +32,7 @@ export default function CreatorLogin() {
     // Auto-submit the form with demo credentials
     try {
       await loginCreator(demoData.email, demoData.password);
-      navigate('/creator/dashboard');
+      void navigate('/creator/dashboard');
     } catch (error) {
       console.error('Demo creator login failed:', error);
     }
@@ -67,7 +67,7 @@ export default function CreatorLogin() {
           )}
 
           {/* Login Form */}
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-6" onSubmit={(e) => { void handleSubmit(e); }}>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Email address
@@ -142,7 +142,7 @@ export default function CreatorLogin() {
               <p className="text-purple-700 text-xs text-center mb-3">Try our demo account</p>
               <button
                 type="button"
-                onClick={setDemoCredentials}
+                onClick={() => { void setDemoCredentials(); }}
                 className="w-full py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg text-sm font-medium transition border border-purple-300"
               >
                 Use Demo Creator Account

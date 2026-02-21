@@ -34,10 +34,6 @@ export interface SocialStats {
 }
 
 // API response types
-interface FollowStatusResponseData {
-  isFollowing: boolean;
-}
-
 interface FollowersResponseData {
   followers: Follow[];
   total: number;
@@ -59,15 +55,6 @@ interface ActivityFeedResponseData {
 
 interface SocialStatsResponseData {
   stats: SocialStats;
-}
-
-interface LikeStatusResponseData {
-  isLiked: boolean;
-}
-
-interface PitchLikesResponseData {
-  users: User[];
-  total: number;
 }
 
 // Helper function to extract error message
@@ -219,14 +206,10 @@ export class SocialService {
 
   // Get mutual followers
   // NOTE: No backend route exists for mutual followers yet. Returns empty gracefully.
-  static async getMutualFollowers(_userId: number): Promise<User[]> {
-    try {
-      // Backend route /api/follows/mutual does not exist yet.
-      // Return empty array until the endpoint is implemented.
-      return [];
-    } catch {
-      return [];
-    }
+  static getMutualFollowers(_userId: number): Promise<User[]> {
+    // Backend route /api/follows/mutual does not exist yet.
+    // Return empty array until the endpoint is implemented.
+    return Promise.resolve([]);
   }
 
   // Get suggested users to follow
@@ -335,13 +318,9 @@ export class SocialService {
   // Get pitch likes
   // NOTE: No dedicated /likes listing endpoint exists on the backend yet.
   // Returns empty gracefully until the endpoint is implemented.
-  static async getPitchLikes(_pitchId: number): Promise<{ users: User[]; total: number }> {
-    try {
-      // Backend does not have a /pitches/:id/likes listing route yet.
-      return { users: [], total: 0 };
-    } catch {
-      return { users: [], total: 0 };
-    }
+  static getPitchLikes(_pitchId: number): Promise<{ users: User[]; total: number }> {
+    // Backend does not have a /pitches/:id/likes listing route yet.
+    return Promise.resolve({ users: [], total: 0 });
   }
 
   // Block user

@@ -32,9 +32,33 @@ export interface ValidationComponentConfig {
   analysisDepth?: 'basic' | 'standard' | 'comprehensive';
 }
 
+interface AnalysisOptions {
+  depth?: string;
+  include_market_data?: boolean;
+  include_comparables?: boolean;
+  include_predictions?: boolean;
+  [key: string]: unknown;
+}
+
+interface RecommendationFilters {
+  category?: string;
+  priority?: string;
+  limit?: number;
+}
+
+interface ComparableFilters {
+  genre?: string;
+  budget_min?: number;
+  budget_max?: number;
+  year_min?: number;
+  year_max?: number;
+  limit?: number;
+  min_similarity?: number;
+}
+
 // Validation service utility functions
 export class ValidationService {
-  static async analyzePlay(pitchData: any, options: any = {}) {
+  static async analyzePlay(pitchData: unknown, options: AnalysisOptions = {}): Promise<unknown> {
     const response = await fetch('/api/validation/analyze', {
       method: 'POST',
       headers: {
@@ -56,66 +80,66 @@ export class ValidationService {
       throw new Error('Validation analysis failed');
     }
 
-    return response.json();
+    return response.json() as Promise<unknown>;
   }
 
-  static async getScore(pitchId: string) {
+  static async getScore(pitchId: string): Promise<unknown> {
     const response = await fetch(`/api/validation/score/${pitchId}`);
-    
+
     if (!response.ok) {
       throw new Error('Failed to get validation score');
     }
 
-    return response.json();
+    return response.json() as Promise<unknown>;
   }
 
-  static async getRecommendations(pitchId: string, filters: any = {}) {
+  static async getRecommendations(pitchId: string, filters: RecommendationFilters = {}): Promise<unknown> {
     const params = new URLSearchParams();
-    
-    if (filters.category) params.set('category', filters.category);
-    if (filters.priority) params.set('priority', filters.priority);
-    if (filters.limit) params.set('limit', filters.limit.toString());
+
+    if (filters.category !== undefined) params.set('category', filters.category);
+    if (filters.priority !== undefined) params.set('priority', filters.priority);
+    if (filters.limit !== undefined) params.set('limit', String(filters.limit));
 
     const response = await fetch(`/api/validation/recommendations/${pitchId}?${params}`);
-    
+
     if (!response.ok) {
       throw new Error('Failed to get recommendations');
     }
 
-    return response.json();
+    return response.json() as Promise<unknown>;
   }
 
-  static async getComparables(pitchId: string, filters: any = {}) {
+  static async getComparables(pitchId: string, filters: ComparableFilters = {}): Promise<unknown> {
     const params = new URLSearchParams();
-    
-    if (filters.genre) params.set('genre', filters.genre);
-    if (filters.budget_min) params.set('budget_min', filters.budget_min.toString());
-    if (filters.budget_max) params.set('budget_max', filters.budget_max.toString());
-    if (filters.year_min) params.set('year_min', filters.year_min.toString());
-    if (filters.year_max) params.set('year_max', filters.year_max.toString());
-    if (filters.limit) params.set('limit', filters.limit.toString());
-    if (filters.min_similarity) params.set('min_similarity', filters.min_similarity.toString());
+
+    if (filters.genre !== undefined) params.set('genre', filters.genre);
+    if (filters.budget_min !== undefined) params.set('budget_min', String(filters.budget_min));
+    if (filters.budget_max !== undefined) params.set('budget_max', String(filters.budget_max));
+    if (filters.year_min !== undefined) params.set('year_min', String(filters.year_min));
+    if (filters.year_max !== undefined) params.set('year_max', String(filters.year_max));
+    if (filters.limit !== undefined) params.set('limit', String(filters.limit));
+    if (filters.min_similarity !== undefined) params.set('min_similarity', String(filters.min_similarity));
 
     const response = await fetch(`/api/validation/comparables/${pitchId}?${params}`);
-    
+
     if (!response.ok) {
       throw new Error('Failed to get comparable projects');
     }
 
-    return response.json();
+    return response.json() as Promise<unknown>;
   }
 
-  static async getDashboard(pitchId: string) {
+  static async getDashboard(pitchId: string): Promise<unknown> {
     const response = await fetch(`/api/validation/dashboard/${pitchId}`);
-    
+
     if (!response.ok) {
       throw new Error('Failed to get validation dashboard');
     }
 
-    return response.json();
+    return response.json() as Promise<unknown>;
   }
 
-  static async realTimeValidate(pitchId: string, field: string, content: string) {
+  static async realTimeValidate(pitchId: string, field: string, content: string): Promise<unknown> {
     const response = await fetch('/api/validation/realtime', {
       method: 'POST',
       headers: {
@@ -132,10 +156,10 @@ export class ValidationService {
       throw new Error('Real-time validation failed');
     }
 
-    return response.json();
+    return response.json() as Promise<unknown>;
   }
 
-  static async benchmark(pitchId: string, categories: string[], comparisonPool: string = 'all') {
+  static async benchmark(pitchId: string, categories: string[], comparisonPool: string = 'all'): Promise<unknown> {
     const response = await fetch('/api/validation/benchmark', {
       method: 'POST',
       headers: {
@@ -152,10 +176,10 @@ export class ValidationService {
       throw new Error('Benchmark analysis failed');
     }
 
-    return response.json();
+    return response.json() as Promise<unknown>;
   }
 
-  static async batchAnalyze(pitches: any[]) {
+  static async batchAnalyze(pitches: unknown[]): Promise<unknown> {
     const response = await fetch('/api/validation/batch-analyze', {
       method: 'POST',
       headers: {
@@ -168,7 +192,7 @@ export class ValidationService {
       throw new Error('Batch analysis failed');
     }
 
-    return response.json();
+    return response.json() as Promise<unknown>;
   }
 }
 
@@ -188,30 +212,33 @@ export const ValidationUtils = {
     return 'Requires Attention';
   },
 
-  getOverallRating: (categories: any): string => {
-    const overallScore = Object.values(categories).reduce((sum: any, cat: any) =>
+  getOverallRating: (categories: Record<string, { score: number; weight: number }>): string => {
+    const overallScore = Object.values(categories).reduce((sum: number, cat) =>
       sum + (cat.score * cat.weight / 100), 0
     );
-    return ValidationUtils.getScoreLabel(overallScore as number);
+    return ValidationUtils.getScoreLabel(overallScore);
   },
 
-  getTopRecommendations: (recommendations: any[], count: number = 3): any[] => {
+  getTopRecommendations: (recommendations: Array<{ priority: string; estimatedImpact: number }>, count: number = 3): Array<{ priority: string; estimatedImpact: number }> => {
     return recommendations
-      .sort((a: any, b: any) => {
-        const priorityOrder: any = { high: 3, medium: 2, low: 1 };
-        if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
-          return priorityOrder[b.priority] - priorityOrder[a.priority];
+      .sort((a, b) => {
+        const priorityOrder: Record<string, number> = { high: 3, medium: 2, low: 1 };
+        const aPriority = priorityOrder[a.priority] ?? 0;
+        const bPriority = priorityOrder[b.priority] ?? 0;
+        if (aPriority !== bPriority) {
+          return bPriority - aPriority;
         }
         return b.estimatedImpact - a.estimatedImpact;
       })
       .slice(0, count);
   },
 
-  calculateCompleteness: (formData: any): number => {
+  calculateCompleteness: (formData: Record<string, unknown>): number => {
     const requiredFields = ['title', 'logline', 'synopsis', 'genre', 'budget'];
-    const completedFields = requiredFields.filter(field => 
-      formData[field] && formData[field].toString().trim().length > 0
-    );
+    const completedFields = requiredFields.filter(field => {
+      const value = formData[field];
+      return value !== undefined && value !== null && String(value).trim().length > 0;
+    });
     return Math.round((completedFields.length / requiredFields.length) * 100);
   },
 
@@ -256,21 +283,23 @@ export const ValidationUtils = {
 import { useState } from 'react';
 
 export const useValidation = (pitchId: string) => {
-  const [validationData, setValidationData] = useState(null);
+  const [validationData, setValidationData] = useState<unknown>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const analyze = async (pitchData: any, options: any = {}) => {
+  const analyze = async (pitchData: unknown, options: AnalysisOptions = {}) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const result = await ValidationService.analyzePlay(pitchData, options);
-      setValidationData(result.data);
+      const resultRecord = result as Record<string, unknown>;
+      setValidationData(resultRecord.data);
       return result;
-    } catch (err: any) {
-      setError(err.message);
-      throw err;
+    } catch (err: unknown) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      setError(e.message);
+      throw e;
     } finally {
       setLoading(false);
     }
@@ -279,14 +308,16 @@ export const useValidation = (pitchId: string) => {
   const refresh = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const result = await ValidationService.getDashboard(pitchId);
-      setValidationData(result.data);
+      const resultRecord = result as Record<string, unknown>;
+      setValidationData(resultRecord.data);
       return result;
-    } catch (err: any) {
-      setError(err.message);
-      throw err;
+    } catch (err: unknown) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      setError(e.message);
+      throw e;
     } finally {
       setLoading(false);
     }
@@ -305,17 +336,17 @@ export const useValidation = (pitchId: string) => {
 export interface ValidationComponentProps {
   pitchId: string;
   config?: Partial<ValidationComponentConfig>;
-  onValidationComplete?: (data: any) => void;
+  onValidationComplete?: (data: unknown) => void;
   onError?: (error: string) => void;
   className?: string;
 }
 
 export interface PitchFormProps {
   pitchId?: string;
-  initialData?: any;
+  initialData?: Record<string, unknown>;
   showValidation?: boolean;
-  onSave?: (data: any) => void;
-  onSubmit?: (data: any) => void;
+  onSave?: (data: Record<string, unknown>) => void;
+  onSubmit?: (data: Record<string, unknown>) => void;
   validationConfig?: ValidationComponentConfig;
 }
 
@@ -324,5 +355,5 @@ export interface DashboardProps {
   showCharts?: boolean;
   showRecommendations?: boolean;
   showComparisons?: boolean;
-  onRecommendationClick?: (recommendation: any) => void;
+  onRecommendationClick?: (recommendation: Record<string, unknown>) => void;
 }

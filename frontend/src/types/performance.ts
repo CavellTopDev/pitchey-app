@@ -1,6 +1,7 @@
 /**
  * TypeScript interfaces for performance monitoring and optimization
  */
+import type React from 'react';
 
 // Performance metrics interfaces
 export interface PerformanceMetrics {
@@ -13,7 +14,7 @@ export interface PerformanceMetrics {
   /** Timestamp when measurement was taken */
   timestamp: number;
   /** Additional metadata */
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface WebVitalsMetrics {
@@ -108,7 +109,7 @@ export interface ErrorInfo {
   /** Error boundary that caught the error */
   errorBoundary?: string;
   /** Additional error metadata */
-  errorMetadata?: Record<string, any>;
+  errorMetadata?: Record<string, unknown>;
 }
 
 export interface ErrorReport {
@@ -181,7 +182,7 @@ export interface CacheConfig {
   useBrowserCache?: boolean;
 }
 
-export interface CacheEntry<T = any> {
+export interface CacheEntry<T = unknown> {
   /** Cached data */
   data: T;
   /** When the entry was created */

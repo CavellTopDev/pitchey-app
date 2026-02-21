@@ -1,38 +1,36 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { TrendingUp, Eye, MessageSquare, Upload, BarChart3, Calendar, Plus, Shield, CreditCard, Wifi, WifiOff, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import { paymentsAPI } from '../lib/apiServices';
 import apiClient from '../lib/api-client';
-import { NDANotificationBadge, NDANotificationPanel } from '../components/NDANotifications';
+import { NDANotificationPanel } from '../components/NDANotifications';
 import { QuickNDAStatus } from '../components/NDA/NDADashboardIntegration';
-import { getSubscriptionTier, SUBSCRIPTION_TIERS } from '../config/subscription-plans';
+import { getSubscriptionTier } from '../config/subscription-plans';
 import { InvestmentService } from '../services/investment.service';
 import FundingOverview from '../components/Investment/FundingOverview';
 import { EnhancedCreatorAnalytics } from '../components/Analytics/EnhancedCreatorAnalytics';
 // import { NotificationWidget } from '../components/Dashboard/NotificationWidget';
-import { NotificationBell } from '../components/NotificationBell';
 import { withPortalErrorBoundary } from '../components/ErrorBoundary/PortalErrorBoundary';
 import { useSentryPortal } from '../hooks/useSentryPortal';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import {
   validateCreatorStats,
   safeArray,
-  safeMap,
   safeAccess,
   safeNumber,
   safeString,
   safeReduce,
   safeExecute
 } from '../utils/defensive';
-import { formatCurrency, formatNumber, formatPercentage } from '../utils/formatters';
+import { formatNumber } from '../utils/formatters';
 // EnhancedCreatorNav is now handled by PortalLayout
 // import DashboardHeader from '../components/DashboardHeader';
 // import * as Sentry from '@sentry/react';
 
 function CreatorDashboard() {
   const navigate = useNavigate();
-  const { logout, user: authUser, isAuthenticated, checkSession } = useBetterAuthStore();
+  const { user: authUser, isAuthenticated, checkSession } = useBetterAuthStore();
   const { reportError, trackEvent, trackApiError } = useSentryPortal({
     portalType: 'creator',
     componentName: 'CreatorDashboard',
@@ -41,19 +39,19 @@ function CreatorDashboard() {
   const { isConnected, connectionQuality, isReconnecting } = useWebSocket();
 
   const [sessionChecked, setSessionChecked] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const [stats, setStats] = useState<any>(null);
-  const [recentActivity, setRecentActivity] = useState<any[]>([]);
-  const [pitches, setPitches] = useState<any[]>([]);
-  const [credits, setCredits] = useState<any>(null);
-  const [subscription, setSubscription] = useState<any>(null);
-  const [socialStats, setSocialStats] = useState<any>(null);
+  const [user, setUser] = useState<Record<string, unknown> | null>(null);
+  const [stats, setStats] = useState<Record<string, unknown> | null>(null);
+  const [recentActivity, setRecentActivity] = useState<Record<string, unknown>[]>([]);
+  const [pitches, setPitches] = useState<Record<string, unknown>[]>([]);
+  const [_credits, setCredits] = useState<unknown>(null);
+  const [subscription, setSubscription] = useState<Record<string, unknown> | null>(null);
+  const [_socialStats, setSocialStats] = useState<Record<string, unknown> | null>(null);
   const [avgRating, setAvgRating] = useState<number>(0);
   const [totalViews, setTotalViews] = useState<number>(0);
   const [followers, setFollowers] = useState<number>(0);
 
   // Investment tracking state
-  const [fundingMetrics, setFundingMetrics] = useState<any>(null);
+  const [fundingMetrics, setFundingMetrics] = useState<Record<string, unknown> | null>(null);
 
   // Per-section status tracking
   interface SectionStatus { loaded: boolean; error: string | null; }
@@ -84,7 +82,7 @@ function CreatorDashboard() {
         setSessionChecked(true);
       }
     };
-    validateSession();
+    void validateSession();
   }, [checkSession]);
 
   // Track online/offline status
@@ -102,7 +100,7 @@ function CreatorDashboard() {
   // Redirect to login if not authenticated after session check
   useEffect(() => {
     if (sessionChecked && !isAuthenticated) {
-      navigate('/login/creator');
+      void navigate('/login/creator');
     }
   }, [sessionChecked, isAuthenticated, navigate]);
 
@@ -116,18 +114,18 @@ function CreatorDashboard() {
     const userData = localStorage.getItem('user');
     if (userData) {
       try {
-        const parsedUser = JSON.parse(userData);
+        const parsedUser = JSON.parse(userData) as Record<string, unknown>;
         setUser(parsedUser);
       } catch (e) {
         console.error('Failed to parse user data:', e);
       }
     } else if (authUser) {
       // Fallback to auth store user if localStorage doesn't have it
-      setUser(authUser);
+      setUser(authUser as unknown as Record<string, unknown>);
     }
 
-    fetchDashboardData();
-    fetchFundingData(); // Fetch funding data in parallel
+    void fetchDashboardData();
+    void fetchFundingData(); // Fetch funding data in parallel
   }, [authUser, sessionChecked, isAuthenticated]);
 
   const fetchFundingData = async () => {
@@ -162,9 +160,9 @@ function CreatorDashboard() {
   const handleRetrySection = useCallback((section: string) => {
     trackEvent('dashboard.retry', { section });
     if (section === 'funding') {
-      fetchFundingData();
+      void fetchFundingData();
     } else {
-      fetchDashboardData();
+      void fetchDashboardData();
     }
   }, [isAuthenticated, authUser?.id]);
 
@@ -210,7 +208,7 @@ function CreatorDashboard() {
             if (pitchesArray.length === 0) return 0;
             const ratingsSum = safeReduce(
               pitchesArray,
-              (sum: number, pitch: any) => sum + safeNumber(safeAccess(pitch, 'rating', 0)),
+              (sum: number, pitch: unknown) => sum + safeNumber(safeAccess(pitch, 'rating', 0)),
               0
             );
             return pitchesArray.length > 0 ? ratingsSum / pitchesArray.length : 0;
@@ -266,7 +264,7 @@ function CreatorDashboard() {
         setSectionStatus(prev => ({ ...prev, dashboard: { loaded: true, error: errorMessage } }));
       }
     } else {
-      const reason = dashboardResult.reason;
+      const reason: unknown = dashboardResult.reason;
       const dashErr = reason instanceof Error ? reason : new Error(String(reason));
       trackApiError('/api/creator/dashboard', dashErr);
       reportError(dashErr, { context: 'fetchDashboardData' });
@@ -293,19 +291,19 @@ function CreatorDashboard() {
 
     // --- Credits ---
     if (creditsResult.status === 'fulfilled') {
-      setCredits(creditsResult.value);
+      setCredits(creditsResult.value as unknown);
       setSectionStatus(prev => ({ ...prev, credits: { loaded: true, error: null } }));
     } else {
-      trackApiError('getCreditBalance', creditsResult.reason);
+      trackApiError('getCreditBalance', creditsResult.reason instanceof Error ? creditsResult.reason : new Error(String(creditsResult.reason)));
       setSectionStatus(prev => ({ ...prev, credits: { loaded: true, error: 'Credits unavailable' } }));
     }
 
     // --- Subscription ---
     if (subscriptionResult.status === 'fulfilled') {
-      setSubscription(subscriptionResult.value);
+      setSubscription(subscriptionResult.value as Record<string, unknown>);
       setSectionStatus(prev => ({ ...prev, subscription: { loaded: true, error: null } }));
     } else {
-      trackApiError('getSubscriptionStatus', subscriptionResult.reason);
+      trackApiError('getSubscriptionStatus', subscriptionResult.reason instanceof Error ? subscriptionResult.reason : new Error(String(subscriptionResult.reason)));
       setSectionStatus(prev => ({ ...prev, subscription: { loaded: true, error: 'Subscription status unavailable' } }));
     }
 
@@ -319,7 +317,8 @@ function CreatorDashboard() {
       setSocialStats({ followers: followersCount, following: followingCount });
       setSectionStatus(prev => ({ ...prev, followers: { loaded: true, error: null } }));
     } else {
-      const reason = followersResult.status === 'rejected' ? followersResult.reason : followingResult.status === 'rejected' ? followingResult.reason : new Error('Unknown');
+      const rawReason: unknown = followersResult.status === 'rejected' ? followersResult.reason : followingResult.status === 'rejected' ? followingResult.reason : new Error('Unknown');
+      const reason = rawReason instanceof Error ? rawReason : new Error(String(rawReason));
       trackApiError('/api/follows/followers', reason);
       setFollowers(0);
       setSocialStats({ followers: 0, following: 0 });
@@ -327,9 +326,6 @@ function CreatorDashboard() {
     }
   };
 
-  const handleLogout = () => {
-    logout(); // This will automatically clear storage and navigate to appropriate login page
-  };
 
   if (initialLoading) {
     return (
@@ -402,13 +398,13 @@ function CreatorDashboard() {
         {/* Left: Welcome + Key Metrics */}
         <div className="lg:col-span-3 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl p-6 text-white">
           <h2 className="text-xl font-bold mb-1">
-            Welcome back, {user?.name || user?.firstName || 'Creator'}
+            Welcome back, {safeString(user?.name) || safeString(user?.firstName) || 'Creator'}
           </h2>
           <p className="text-purple-200 text-sm mb-6">Here's what's happening with your pitches</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div
-              onClick={() => navigate('/creator/pitches')}
+              onClick={() => { void navigate('/creator/pitches'); }}
               className="bg-white/15 hover:bg-white/25 backdrop-blur rounded-lg p-4 cursor-pointer transition"
             >
               <TrendingUp className="w-5 h-5 text-purple-200 mb-2" />
@@ -417,7 +413,7 @@ function CreatorDashboard() {
             </div>
 
             <div
-              onClick={() => navigate('/creator/analytics')}
+              onClick={() => { void navigate('/creator/analytics'); }}
               className="bg-white/15 hover:bg-white/25 backdrop-blur rounded-lg p-4 cursor-pointer transition"
             >
               <Eye className="w-5 h-5 text-purple-200 mb-2" />
@@ -426,13 +422,13 @@ function CreatorDashboard() {
             </div>
 
             <div
-              onClick={() => navigate('/creator/ndas')}
+              onClick={() => { void navigate('/creator/ndas'); }}
               className="bg-white/15 hover:bg-white/25 backdrop-blur rounded-lg p-4 cursor-pointer transition relative"
             >
               <Shield className="w-5 h-5 text-purple-200 mb-2" />
               <p className="text-2xl font-bold">{formatNumber(safeAccess(stats, 'totalInterest', 0))}</p>
               <p className="text-purple-200 text-xs">Pending NDAs</p>
-              {stats?.totalInterest > 0 && (
+              {safeNumber(stats?.totalInterest) > 0 && (
                 <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full" />
               )}
             </div>
@@ -444,42 +440,42 @@ function CreatorDashboard() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
           <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => navigate('/creator/pitch/new')}
+              onClick={() => { void navigate('/creator/pitch/new'); }}
               className="flex flex-col items-center gap-2 p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition"
             >
               <Plus className="w-6 h-6 text-purple-600" />
               <span className="text-xs font-medium text-purple-900">Create Pitch</span>
             </button>
             <button
-              onClick={() => navigate('/creator/pitches')}
+              onClick={() => { void navigate('/creator/pitches'); }}
               className="flex flex-col items-center gap-2 p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition"
             >
               <Upload className="w-6 h-6 text-gray-600" />
               <span className="text-xs font-medium text-gray-900">Manage Pitches</span>
             </button>
             <button
-              onClick={() => navigate('/creator/ndas')}
+              onClick={() => { void navigate('/creator/ndas'); }}
               className="flex flex-col items-center gap-2 p-4 bg-amber-50 hover:bg-amber-100 rounded-lg transition"
             >
               <Shield className="w-6 h-6 text-amber-600" />
               <span className="text-xs font-medium text-amber-900">NDAs</span>
             </button>
             <button
-              onClick={() => navigate('/creator/messages')}
+              onClick={() => { void navigate('/creator/messages'); }}
               className="flex flex-col items-center gap-2 p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition"
             >
               <MessageSquare className="w-6 h-6 text-blue-600" />
               <span className="text-xs font-medium text-blue-900">Messages</span>
             </button>
             <button
-              onClick={() => navigate('/creator/analytics')}
+              onClick={() => { void navigate('/creator/analytics'); }}
               className="flex flex-col items-center gap-2 p-4 bg-green-50 hover:bg-green-100 rounded-lg transition"
             >
               <BarChart3 className="w-6 h-6 text-green-600" />
               <span className="text-xs font-medium text-green-900">Analytics</span>
             </button>
             <button
-              onClick={() => navigate('/creator/billing')}
+              onClick={() => { void navigate('/creator/billing'); }}
               className="flex flex-col items-center gap-2 p-4 bg-gradient-to-r from-green-50 to-blue-50 hover:from-green-100 hover:to-blue-100 rounded-lg transition"
             >
               <CreditCard className="w-6 h-6 text-blue-600" />
@@ -497,7 +493,7 @@ function CreatorDashboard() {
             <div className="px-6 py-4 border-b flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">My Pitches</h2>
               <button
-                onClick={() => navigate('/creator/pitches')}
+                onClick={() => { void navigate('/creator/pitches'); }}
                 className="text-sm text-purple-600 hover:text-purple-700 font-medium"
               >
                 View All
@@ -507,9 +503,9 @@ function CreatorDashboard() {
               {pitches?.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {pitches?.slice(0, 4)?.map((pitch) => (
-                    <div key={pitch?.id} className="border border-gray-200 rounded-lg p-4 hover:border-purple-300 transition-colors">
+                    <div key={safeString(pitch?.id)} className="border border-gray-200 rounded-lg p-4 hover:border-purple-300 transition-colors">
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-semibold text-gray-900 truncate">{pitch?.title}</h3>
+                        <h3 className="font-semibold text-gray-900 truncate">{safeString(pitch?.title)}</h3>
                         <span className={`px-2 py-1 text-xs rounded-full font-medium ${
                           pitch?.status === 'published'
                             ? 'bg-green-100 text-green-800'
@@ -517,32 +513,32 @@ function CreatorDashboard() {
                             ? 'bg-yellow-100 text-yellow-800'
                             : 'bg-gray-100 text-gray-800'
                         }`}>
-                          {pitch?.status}
+                          {safeString(pitch?.status)}
                         </span>
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-sm text-gray-600">
                         <div className="flex items-center gap-1">
                           <Eye className="w-3 h-3" />
-                          <span>{pitch.views || 0}</span>
+                          <span>{safeNumber(pitch.views)}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <TrendingUp className="w-3 h-3" />
-                          <span>{pitch.likes || 0}</span>
+                          <span>{safeNumber(pitch.likes)}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <Shield className="w-3 h-3" />
-                          <span>{pitch.ndaRequests || 0}</span>
+                          <span>{safeNumber(pitch.ndaRequests)}</span>
                         </div>
                       </div>
                       <div className="mt-3 flex gap-2">
                         <button
-                          onClick={() => navigate(`/creator/pitch/${pitch.id}/edit`)}
+                          onClick={() => { void navigate(`/creator/pitch/${pitch.id}/edit`); }}
                           className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded transition"
                         >
                           Edit
                         </button>
                         <button
-                          onClick={() => navigate(`/pitch/${pitch.id}`)}
+                          onClick={() => { void navigate(`/pitch/${pitch.id}`); }}
                           className="text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 px-2 py-1 rounded transition"
                         >
                           View
@@ -556,7 +552,7 @@ function CreatorDashboard() {
                   <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-500 mb-4">You haven't created any pitches yet</p>
                   <button
-                    onClick={() => navigate('/creator/pitch/new')}
+                    onClick={() => { void navigate('/creator/pitch/new'); }}
                     className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
                   >
                     Create Your First Pitch
@@ -584,7 +580,7 @@ function CreatorDashboard() {
                 </button>
               </div>
             ) : (() => {
-              const tier = getSubscriptionTier(subscription?.tier || '');
+              const tier = getSubscriptionTier(safeString(subscription?.tier));
               const tierName = tier?.name || 'The Watcher';
               const isActive = subscription?.status === 'active';
               const isUnlimited = tier?.credits === -1;
@@ -601,8 +597,8 @@ function CreatorDashboard() {
                         <p>
                           {isUnlimited ? 'Unlimited Credits' : `${monthlyCredits} Credits`} per month
                         </p>
-                        {subscription.subscription?.currentPeriodEnd && (
-                          <p>Next payment: {new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()}</p>
+                        {(subscription?.subscription as Record<string, unknown> | undefined)?.currentPeriodEnd != null && (
+                          <p>Next payment: {new Date((subscription?.subscription as Record<string, unknown>).currentPeriodEnd as string | number).toLocaleDateString()}</p>
                         )}
                       </div>
                     ) : (
@@ -624,7 +620,7 @@ function CreatorDashboard() {
                     )}
                   </div>
                   <button
-                    onClick={() => navigate('/creator/billing?tab=subscription')}
+                    onClick={() => { void navigate('/creator/billing?tab=subscription'); }}
                     className="w-full py-2 bg-white text-purple-600 rounded-lg font-medium hover:bg-purple-50 transition"
                   >
                     {isActive ? 'Manage Subscription' : 'Choose Plan'}
@@ -679,7 +675,7 @@ function CreatorDashboard() {
           <p className="text-xs text-gray-500 mt-1">Out of 5.0</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/creator/portfolio')}>
+        <div className="bg-white rounded-xl shadow-sm p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { void navigate('/creator/portfolio'); }}>
           <div className="flex items-center justify-between mb-2">
             <span className="text-gray-500 text-sm">Followers</span>
             <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -696,8 +692,8 @@ function CreatorDashboard() {
             <TrendingUp className="w-5 h-5 text-purple-500" />
           </div>
           <p className="text-2xl font-bold text-gray-900">
-            {stats?.totalPitches > 0 ?
-              Math.round(((stats?.totalInterest || 0) / stats.totalPitches) * 100) : 0}%
+            {safeNumber(stats?.totalPitches) > 0 ?
+              Math.round(((safeNumber(stats?.totalInterest)) / safeNumber(stats?.totalPitches)) * 100) : 0}%
           </p>
           <p className="text-xs text-purple-500 mt-1">Interest per pitch</p>
         </div>
@@ -726,7 +722,7 @@ function CreatorDashboard() {
         </div>
       ) : fundingMetrics ? (
         <FundingOverview
-          metrics={fundingMetrics}
+          metrics={fundingMetrics as unknown as { totalRaised: number; activeInvestors: number; averageInvestment: number; fundingProgress: number }}
           className="mb-8"
         />
       ) : null}
@@ -737,12 +733,12 @@ function CreatorDashboard() {
           pitchPerformance={{
             totalViews: totalViews,
             viewsChange: 15,
-            totalLikes: stats?.totalLikes || 0,
+            totalLikes: safeNumber(stats?.totalLikes),
             likesChange: 12,
-            totalShares: stats?.totalShares || 0,
+            totalShares: safeNumber(stats?.totalShares),
             sharesChange: 8,
-            potentialInvestment: fundingMetrics?.totalFunding || 0,
-            investmentChange: fundingMetrics?.growth || 0
+            potentialInvestment: safeNumber(fundingMetrics?.totalFunding),
+            investmentChange: safeNumber(fundingMetrics?.growth)
           }}
         />
       </div>
@@ -756,13 +752,13 @@ function CreatorDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* First Pitch Milestone */}
             <div className={`p-4 rounded-lg border-2 ${
-              stats?.totalPitches > 0 ? 'border-green-500 bg-green-50' : 'border-gray-300 bg-gray-50'
+              safeNumber(stats?.totalPitches) > 0 ? 'border-green-500 bg-green-50' : 'border-gray-300 bg-gray-50'
             }`}>
               <div className="flex items-center justify-between mb-2">
                 <Upload className={`w-8 h-8 ${
-                  stats?.totalPitches > 0 ? 'text-green-600' : 'text-gray-400'
+                  safeNumber(stats?.totalPitches) > 0 ? 'text-green-600' : 'text-gray-400'
                 }`} />
-                {stats?.totalPitches > 0 && (
+                {safeNumber(stats?.totalPitches) > 0 && (
                   <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
@@ -770,7 +766,7 @@ function CreatorDashboard() {
               </div>
               <h3 className="font-semibold text-sm mb-1">First Pitch</h3>
               <p className="text-xs text-gray-600">
-                {stats?.totalPitches > 0 ? 'Completed' : 'Upload your first pitch'}
+                {safeNumber(stats?.totalPitches) > 0 ? 'Completed' : 'Upload your first pitch'}
               </p>
             </div>
 
@@ -865,15 +861,15 @@ function CreatorDashboard() {
                   <span className="text-xs text-gray-600">{followers}/50 followers</span>
                 </div>
               )}
-              {stats?.totalPitches < 5 && (
+              {safeNumber(stats?.totalPitches) < 5 && (
                 <div className="flex items-center gap-2">
                   <div className="flex-1 bg-gray-200 rounded-full h-2">
                     <div
                       className="bg-green-600 h-2 rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min((stats?.totalPitches / 5) * 100, 100)}%` }}
+                      style={{ width: `${Math.min((safeNumber(stats?.totalPitches) / 5) * 100, 100)}%` }}
                     />
                   </div>
-                  <span className="text-xs text-gray-600">{stats?.totalPitches}/5 pitches</span>
+                  <span className="text-xs text-gray-600">{safeNumber(stats?.totalPitches)}/5 pitches</span>
                 </div>
               )}
             </div>
@@ -890,7 +886,7 @@ function CreatorDashboard() {
           {recentActivity?.length > 0 ? (
             <div className="space-y-4">
               {recentActivity?.map((activity, index) => (
-                <div key={activity?.id || index} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg transition">
+                <div key={safeString(activity?.id) || index} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg transition">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                     activity?.color === 'blue' ? 'bg-blue-100 text-blue-600' :
                     activity?.color === 'green' ? 'bg-green-100 text-green-600' :
@@ -907,9 +903,9 @@ function CreatorDashboard() {
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-medium text-gray-900">
-                      {activity?.title}
+                      {safeString(activity?.title)}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">{activity?.description}</p>
+                    <p className="text-xs text-gray-500 mt-1">{safeString(activity?.description)}</p>
                   </div>
                 </div>
               ))}

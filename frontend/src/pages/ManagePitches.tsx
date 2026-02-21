@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Eye, Edit3, Trash2, BarChart3, Search, Filter, RefreshCw, Shield } from 'lucide-react';
+import { ArrowLeft, Plus, Eye, Edit3, Trash2, BarChart3, Search, Filter, RefreshCw } from 'lucide-react';
 import { pitchService } from '../services/pitch.service';
 import type { Pitch } from '../types/api';
 import FormatDisplay from '../components/FormatDisplay';
@@ -16,16 +16,17 @@ export default function ManagePitches() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    fetchPitches();
+    void fetchPitches();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (autoRefresh) {
       refreshIntervalRef.current = setInterval(() => {
-        fetchPitches(true); // Silent refresh
+        void fetchPitches(true); // Silent refresh
       }, 30000); // Refresh every 30 seconds
     } else if (refreshIntervalRef.current) {
       clearInterval(refreshIntervalRef.current);
@@ -37,6 +38,7 @@ export default function ManagePitches() {
         clearInterval(refreshIntervalRef.current);
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRefresh]);
 
   const addNotification = (message: string, type: 'success' | 'error') => {
@@ -72,7 +74,8 @@ export default function ManagePitches() {
       if (silent) {
         addNotification('Data refreshed automatically', 'success');
       }
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err));
       console.error('Failed to fetch pitches:', error);
       if (!silent) {
         addNotification(error.message || 'Failed to refresh data', 'error');
@@ -84,7 +87,7 @@ export default function ManagePitches() {
   };
 
   const handleManualRefresh = () => {
-    fetchPitches(false);
+    void fetchPitches(false);
   };
 
   const handleDelete = async (pitchId: number) => {
@@ -102,25 +105,26 @@ export default function ManagePitches() {
       
       // Force refresh to ensure consistency
       setTimeout(() => {
-        fetchPitches(true); // Force refresh from server
+        void fetchPitches(true); // Force refresh from server
       }, 500);
       
       addNotification('Pitch deleted successfully', 'success');
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err));
       console.error('Failed to delete pitch:', error);
-      
+
       // Show more specific error messages
       let errorMessage = 'Failed to delete pitch';
-      if (error.message?.includes('foreign key constraint') || error.message?.includes('related records')) {
+      if (error.message.includes('foreign key constraint') || error.message.includes('related records')) {
         errorMessage = 'Cannot delete pitch: it has active investments or NDAs. Please resolve these first.';
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       addNotification(errorMessage, 'error');
-      
+
       // Refresh the list in case of partial deletion
-      fetchPitches(true);
+      void fetchPitches(true);
     } finally {
       clearLoadingState(pitchId);
     }
@@ -144,7 +148,8 @@ export default function ManagePitches() {
         pitch.id === pitchId ? updatedPitch : pitch
       ));
       addNotification(`Pitch ${newStatus === 'published' ? 'published' : 'archived'} successfully`, 'success');
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err));
       console.error('Failed to update pitch status:', error);
       addNotification(error.message || 'Failed to update pitch status', 'error');
     } finally {
@@ -181,7 +186,7 @@ export default function ManagePitches() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => navigate('/creator/dashboard')}
+                onClick={() => void navigate('/creator/dashboard')}
                 className="p-2 text-gray-500 hover:text-gray-700 transition rounded-lg hover:bg-gray-100"
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -193,7 +198,7 @@ export default function ManagePitches() {
             </div>
             
             <button
-              onClick={() => navigate('/creator/pitch/new')}
+              onClick={() => void navigate('/creator/pitch/new')}
               className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition"
             >
               <Plus className="w-4 h-4" />
@@ -345,7 +350,7 @@ export default function ManagePitches() {
               }
             </p>
             <button
-              onClick={() => navigate('/creator/pitch/new')}
+              onClick={() => void navigate('/creator/pitch/new')}
               className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
             >
               <Plus className="w-4 h-4" />
@@ -358,7 +363,7 @@ export default function ManagePitches() {
               <div key={pitch.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition overflow-hidden">
                 {/* Thumbnail */}
                 <div className="h-40 relative">
-                  {pitch.titleImage ? (
+                  {pitch.titleImage != null && pitch.titleImage !== '' ? (
                     <img
                       src={pitch.titleImage}
                       alt={pitch.title}
@@ -407,7 +412,7 @@ export default function ManagePitches() {
                   
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => navigate(`/creator/pitches/${pitch.id}`)}
+                      onClick={() => void navigate(`/creator/pitches/${pitch.id}`)}
                       className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm"
                     >
                       <Eye className="w-4 h-4" />
@@ -415,7 +420,7 @@ export default function ManagePitches() {
                     </button>
                     
                     <button
-                      onClick={() => navigate(`/creator/pitches/${pitch.id}/edit`)}
+                      onClick={() => void navigate(`/creator/pitches/${pitch.id}/edit`)}
                       className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition text-sm"
                       title="Edit pitch"
                     >
@@ -425,7 +430,7 @@ export default function ManagePitches() {
                     <button
                       onClick={() => {
                         const slug = pitch.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-                        navigate(`/creator/pitches/${pitch.id}/${slug}/analytics`);
+                        void navigate(`/creator/pitches/${pitch.id}/${slug}/analytics`);
                       }}
                       className="flex items-center justify-center gap-2 px-3 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition text-sm"
                       title="View analytics"
@@ -434,7 +439,7 @@ export default function ManagePitches() {
                     </button>
                     
                     <button
-                      onClick={() => toggleStatus(pitch.id, pitch.status)}
+                      onClick={() => void toggleStatus(pitch.id, pitch.status)}
                       disabled={loadingStates[pitch.id] === 'publishing' || loadingStates[pitch.id] === 'unpublishing'}
                       className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition text-sm min-w-[90px] ${
                         loadingStates[pitch.id] === 'publishing' || loadingStates[pitch.id] === 'unpublishing'
@@ -460,7 +465,7 @@ export default function ManagePitches() {
                     </button>
                     
                     <button
-                      onClick={() => handleDelete(pitch.id)}
+                      onClick={() => void handleDelete(pitch.id)}
                       disabled={loadingStates[pitch.id] === 'deleting'}
                       className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition text-sm ${
                         loadingStates[pitch.id] === 'deleting'

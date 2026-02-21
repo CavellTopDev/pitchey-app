@@ -1,19 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   DollarSign,
-  LogOut,
   TrendingUp,
   FileText,
-  Bell,
-  Search,
   Star,
   Clock,
   Shield,
   BarChart3,
   Briefcase,
   Plus,
-  ChevronRight,
   Eye,
   Users,
   Calendar,
@@ -25,8 +21,6 @@ import {
   Building,
   MessageSquare,
   Wallet,
-  PieChart,
-  TrendingDown,
   History,
   Wifi,
   WifiOff,
@@ -39,14 +33,12 @@ import api from '../lib/api';
 // EnhancedInvestorNav is now handled by PortalLayout
 import { formatCurrency, formatPercentage, formatDate } from '../utils/formatters';
 import {
-  validatePortfolio,
   safeArray,
   safeMap,
   safeAccess,
   safeNumber,
   safeString,
-  isValidDate,
-  safeExecute
+  isValidDate
 } from '../utils/defensive';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import { useSentryPortal } from '../hooks/useSentryPortal';
@@ -110,8 +102,8 @@ function InvestorDashboard() {
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [savedPitches, setSavedPitches] = useState<SavedPitch[]>([]);
   const [ndaRequests, setNdaRequests] = useState<NDARequest[]>([]);
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<Record<string, unknown>[]>([]);
+  const [recommendations, setRecommendations] = useState<Record<string, unknown>[]>([]);
 
   // Per-section status tracking
   interface SectionStatus { loaded: boolean; error: string | null; }
@@ -144,7 +136,7 @@ function InvestorDashboard() {
         setSessionChecked(true);
       }
     };
-    validateSession();
+    void validateSession();
   }, [checkSession]);
 
   // Track online/offline status
@@ -162,7 +154,7 @@ function InvestorDashboard() {
   // Redirect to login if not authenticated after session check
   useEffect(() => {
     if (sessionChecked && !isAuthenticated) {
-      navigate('/login/investor');
+      void navigate('/login/investor');
     }
   }, [sessionChecked, isAuthenticated, navigate]);
 
@@ -171,7 +163,7 @@ function InvestorDashboard() {
     if (!sessionChecked || !isAuthenticated) {
       return;
     }
-    fetchDashboardData();
+    void fetchDashboardData();
   }, [sessionChecked, isAuthenticated]);
 
   const fetchDashboardData = async () => {
@@ -219,7 +211,7 @@ function InvestorDashboard() {
       setPortfolio(validatedPortfolio);
       setSectionStatus(prev => ({ ...prev, portfolio: { loaded: true, error: null } }));
     } else {
-      const reason = portfolioRes.reason;
+      const reason: unknown = portfolioRes.reason;
       const portfolioErr = reason instanceof Error ? reason : new Error(String(reason));
       trackApiError('/api/investor/portfolio/summary', portfolioErr);
       reportError(portfolioErr, { context: 'fetchDashboardData.portfolio' });
@@ -229,7 +221,7 @@ function InvestorDashboard() {
     // --- Investments ---
     if (investmentsRes.status === 'fulfilled') {
       const investmentsData = safeAccess(investmentsRes, 'value.data.data', []);
-      const safeInvestments = safeMap(investmentsData, (investment: any) => ({
+      const safeInvestments = safeMap(investmentsData, (investment: unknown) => ({
         id: safeNumber(safeAccess(investment, 'id', Math.floor(Math.random() * 10000))),
         pitchTitle: safeString(safeAccess(investment, 'pitchTitle', 'Unknown Project')),
         amount: safeNumber(safeAccess(investment, 'amount', 0)),
@@ -243,7 +235,7 @@ function InvestorDashboard() {
       setInvestments(safeInvestments);
       setSectionStatus(prev => ({ ...prev, investments: { loaded: true, error: null } }));
     } else {
-      const reason = investmentsRes.reason;
+      const reason: unknown = investmentsRes.reason;
       const investErr = reason instanceof Error ? reason : new Error(String(reason));
       trackApiError('/api/investor/investments', investErr);
       setSectionStatus(prev => ({ ...prev, investments: { loaded: true, error: 'Failed to load investments' } }));
@@ -252,7 +244,7 @@ function InvestorDashboard() {
     // --- Saved pitches ---
     if (savedRes.status === 'fulfilled') {
       const savedData = safeAccess(savedRes, 'value.data.data', []);
-      const safePitches = safeMap(savedData, (pitch: any) => ({
+      const safePitches = safeMap(savedData, (pitch: unknown) => ({
         id: safeNumber(safeAccess(pitch, 'id', Math.floor(Math.random() * 10000))),
         title: safeString(safeAccess(pitch, 'title', 'Unknown Title')),
         creator: safeString(safeAccess(pitch, 'creator', 'Unknown Creator')),
@@ -266,7 +258,7 @@ function InvestorDashboard() {
       setSavedPitches(safePitches);
       setSectionStatus(prev => ({ ...prev, saved: { loaded: true, error: null } }));
     } else {
-      const reason = savedRes.reason;
+      const reason: unknown = savedRes.reason;
       const savedErr = reason instanceof Error ? reason : new Error(String(reason));
       trackApiError('/api/saved-pitches', savedErr);
       setSectionStatus(prev => ({ ...prev, saved: { loaded: true, error: 'Failed to load saved pitches' } }));
@@ -275,7 +267,7 @@ function InvestorDashboard() {
     // --- NDAs ---
     if (ndaRes.status === 'fulfilled') {
       const ndaData = safeAccess(ndaRes, 'value.data.data', []);
-      const safeNDAs: NDARequest[] = safeMap(ndaData, (nda: any) => ({
+      const safeNDAs: NDARequest[] = safeMap(ndaData, (nda: unknown) => ({
         id: safeNumber(safeAccess(nda, 'id', Math.floor(Math.random() * 10000))),
         pitchTitle: safeString(safeAccess(nda, 'pitchTitle', 'Unknown Project')),
         status: safeString(safeAccess(nda, 'status', 'pending')),
@@ -287,7 +279,7 @@ function InvestorDashboard() {
       setNdaRequests(safeNDAs);
       setSectionStatus(prev => ({ ...prev, ndas: { loaded: true, error: null } }));
     } else {
-      const reason = ndaRes.reason;
+      const reason: unknown = ndaRes.reason;
       const ndaErr = reason instanceof Error ? reason : new Error(String(reason));
       trackApiError('/api/nda/active', ndaErr);
       setSectionStatus(prev => ({ ...prev, ndas: { loaded: true, error: 'Failed to load NDAs' } }));
@@ -299,7 +291,7 @@ function InvestorDashboard() {
       setNotifications(safeArray(notificationData));
       setSectionStatus(prev => ({ ...prev, notifications: { loaded: true, error: null } }));
     } else {
-      const reason = notificationsRes.reason;
+      const reason: unknown = notificationsRes.reason;
       const notifErr = reason instanceof Error ? reason : new Error(String(reason));
       trackApiError('/api/notifications', notifErr);
       setSectionStatus(prev => ({ ...prev, notifications: { loaded: true, error: 'Failed to load notifications' } }));
@@ -308,7 +300,7 @@ function InvestorDashboard() {
     // --- Recommendations ---
     if (recommendationsRes.status === 'fulfilled') {
       const recommendationData = safeAccess(recommendationsRes, 'value.data.data', []);
-      const safeRecommendations = safeMap(recommendationData, (rec: any) => ({
+      const safeRecommendations = safeMap(recommendationData, (rec: unknown) => ({
         id: safeNumber(safeAccess(rec, 'id', Math.floor(Math.random() * 10000))),
         title: safeString(safeAccess(rec, 'title', 'Unknown Title')),
         genre: safeString(safeAccess(rec, 'genre', 'Unknown')),
@@ -318,7 +310,7 @@ function InvestorDashboard() {
       setRecommendations(safeRecommendations);
       setSectionStatus(prev => ({ ...prev, recommendations: { loaded: true, error: null } }));
     } else {
-      const reason = recommendationsRes.reason;
+      const reason: unknown = recommendationsRes.reason;
       const recErr = reason instanceof Error ? reason : new Error(String(reason));
       trackApiError('/api/investment/recommendations', recErr);
       setSectionStatus(prev => ({ ...prev, recommendations: { loaded: true, error: 'Failed to load recommendations' } }));
@@ -327,12 +319,8 @@ function InvestorDashboard() {
 
   const handleRetrySection = useCallback((section: string) => {
     trackEvent('dashboard.retry', { section });
-    fetchDashboardData();
+    void fetchDashboardData();
   }, [isAuthenticated, user?.id]);
-
-  const handleLogout = () => {
-    logout();
-  };
 
   // formatCurrency function moved to utils/formatters.ts for safe number handling
 
@@ -598,7 +586,7 @@ function InvestorDashboard() {
                     </div>
                   ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {safeArray(recommendations).slice(0, 3).map((pitch: any) => (
+                    {safeArray(recommendations).slice(0, 3).map((pitch: unknown) => (
                       <div key={safeAccess(pitch, 'id', Math.random())} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
                         <div className="flex items-start justify-between">
                           <h4 className="font-medium text-gray-900">{safeString(safeAccess(pitch, 'title', 'Unknown Title'))}</h4>
@@ -635,7 +623,7 @@ function InvestorDashboard() {
                     </div>
                   ) : safeArray(notifications).length > 0 ? (
                     <div className="space-y-3">
-                      {safeArray(notifications).slice(0, 5).map((item: any, idx: number) => {
+                      {safeArray(notifications).slice(0, 5).map((item: unknown, idx: number) => {
                         const actType = safeString(safeAccess(item, 'type', 'info'));
                         const icon = actType === 'nda_request' || actType === 'nda_signed' ? (
                           <Shield className="w-5 h-5 text-blue-400" />
@@ -760,7 +748,7 @@ function InvestorDashboard() {
                     <DollarSign className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-500">No investments yet</p>
                     <button
-                      onClick={() => navigate('/marketplace')}
+                      onClick={() => { void navigate('/marketplace'); }}
                       className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                     >
                       Browse Opportunities
@@ -879,13 +867,13 @@ function InvestorDashboard() {
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">Due Diligence & NDAs</h3>
                   <div className="flex gap-2">
-                    {safeArray(ndaRequests).filter((nda: any) => nda.status === 'pending').length > 0 && (
+                    {safeArray<NDARequest>(ndaRequests).filter((nda: NDARequest) => nda.status === 'pending').length > 0 && (
                       <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-lg text-sm">
-                        Pending: {safeArray(ndaRequests).filter((nda: any) => nda.status === 'pending').length}
+                        Pending: {safeArray<NDARequest>(ndaRequests).filter((nda: NDARequest) => nda.status === 'pending').length}
                       </span>
                     )}
                     <span className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm">
-                      Active: {safeArray(ndaRequests).filter((nda: any) => nda.status === 'signed' || nda.status === 'active').length}
+                      Active: {safeArray<NDARequest>(ndaRequests).filter((nda: NDARequest) => nda.status === 'signed' || nda.status === 'active').length}
                     </span>
                   </div>
                 </div>
@@ -904,9 +892,9 @@ function InvestorDashboard() {
                         <RefreshCw className="w-3.5 h-3.5" /> Retry
                       </button>
                     </div>
-                  ) : safeArray(ndaRequests).length > 0 ? (
+                  ) : safeArray<NDARequest>(ndaRequests).length > 0 ? (
                     <div className="space-y-3">
-                      {safeArray(ndaRequests).slice(0, 5).map((nda) => (
+                      {safeArray<NDARequest>(ndaRequests).slice(0, 5).map((nda) => (
                         <div key={safeAccess(nda, 'id', Math.random())} className="border rounded-lg p-4">
                           <div className="flex items-center justify-between">
                             <div>

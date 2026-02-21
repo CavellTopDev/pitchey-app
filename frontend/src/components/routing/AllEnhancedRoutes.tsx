@@ -34,7 +34,7 @@ const InvestorSaved = lazy(() => import('../../pages/investor/InvestorSaved'));
 const InvestorWatchlist = lazy(() => import('../../pages/investor/InvestorWatchlist'));
 const InvestorNetwork = lazy(() => import('../../pages/investor/InvestorNetwork'));
 const InvestorReports = lazy(() => import('../../pages/investor/InvestorReports'));
-const InvestorStats = lazy(() => import('../../pages/investor/InvestorStats'));
+const _InvestorStats = lazy(() => import('../../pages/investor/InvestorStats'));
 const InvestorCoInvestors = lazy(() => import('../../pages/investor/InvestorCoInvestors'));
 const InvestorCreators = lazy(() => import('../../pages/investor/InvestorCreators'));
 const InvestorProductionCompanies = lazy(() => import('../../pages/investor/InvestorProductionCompanies'));

@@ -1,11 +1,8 @@
-import { getDashboardRoute } from '../utils/navigation';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { pitchService } from '../services/pitch.service';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { pitchAPI } from '../lib/api';
-import type { Pitch } from '../services/pitch.service';
+import type { Pitch } from '../lib/api';
 import { useBetterAuthStore } from '../store/betterAuthStore';
-import FollowButton from '../components/FollowButton';
 import { PitchCardSkeleton } from '../components/Loading/Skeleton';
 import EmptyState from '../components/EmptyState';
 import { useToast } from '../components/Toast/ToastProvider';
@@ -18,49 +15,35 @@ import FormatDisplay from '../components/FormatDisplay';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
-  Filter,
   TrendingUp,
   Eye,
   Heart,
   Clock,
   User,
-  LogIn,
-  UserPlus,
-  Menu,
   Star,
-  Sparkles,
   MessageCircle,
-  Award,
   Film,
-  Building2,
   Wallet,
   DollarSign,
   BookOpen,
-  FileText,
-  Video,
   Shield,
-  Lock,
   Grid,
   List,
-  ChevronDown,
   SlidersHorizontal,
   X,
-  Calendar,
   BarChart3,
-  Users,
   Zap,
-  PlayCircle,
-  Info,
   WifiOff,
   RefreshCw,
   AlertTriangle
 } from 'lucide-react';
 
 // Get the best available image URL from a pitch (handles snake_case API + camelCase)
-function getPitchImageUrl(pitch: any): string | undefined {
-  const url = pitch.titleImage || pitch.title_image ||
-    pitch.thumbnailUrl || pitch.thumbnail_url ||
-    pitch.posterUrl || pitch.poster_url;
+function getPitchImageUrl(pitch: Pitch): string | undefined {
+  const p = pitch as unknown as Record<string, unknown>;
+  const url = (p.titleImage as string | undefined) || (p.title_image as string | undefined) ||
+    (p.thumbnailUrl as string | undefined) || (p.thumbnail_url as string | undefined) ||
+    (p.posterUrl as string | undefined) || (p.poster_url as string | undefined);
   if (!url) return undefined;
   try {
     const parsed = new URL(url);
@@ -99,11 +82,10 @@ interface FilterState {
 
 export default function MarketplaceEnhanced() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated, user } = useBetterAuthStore();
   const toast = useToast();
-  const { isMobile, isTablet } = useResponsive();
+  const { isMobile } = useResponsive();
   
   // Per-tab state management to prevent content bleeding
   interface TabState {
@@ -157,13 +139,13 @@ export default function MarketplaceEnhanced() {
   });
 
   // Config
-  const [config, setConfig] = useState<any>(null);
+  const [config, setConfig] = useState<{ genres?: string[]; formats?: string[] } | null>(null);
   
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   // Load config
   useEffect(() => {
-    configService.getConfiguration().then(setConfig).catch(console.error);
+    void configService.getConfiguration().then((cfg) => { setConfig(cfg as { genres?: string[]; formats?: string[] }); }).catch(console.error);
   }, []);
 
   // Derive current tab's pitches from per-tab state
@@ -175,7 +157,7 @@ export default function MarketplaceEnhanced() {
   useEffect(() => {
     const tab = sortBy;
     if (tabStates[tab]?.loaded) return;
-    fetchPitchesForTab(tab);
+    void fetchPitchesForTab(tab);
   }, [sortBy]);
 
   // Update URL params when filters change
@@ -216,7 +198,7 @@ export default function MarketplaceEnhanced() {
       // Guard against stale responses from rapid tab switching
       if (requestId !== fetchRequestIdRef.current) return;
 
-      const validPitches = Array.isArray(result.items) ? result.items : [];
+      const validPitches: Pitch[] = Array.isArray(result.items) ? (result.items as Pitch[]) : [];
 
       setTabStates(prev => ({
         ...prev,
@@ -248,13 +230,20 @@ export default function MarketplaceEnhanced() {
       return;
     }
     
-    const totalInvestment = pitchData.reduce((sum, p) => sum + ((p as any).totalInvestment || (p as any).total_investment || 0), 0);
+    const totalInvestment = pitchData.reduce((sum, p) => {
+      const pp = p as unknown as Record<string, unknown>;
+      return sum + (Number(pp.totalInvestment) || Number(pp.total_investment) || 0);
+    }, 0);
     // Use estimatedBudget (camelCase from interface) with fallbacks for API snake_case
     const avgBudget = pitchData.reduce((sum, p) => {
-      const budget = Number(p.estimatedBudget) || Number((p as any).estimated_budget) || 0;
+      const pp = p as unknown as Record<string, unknown>;
+      const budget = Number(p.estimatedBudget) || Number(pp.estimated_budget) || 0;
       return sum + budget;
     }, 0) / (pitchData.length || 1);
-    const activeCreators = new Set(pitchData.map(p => p.creator?.id || (p as any).creator_id || p.userId)).size;
+    const activeCreators = new Set(pitchData.map(p => {
+      const pp = p as unknown as Record<string, unknown>;
+      return p.creator?.id || (pp.creator_id as string | undefined) || p.userId;
+    })).size;
     
     setStats({
       totalPitches: pitchData.length,
@@ -281,7 +270,7 @@ export default function MarketplaceEnhanced() {
         pitch.title.toLowerCase().includes(query) ||
         pitch.logline?.toLowerCase().includes(query) ||
         pitch.genre?.toLowerCase().includes(query) ||
-        (pitch.creator?.name || (pitch as any).creator_name || '').toLowerCase().includes(query)
+        (pitch.creator?.name || ((pitch as unknown as Record<string, unknown>).creator_name as string | undefined) || '').toLowerCase().includes(query)
       );
     }
 
@@ -334,24 +323,42 @@ export default function MarketplaceEnhanced() {
 
     // Investment filter
     if (filters.hasInvestment !== null) {
-      const getInvestment = (p: Pitch) => (p as any).totalInvestment || (p as any).total_investment || 0;
+      const getInvestment = (p: Pitch) => {
+        const pp = p as unknown as Record<string, unknown>;
+        return Number(pp.totalInvestment) || Number(pp.total_investment) || 0;
+      };
       filtered = filtered.filter(pitch =>
         filters.hasInvestment ? getInvestment(pitch) > 0 : getInvestment(pitch) === 0
       );
     }
 
     // Sorting - helper functions for accessing properties with both naming conventions
-    const getViewCount = (p: Pitch) => p.viewCount || (p as any).view_count || 0;
-    const getLikeCount = (p: Pitch) => p.likeCount || (p as any).like_count || 0;
-    const getCreatedAt = (p: Pitch) => p.createdAt || (p as any).created_at || '';
+    const getViewCount = (p: Pitch) => {
+      const pp = p as unknown as Record<string, unknown>;
+      return p.viewCount || Number(pp.view_count) || 0;
+    };
+    const getLikeCount = (p: Pitch) => {
+      const pp = p as unknown as Record<string, unknown>;
+      return p.likeCount || Number(pp.like_count) || 0;
+    };
+    const getCreatedAt = (p: Pitch) => {
+      const pp = p as unknown as Record<string, unknown>;
+      return p.createdAt || (pp.created_at as string) || '';
+    };
     const getBudgetNum = (p: Pitch) => {
       const budgetStr = p.estimatedBudget || p.budgetBracket || '';
       if (!budgetStr) return 0;
       const match = String(budgetStr).match(/(\d+)/);
       return match ? parseInt(match[1], 10) * 1000000 : 0;
     };
-    const getInvestmentGoal = (p: Pitch) => (p as any).investmentGoal || (p as any).investment_goal || 0;
-    const getTotalInvestment = (p: Pitch) => (p as any).totalInvestment || (p as any).total_investment || 0;
+    const getInvestmentGoal = (p: Pitch) => {
+      const pp = p as unknown as Record<string, unknown>;
+      return Number(pp.investmentGoal) || Number(pp.investment_goal) || 0;
+    };
+    const getTotalInvestment = (p: Pitch) => {
+      const pp = p as unknown as Record<string, unknown>;
+      return Number(pp.totalInvestment) || Number(pp.total_investment) || 0;
+    };
 
     filtered.sort((a, b) => {
       switch (sortBy) {
@@ -391,15 +398,15 @@ export default function MarketplaceEnhanced() {
   const handlePitchClick = (pitch: Pitch) => {
     const userType = localStorage.getItem('userType');
     if (!isAuthenticated) {
-      navigate(`/pitch/${pitch.id}`);
+      void navigate(`/pitch/${pitch.id}`);
     } else if (userType === 'investor') {
-      navigate(`/investor/pitch/${pitch.id}`);
+      void navigate(`/investor/pitch/${pitch.id}`);
     } else if (userType === 'production') {
-      navigate(`/production/pitch/${pitch.id}`);
+      void navigate(`/production/pitch/${pitch.id}`);
     } else if (userType === 'creator' && (pitch.creator?.id || pitch.userId) === user?.id) {
-      navigate(`/creator/pitch/${pitch.id}`);
+      void navigate(`/creator/pitch/${pitch.id}`);
     } else {
-      navigate(`/pitch/${pitch.id}`);
+      void navigate(`/pitch/${pitch.id}`);
     }
   };
 
@@ -451,7 +458,7 @@ export default function MarketplaceEnhanced() {
               <div className="flex justify-between items-start mb-2">
                 <div>
                   <h3 className="text-lg font-semibold">{pitch.title}</h3>
-                  <p className="text-sm text-gray-600">{pitch.creator?.name || pitch.creator?.username || (pitch as any).creator_username || (pitch as any).creator_name || 'Unknown'}</p>
+                  <p className="text-sm text-gray-600">{pitch.creator?.name || pitch.creator?.username || ((pitch as unknown as Record<string, unknown>).creator_username as string | undefined) || ((pitch as unknown as Record<string, unknown>).creator_name as string | undefined) || 'Unknown'}</p>
                 </div>
                 <div className="flex gap-2">
                   {pitch.genre && (
@@ -475,7 +482,7 @@ export default function MarketplaceEnhanced() {
                   </span>
                   <span className="flex items-center gap-1">
                     <MessageCircle className="w-4 h-4" />
-                    {(pitch as any).commentCount || 0}
+                    {((pitch as unknown as Record<string, unknown>).commentCount as number | undefined) || 0}
                   </span>
                 </div>
                 {(pitch.estimatedBudget || pitch.budgetBracket) && (
@@ -539,7 +546,7 @@ export default function MarketplaceEnhanced() {
                 NDA
               </span>
             )}
-            {(pitch as any).isFeatured && (
+            {((pitch as unknown as Record<string, unknown>).isFeatured as boolean | undefined) && (
               <span className="bg-yellow-500 text-white px-2 py-1 text-xs rounded flex items-center gap-1">
                 <Star className="w-3 h-3" />
                 Featured
@@ -552,7 +559,7 @@ export default function MarketplaceEnhanced() {
           <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1">
             {pitch.title}
           </h3>
-          <p className="text-sm text-gray-600 mb-2">{pitch.creator?.name || pitch.creator?.username || (pitch as any).creator_username || (pitch as any).creator_name || 'Unknown'}</p>
+          <p className="text-sm text-gray-600 mb-2">{pitch.creator?.name || pitch.creator?.username || ((pitch as unknown as Record<string, unknown>).creator_username as string | undefined) || ((pitch as unknown as Record<string, unknown>).creator_name as string | undefined) || 'Unknown'}</p>
 
           <div className="flex items-center justify-between">
             <div className="flex gap-2">
@@ -585,20 +592,20 @@ export default function MarketplaceEnhanced() {
                 <span className="text-2xl font-bold text-purple-600">Pitchey</span>
               </a>
               <nav className="hidden md:flex items-center gap-6">
-                <button 
-                  onClick={() => navigate('/marketplace')}
+                <button
+                  onClick={() => { void navigate('/marketplace'); }}
                   className="text-gray-700 hover:text-purple-600 transition font-medium"
                 >
                   Browse Pitches
                 </button>
-                <button 
-                  onClick={() => navigate('/how-it-works')}
+                <button
+                  onClick={() => { void navigate('/how-it-works'); }}
                   className="text-gray-700 hover:text-purple-600 transition"
                 >
                   How It Works
                 </button>
-                <button 
-                  onClick={() => navigate('/about')}
+                <button
+                  onClick={() => { void navigate('/about'); }}
                   className="text-gray-700 hover:text-purple-600 transition"
                 >
                   About
@@ -620,7 +627,7 @@ export default function MarketplaceEnhanced() {
                   <button
                     onClick={() => {
                       const userType = localStorage.getItem('userType');
-                      navigate(userType ? `/${userType}/dashboard` : '/dashboard');
+                      void navigate(userType ? `/${userType}/dashboard` : '/dashboard');
                     }}
                     className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
                   >
@@ -630,13 +637,13 @@ export default function MarketplaceEnhanced() {
               ) : (
                 <>
                   <button
-                    onClick={() => navigate('/portals')}
+                    onClick={() => { void navigate('/portals'); }}
                     className="px-4 py-2 text-purple-600 hover:text-purple-700 transition font-medium"
                   >
                     Sign In
                   </button>
                   <button
-                    onClick={() => navigate('/portals')}
+                    onClick={() => { void navigate('/portals'); }}
                     className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
                   >
                     Get Started
@@ -707,7 +714,7 @@ export default function MarketplaceEnhanced() {
             <button
               onClick={() => {
                 setTabStates(prev => ({ ...prev, [sortBy]: { ...prev[sortBy], loaded: false, error: null } }));
-                fetchPitchesForTab(sortBy);
+                void fetchPitchesForTab(sortBy);
               }}
               className="flex items-center gap-1 text-sm font-medium text-red-700 hover:text-red-800 bg-red-100 hover:bg-red-200 px-3 py-1 rounded transition"
             >
@@ -844,7 +851,7 @@ export default function MarketplaceEnhanced() {
                   <div className="mb-6">
                     <h4 className="text-sm font-medium text-gray-700 mb-2">Genre</h4>
                     <div className="space-y-2">
-                      {(config?.genres || ['Action', 'Comedy', 'Drama', 'Horror', 'Sci-Fi', 'Thriller']).map((genre: string) => (
+                      {(config?.genres || ['Action', 'Comedy', 'Drama', 'Horror', 'Sci-Fi', 'Thriller']).map((genre) => (
                         <label key={genre} className="flex items-center">
                           <input
                             id={`genre-filter-${genre.toLowerCase().replace(/\s+/g, '-')}`}
@@ -871,7 +878,7 @@ export default function MarketplaceEnhanced() {
                   <div className="mb-6">
                     <h4 className="text-sm font-medium text-gray-700 mb-2">Format</h4>
                     <div className="space-y-2">
-                      {(config?.formats || ['Feature Film', 'Short Film', 'TV Series', 'Web Series']).map((format: string) => (
+                      {(config?.formats || ['Feature Film', 'Short Film', 'TV Series', 'Web Series']).map((format) => (
                         <label key={format} className="flex items-center">
                           <input
                             id={`format-filter-${format.toLowerCase().replace(/\s+/g, '-')}`}
@@ -961,7 +968,7 @@ export default function MarketplaceEnhanced() {
             {/* Pitches grid */}
             {loading ? (
               <div className={`grid ${VIEW_MODES[viewMode].cols} gap-6`}>
-                {[...Array(8)].map((_, i) => (
+                {Array.from({ length: 8 }).map((_, i) => (
                   <PitchCardSkeleton key={i} />
                 ))}
               </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { DollarSign, Users, Target, TrendingUp, PieChart, Calendar, Award, ArrowRight } from 'lucide-react';
+import { DollarSign, Users, Target, TrendingUp, Award, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface FundingMetrics {
@@ -133,7 +133,7 @@ export default function FundingOverview({
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-sm font-medium text-gray-700">Recent Investments</h4>
             <button 
-              onClick={() => navigate('/creator/investments')}
+              onClick={() => { void navigate('/creator/investments'); }}
               className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
             >
               View All
@@ -189,14 +189,14 @@ export default function FundingOverview({
       <div className="border-t pt-4 mt-4">
         <div className="grid grid-cols-2 gap-3">
           <button
-            onClick={() => navigate('/creator/investors')}
+            onClick={() => { void navigate('/creator/investors'); }}
             className="flex items-center justify-center gap-2 py-2 px-4 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-colors"
           >
             <Users className="w-4 h-4" />
             <span className="text-sm font-medium">View Investors</span>
           </button>
           <button
-            onClick={() => navigate('/creator/funding-settings')}
+            onClick={() => { void navigate('/creator/funding-settings'); }}
             className="flex items-center justify-center gap-2 py-2 px-4 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg transition-colors"
           >
             <Target className="w-4 h-4" />

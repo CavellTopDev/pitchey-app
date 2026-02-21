@@ -36,8 +36,9 @@ export class RouteErrorBoundary extends Component<Props, State> {
     console.error('Route error boundary caught:', error, errorInfo);
     
     // Log to error reporting service
-    if ((window as any).Sentry) {
-      (window as any).Sentry.captureException(error, {
+    const windowWithSentry = window as unknown as Record<string, unknown>;
+    if (windowWithSentry['Sentry']) {
+      (windowWithSentry['Sentry'] as { captureException: (e: Error, ctx: unknown) => void }).captureException(error, {
         contexts: {
           react: {
             componentStack: errorInfo.componentStack
@@ -52,7 +53,7 @@ export class RouteErrorBoundary extends Component<Props, State> {
     });
   }
 
-  private handleReset = () => {
+  private readonly handleReset = () => {
     this.setState({
       hasError: false,
       error: null,
@@ -60,11 +61,11 @@ export class RouteErrorBoundary extends Component<Props, State> {
     });
   };
 
-  private handleReload = () => {
+  private readonly handleReload = () => {
     window.location.reload();
   };
 
-  private handleHome = () => {
+  private readonly handleHome = () => {
     window.location.href = '/';
   };
 
@@ -95,7 +96,7 @@ export class RouteErrorBoundary extends Component<Props, State> {
                 : 'An unexpected error occurred while loading this page.'}
             </p>
 
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <div className="mt-4 p-3 bg-gray-700 rounded text-xs text-gray-300 overflow-auto max-h-32">
                 <code>{this.state.error.toString()}</code>
               </div>

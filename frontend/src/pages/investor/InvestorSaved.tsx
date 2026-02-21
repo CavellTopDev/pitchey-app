@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Bookmark, Star, Clock, Calendar, Filter,
+  Bookmark, Star, Clock,
   Search, Eye, Share2, Trash2, FolderPlus,
   Tag, User, Film, DollarSign, Grid,
   List, MoreVertical, Plus, Check, X,
@@ -61,7 +61,7 @@ export default function InvestorSaved() {
   const [folders] = useState(['High Priority', 'Sci-Fi Projects', 'Low Budget', 'Indie Films']);
 
   useEffect(() => {
-    loadSavedPitches();
+    void loadSavedPitches();
   }, []);
 
   useEffect(() => {
@@ -79,27 +79,32 @@ export default function InvestorSaved() {
 
       if (response.success && response.savedPitches) {
         // Transform API response to local interface
-        const transformed: TransformedPitch[] = response.savedPitches.map((sp: any) => ({
-          id: String(sp.pitchId || sp.id),
-          title: sp.pitch?.title || 'Untitled Pitch',
-          logline: sp.pitch?.logline || '',
-          genre: sp.pitch?.genre ? [sp.pitch.genre] : [],
+        type SavedPitchRaw = Record<string, unknown> & {
+          pitch?: Record<string, unknown> & {
+            creator?: Record<string, unknown>;
+          };
+        };
+        const transformed: TransformedPitch[] = (response.savedPitches as unknown as SavedPitchRaw[]).map((sp) => ({
+          id: String(sp.pitchId ?? sp.id),
+          title: (sp.pitch?.title as string) || 'Untitled Pitch',
+          logline: (sp.pitch?.logline as string) || '',
+          genre: sp.pitch?.genre != null ? [sp.pitch.genre as string] : [],
           budget: 0, // Budget not available from saved pitches API
           creator: {
-            id: String(sp.pitch?.creator?.id || ''),
-            name: sp.pitch?.creator?.username || sp.pitch?.creator?.name || 'Unknown',
+            id: String(sp.pitch?.creator?.id ?? ''),
+            name: (sp.pitch?.creator?.username as string) || (sp.pitch?.creator?.name as string) || 'Unknown',
             verified: false
           },
-          savedDate: sp.savedAt || new Date().toISOString(),
+          savedDate: (sp.savedAt as string) || new Date().toISOString(),
           tags: [],
-          notes: sp.notes,
+          notes: sp.notes as string | undefined,
           priority: 'medium',
-          status: sp.pitch?.status || 'saved'
+          status: (sp.pitch?.status as string) || 'saved'
         }));
         setSavedPitches(transformed);
       } else {
         console.error('Failed to load saved pitches:', response.error);
-        setError(response.error || 'Failed to load saved pitches');
+        setError(response.error ?? 'Failed to load saved pitches');
         setSavedPitches([]);
       }
     } catch (err) {
@@ -180,7 +185,7 @@ export default function InvestorSaved() {
     }
   };
 
-  const handleBulkAction = async (action: 'remove' | 'folder' | 'status') => {
+  const handleBulkAction = (_action: 'remove' | 'folder' | 'status') => {
     if (selectedPitches.length > 0) {
       // Simulate API call
       setSelectedPitches([]);
@@ -273,7 +278,7 @@ export default function InvestorSaved() {
         </div>
 
         {/* Error Alert */}
-        {error && (
+        {error !== null && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
@@ -288,7 +293,7 @@ export default function InvestorSaved() {
                 <X className="w-4 h-4" />
               </button>
               <button
-                onClick={loadSavedPitches}
+                onClick={() => { void loadSavedPitches(); }}
                 className="inline-flex items-center gap-2 px-3 py-1.5 border border-red-300 rounded-md text-sm text-red-700 hover:bg-red-100"
               >
                 <RefreshCw className="w-4 h-4" />
@@ -334,7 +339,7 @@ export default function InvestorSaved() {
 
               <select
                 value={filters.status}
-                onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value as any }))}
+                onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value as SavedFilters['status'] }))}
                 className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
                 <option value="all">All Status</option>
@@ -346,7 +351,7 @@ export default function InvestorSaved() {
 
               <select
                 value={filters.priority}
-                onChange={(e) => setFilters(prev => ({ ...prev, priority: e.target.value as any }))}
+                onChange={(e) => setFilters(prev => ({ ...prev, priority: e.target.value as SavedFilters['priority'] }))}
                 className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
                 <option value="all">All Priority</option>
@@ -371,7 +376,7 @@ export default function InvestorSaved() {
 
               <select
                 value={filters.timeRange}
-                onChange={(e) => setFilters(prev => ({ ...prev, timeRange: e.target.value as any }))}
+                onChange={(e) => setFilters(prev => ({ ...prev, timeRange: e.target.value as SavedFilters['timeRange'] }))}
                 className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
                 <option value="all">All Time</option>
@@ -448,7 +453,7 @@ export default function InvestorSaved() {
               }
             </p>
             <button
-              onClick={() => navigate('/browse')}
+              onClick={() => { void navigate('/browse'); }}
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -522,13 +527,13 @@ export default function InvestorSaved() {
                     ))}
                   </div>
 
-                  {pitch.rating && (
+                  {pitch.rating != null && (
                     <div className="flex items-center gap-2 mb-4">
                       <div className="flex items-center gap-1">
                         <Star className="w-4 h-4 text-yellow-400 fill-current" />
                         <span className="text-sm font-medium">{pitch.rating}/5</span>
                       </div>
-                      {pitch.estimatedROI && (
+                      {pitch.estimatedROI != null && (
                         <span className="text-sm text-green-600 font-medium">
                           Est. ROI: {pitch.estimatedROI}%
                         </span>
@@ -542,13 +547,13 @@ export default function InvestorSaved() {
                       <Bookmark className="w-3 h-3" />
                       <span>Saved {formatDate(pitch.savedDate)}</span>
                     </div>
-                    {pitch.folder && (
+                    {pitch.folder != null && (
                       <div className="flex items-center gap-2">
                         <Tag className="w-3 h-3" />
                         <span>{pitch.folder}</span>
                       </div>
                     )}
-                    {pitch.lastViewed && (
+                    {pitch.lastViewed != null && (
                       <div className="flex items-center gap-2">
                         <Clock className="w-3 h-3" />
                         <span>Last viewed {formatDate(pitch.lastViewed)}</span>
@@ -559,7 +564,7 @@ export default function InvestorSaved() {
                   {/* Actions */}
                   <div className="flex gap-2">
                     <button
-                      onClick={() => navigate(`/pitch/${pitch.id}`)}
+                      onClick={() => { void navigate(`/pitch/${pitch.id}`); }}
                       className="flex-1 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
                     >
                       <Eye className="w-4 h-4 mr-1 inline" />
@@ -623,7 +628,7 @@ export default function InvestorSaved() {
                           <Film className="w-4 h-4 mr-1" />
                           <span>{pitch.genre.join(', ')}</span>
                         </div>
-                        {pitch.rating && (
+                        {pitch.rating != null && (
                           <div className="flex items-center">
                             <Star className="w-4 h-4 mr-1 text-yellow-400 fill-current" />
                             <span>{pitch.rating}/5</span>
@@ -634,7 +639,7 @@ export default function InvestorSaved() {
                     
                     <div className="flex items-center space-x-2">
                       <button
-                        onClick={() => navigate(`/pitch/${pitch.id}`)}
+                        onClick={() => { void navigate(`/pitch/${pitch.id}`); }}
                         className="text-green-600 hover:text-green-700"
                       >
                         <Eye className="w-4 h-4" />

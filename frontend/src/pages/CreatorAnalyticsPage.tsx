@@ -5,8 +5,8 @@ import {
 import { CreatorAnalytics } from '../components/Analytics/CreatorAnalytics';
 import CreatorActivity from './creator/CreatorActivity';
 import CreatorStats from './creator/CreatorStats';
-import { CreatorService, type CreatorAnalytics as CreatorAnalyticsData } from '../services/creator.service';
-import { AnalyticsService, type DashboardMetrics } from '../services/analytics.service';
+import { CreatorService } from '../services/creator.service';
+import { AnalyticsService } from '../services/analytics.service';
 
 export default function CreatorAnalyticsPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'stats'>('overview');
@@ -64,7 +64,7 @@ export default function CreatorAnalyticsPage() {
   };
 
   useEffect(() => {
-    loadAnalytics();
+    void loadAnalytics();
   }, []);
 
   const tabs = [
@@ -117,7 +117,7 @@ export default function CreatorAnalyticsPage() {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
+                    onClick={() => setActiveTab(tab.id as 'overview' | 'activity' | 'stats')}
                     className={`
                       flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors
                       ${activeTab === tab.id

@@ -31,7 +31,7 @@ export function NotificationInitializer() {
 
   // Log notification system status in development
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.info('🔔 Notification System Status:', {
         authenticated: isAuthenticated,
         webSocketConnected: isConnected,

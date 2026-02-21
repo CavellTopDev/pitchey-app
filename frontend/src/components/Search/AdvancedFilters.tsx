@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Filter, X, ChevronDown, ChevronUp, Calendar, DollarSign, Eye, Heart, Users, MapPin, Shield } from 'lucide-react';
+import { Filter, X, ChevronDown, ChevronUp, Calendar, DollarSign, Users, Shield } from 'lucide-react';
 
 interface SearchFilters {
   query?: string;
@@ -68,7 +68,7 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
     });
   };
 
-  const updateFilter = (key: keyof SearchFilters, value: any) => {
+  const updateFilter = (key: keyof SearchFilters, value: SearchFilters[typeof key]) => {
     onChange({ ...filters, [key]: value });
   };
 
@@ -78,10 +78,6 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
       ? currentArray.filter(item => item !== value)
       : [...currentArray, value];
     updateFilter(key, newArray.length > 0 ? newArray : undefined);
-  };
-
-  const clearFilter = (key: keyof SearchFilters) => {
-    updateFilter(key, undefined);
   };
 
   const hasActiveFilters = Object.entries(filters).some(([key, value]) => {

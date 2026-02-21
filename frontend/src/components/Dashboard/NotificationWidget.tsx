@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, BellRing, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { Bell, BellRing, ArrowRight, EyeOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useNotifications } from '../../contexts/WebSocketContext';
 import { NotificationsService, type Notification as BackendNotification } from '../../services/notifications.service';
@@ -39,7 +39,7 @@ export function NotificationWidget({
       }
     };
 
-    loadNotifications();
+    void loadNotifications();
   }, [maxNotifications]);
 
   // Combine and sort notifications
@@ -106,7 +106,7 @@ export function NotificationWidget({
           <div className="animate-pulse">
             <div className="h-4 bg-gray-200 rounded w-1/3 mb-4"></div>
             <div className="space-y-3">
-              {[...Array(3)].map((_, i) => (
+              {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="flex space-x-3">
                   <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
                   <div className="flex-1">
@@ -163,7 +163,7 @@ export function NotificationWidget({
             {/* Browser notification permission prompt */}
             {'Notification' in window && Notification.permission === 'default' && (
               <button
-                onClick={requestNotificationPermission}
+                onClick={() => { void requestNotificationPermission(); }}
                 className="mt-3 text-xs text-blue-600 hover:text-blue-800 underline"
               >
                 Enable browser notifications
@@ -198,7 +198,7 @@ export function NotificationWidget({
                         </span>
                         {!notification.read && (
                           <button
-                            onClick={() => handleMarkAsRead(notification.id)}
+                            onClick={() => { void handleMarkAsRead(notification.id); }}
                             className="p-1 text-blue-600 hover:text-blue-800"
                             title="Mark as read"
                           >
@@ -218,7 +218,7 @@ export function NotificationWidget({
                             key={index}
                             onClick={() => {
                               action.action();
-                              handleMarkAsRead(notification.id);
+                              void handleMarkAsRead(notification.id);
                             }}
                             className={`px-2 py-1 text-xs rounded transition-colors ${
                               action.type === 'primary'

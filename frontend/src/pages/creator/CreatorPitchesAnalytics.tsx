@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   BarChart3, Eye, Heart, FileText, TrendingUp,
-  ArrowUp, ArrowDown, Minus, AlertCircle, RefreshCw
+  AlertCircle, RefreshCw
 } from 'lucide-react';
 import { CreatorService, type CreatorAnalytics } from '../../services/creator.service';
 import { PitchService, type Pitch } from '../../services/pitch.service';
@@ -56,7 +56,7 @@ export default function CreatorPitchesAnalytics() {
   };
 
   useEffect(() => {
-    loadAnalytics();
+    void loadAnalytics();
   }, []);
 
   const sortedPitches = [...pitches].sort((a, b) => {
@@ -108,7 +108,7 @@ export default function CreatorPitchesAnalytics() {
             <p className="text-red-600 text-sm mt-1">{error}</p>
           </div>
           <button
-            onClick={loadAnalytics}
+            onClick={() => { void loadAnalytics(); }}
             className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center gap-2"
           >
             <RefreshCw className="w-4 h-4" />

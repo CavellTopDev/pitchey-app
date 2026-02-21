@@ -44,7 +44,7 @@ export default function InvestorLogin() {
       // Small delay for state propagation
       setTimeout(() => {
         clearLoading();
-        navigate('/investor/dashboard');
+        void navigate('/investor/dashboard');
       }, 100);
     } catch (error) {
       console.error('Investor login failed:', error);
@@ -67,7 +67,7 @@ export default function InvestorLogin() {
       // Small delay for state propagation
       setTimeout(() => {
         clearLoading();
-        navigate('/investor/dashboard');
+        void navigate('/investor/dashboard');
       }, 100);
     } catch (error) {
       console.error('Demo investor login failed:', error);
@@ -104,7 +104,7 @@ export default function InvestorLogin() {
           )}
 
           {/* Login Form */}
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-6" onSubmit={(e) => { void handleSubmit(e); }}>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Email address
@@ -184,7 +184,7 @@ export default function InvestorLogin() {
               <p className="text-green-700 text-xs text-center mb-3">Try our demo account</p>
               <button
                 type="button"
-                onClick={setDemoCredentials}
+                onClick={() => { void setDemoCredentials(); }}
                 className="w-full py-2 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg text-sm font-medium transition border border-green-300"
               >
                 Use Demo Investor Account

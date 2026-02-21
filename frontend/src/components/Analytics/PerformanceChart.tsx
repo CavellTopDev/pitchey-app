@@ -33,10 +33,10 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
     
     // Transform to chart data format
     return labels.map(label => {
-      const dataPoint: any = { label };
+      const dataPoint: Record<string, string | number> = { label };
       datasets.forEach(dataset => {
         const point = dataset.data.find(d => d.label === label);
-        dataPoint[dataset.label.toLowerCase()] = point?.value || 0;
+        (dataPoint as Record<string, number | string>)[dataset.label.toLowerCase()] = point?.value ?? 0;
       });
       return dataPoint;
     });
@@ -69,8 +69,8 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
           <YAxis
             tickLine={false}
             axisLine={false}
-            tickFormatter={(value) => 
-              currency 
+            tickFormatter={(value: number) =>
+              currency
                 ? `$${(value / 1000).toFixed(0)}k`
                 : value.toLocaleString()
             }

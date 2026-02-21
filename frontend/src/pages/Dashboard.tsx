@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { pitchAPI } from '../lib/api';
 import type { Pitch } from '../lib/api';
@@ -21,8 +21,8 @@ export default function Dashboard() {
   });
 
   useEffect(() => {
-    fetchPitches();
-    fetchTrending();
+    void fetchPitches();
+    void fetchTrending();
   }, [filter]);
 
   const fetchPitches = async () => {
@@ -52,7 +52,7 @@ export default function Dashboard() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchPitches();
+    void fetchPitches();
   };
 
   const formatIcon = (format: string) => {

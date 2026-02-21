@@ -3,19 +3,12 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Bell, 
-  BellRing, 
-  Check, 
-  CheckCheck, 
-  X, 
-  Settings, 
-  Filter,
-  Archive,
+import {
+  Bell,
+  BellRing,
+  X,
+  Settings,
   RefreshCw,
-  Eye,
-  EyeOff,
-  Clock,
   AlertCircle,
   Info,
   TrendingUp,
@@ -120,8 +113,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
       if (!response.ok) throw new Error('Failed to load notifications');
 
-      const data = await response.json();
-      
+      const data = await response.json() as { data: Notification[]; unreadCount: number };
+
       if (reset) {
         setNotifications(data.data);
         setPage(2);

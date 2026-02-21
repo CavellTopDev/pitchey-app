@@ -2,12 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Handshake, Clock, CheckCircle, XCircle, AlertCircle,
-  DollarSign, Calendar, FileText, Search, Filter,
-  Eye, MessageSquare, Download, TrendingUp, Users,
-  Building, Star, Award, Target, Globe, ArrowRight,
+  Calendar, FileText, Search,
+  Eye, MessageSquare, Download, Users,
+  Building, ArrowRight,
   RefreshCw
 } from 'lucide-react';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { API_URL } from '../../config';
 
 interface Deal {
@@ -70,7 +69,6 @@ interface DealFilters {
 
 export default function InvestorDeals() {
   const navigate = useNavigate();
-  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [filteredDeals, setFilteredDeals] = useState<Deal[]>([]);
@@ -84,7 +82,7 @@ export default function InvestorDeals() {
   });
 
   useEffect(() => {
-    loadDeals();
+    void loadDeals();
   }, []);
 
   useEffect(() => {
@@ -105,59 +103,68 @@ export default function InvestorDeals() {
         throw new Error(`Failed to load deals: ${response.status}`);
       }
 
-      const result = await response.json();
-      const rawDeals = result.deals || [];
+      const result = await response.json() as Record<string, unknown>;
+      const rawDeals = Array.isArray(result.deals) ? (result.deals as unknown[]) : [];
 
       // Map backend snake_case fields to frontend Deal interface
-      const mapped: Deal[] = rawDeals.map((d: any) => ({
-        id: String(d.id),
-        title: d.title || `Deal #${d.id}`,
-        type: d.type || 'equity',
-        status: d.status || 'pipeline',
-        stage: d.stage || 'seed',
-        creator: {
-          id: String(d.creator_id || d.creator?.id || ''),
-          name: d.creator_name || d.creator?.name || 'Unknown',
-          company: d.creator_company || d.creator?.company,
-          avatar: d.creator_avatar || d.creator?.avatar,
-          verified: d.creator_verified ?? d.creator?.verified ?? false,
-        },
-        project: {
-          id: String(d.project_id || d.project?.id || d.pitch_id || ''),
-          title: d.project_title || d.project?.title || d.title || '',
-          genre: d.genre ? (Array.isArray(d.genre) ? d.genre : [d.genre]) : d.project?.genre || [],
-          budget: Number(d.budget || d.project?.budget || 0),
-          description: d.description || d.project?.description || '',
-        },
-        investment: {
-          amountRequested: Number(d.amount_requested || d.investment?.amountRequested || d.amount || 0),
-          amountOffered: d.amount_offered ? Number(d.amount_offered) : d.investment?.amountOffered,
-          equityPercentage: d.equity_percentage ? Number(d.equity_percentage) : d.investment?.equityPercentage,
-          valuation: d.valuation ? Number(d.valuation) : d.investment?.valuation,
-          minimumInvestment: d.minimum_investment ? Number(d.minimum_investment) : d.investment?.minimumInvestment,
-        },
-        timeline: {
-          submittedDate: d.created_at || d.timeline?.submittedDate || new Date().toISOString(),
-          lastUpdated: d.updated_at || d.timeline?.lastUpdated || new Date().toISOString(),
-          expectedCloseDate: d.expected_close_date || d.timeline?.expectedCloseDate,
-          actualCloseDate: d.actual_close_date || d.timeline?.actualCloseDate,
-        },
-        documents: d.documents || {
-          pitchDeck: false,
-          businessPlan: false,
-          financials: false,
-          termSheet: false,
-          legalDocs: false,
-        },
-        metrics: {
-          roi: d.roi ? Number(d.roi) : d.metrics?.roi,
-          irr: d.irr ? Number(d.irr) : d.metrics?.irr,
-          paybackPeriod: d.payback_period ? Number(d.payback_period) : d.metrics?.paybackPeriod,
-          riskScore: d.risk_score || d.metrics?.riskScore || 'medium',
-        },
-        notes: d.notes,
-        priority: d.priority || 'medium',
-      }));
+      type RawDeal = Record<string, unknown>;
+      const mapped: Deal[] = (rawDeals as RawDeal[]).map((d) => {
+        const creator = d.creator as Record<string, unknown> | undefined;
+        const project = d.project as Record<string, unknown> | undefined;
+        const investment = d.investment as Record<string, unknown> | undefined;
+        const timeline = d.timeline as Record<string, unknown> | undefined;
+        const metrics = d.metrics as Record<string, unknown> | undefined;
+        const genre = d.genre ?? project?.genre;
+        return {
+          id: String(d.id),
+          title: (d.title as string) || `Deal #${String(d.id)}`,
+          type: (d.type as Deal['type']) || 'equity',
+          status: (d.status as Deal['status']) || 'pipeline',
+          stage: (d.stage as Deal['stage']) || 'seed',
+          creator: {
+            id: String(d.creator_id ?? creator?.id ?? ''),
+            name: (d.creator_name as string) ?? (creator?.name as string) ?? 'Unknown',
+            company: (d.creator_company as string | undefined) ?? (creator?.company as string | undefined),
+            avatar: (d.creator_avatar as string | undefined) ?? (creator?.avatar as string | undefined),
+            verified: (d.creator_verified as boolean | undefined) ?? (creator?.verified as boolean | undefined) ?? false,
+          },
+          project: {
+            id: String(d.project_id ?? project?.id ?? d.pitch_id ?? ''),
+            title: (d.project_title as string) ?? (project?.title as string) ?? (d.title as string) ?? '',
+            genre: genre != null ? (Array.isArray(genre) ? (genre as string[]) : [genre as string]) : [],
+            budget: Number(d.budget ?? project?.budget ?? 0),
+            description: (d.description as string) ?? (project?.description as string) ?? '',
+          },
+          investment: {
+            amountRequested: Number(d.amount_requested ?? investment?.amountRequested ?? d.amount ?? 0),
+            amountOffered: d.amount_offered != null ? Number(d.amount_offered) : (investment?.amountOffered as number | undefined),
+            equityPercentage: d.equity_percentage != null ? Number(d.equity_percentage) : (investment?.equityPercentage as number | undefined),
+            valuation: d.valuation != null ? Number(d.valuation) : (investment?.valuation as number | undefined),
+            minimumInvestment: d.minimum_investment != null ? Number(d.minimum_investment) : (investment?.minimumInvestment as number | undefined),
+          },
+          timeline: {
+            submittedDate: (d.created_at as string) ?? (timeline?.submittedDate as string) ?? new Date().toISOString(),
+            lastUpdated: (d.updated_at as string) ?? (timeline?.lastUpdated as string) ?? new Date().toISOString(),
+            expectedCloseDate: (d.expected_close_date as string | undefined) ?? (timeline?.expectedCloseDate as string | undefined),
+            actualCloseDate: (d.actual_close_date as string | undefined) ?? (timeline?.actualCloseDate as string | undefined),
+          },
+          documents: (d.documents as Deal['documents'] | null | undefined) ?? {
+            pitchDeck: false,
+            businessPlan: false,
+            financials: false,
+            termSheet: false,
+            legalDocs: false,
+          },
+          metrics: {
+            roi: d.roi != null ? Number(d.roi) : (metrics?.roi as number | undefined),
+            irr: d.irr != null ? Number(d.irr) : (metrics?.irr as number | undefined),
+            paybackPeriod: d.payback_period != null ? Number(d.payback_period) : (metrics?.paybackPeriod as number | undefined),
+            riskScore: (d.risk_score as Deal['metrics']['riskScore']) ?? (metrics?.riskScore as Deal['metrics']['riskScore']) ?? 'medium',
+          },
+          notes: d.notes as string | undefined,
+          priority: (d.priority as Deal['priority']) || 'medium',
+        };
+      });
 
       setDeals(mapped);
     } catch (err) {
@@ -173,12 +180,13 @@ export default function InvestorDeals() {
     let filtered = [...deals];
 
     // Apply search query
-    if (searchQuery) {
+    if (searchQuery.trim().length > 0) {
+      const q = searchQuery.toLowerCase();
       filtered = filtered.filter(deal =>
-        deal.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        deal.project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        deal.creator.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        deal.creator.company?.toLowerCase().includes(searchQuery.toLowerCase())
+        deal.title.toLowerCase().includes(q) ||
+        deal.project.title.toLowerCase().includes(q) ||
+        deal.creator.name.toLowerCase().includes(q) ||
+        (deal.creator.company?.toLowerCase().includes(q) === true)
       );
     }
 
@@ -313,7 +321,7 @@ export default function InvestorDeals() {
           <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to load deals</h3>
           <p className="text-gray-600 mb-4">{error}</p>
           <button
-            onClick={loadDeals}
+            onClick={() => { void loadDeals(); }}
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700"
           >
             <RefreshCw className="w-4 h-4 mr-2" />
@@ -462,7 +470,7 @@ export default function InvestorDeals() {
 
               <select
                 value={filters.timeRange}
-                onChange={(e) => setFilters(prev => ({ ...prev, timeRange: e.target.value as any }))}
+                onChange={(e) => setFilters(prev => ({ ...prev, timeRange: e.target.value as DealFilters['timeRange'] }))}
                 className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
                 <option value="all">All Time</option>
@@ -645,7 +653,7 @@ export default function InvestorDeals() {
                       
                       <div className="flex items-center gap-3">
                         <button
-                          onClick={() => navigate(`/deal/${deal.id}`)}
+                          onClick={() => { void navigate(`/deal/${deal.id}`); }}
                           className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-purple-600 hover:bg-purple-700"
                         >
                           <Eye className="w-4 h-4 mr-2" />

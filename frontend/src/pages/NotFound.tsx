@@ -6,15 +6,15 @@ const NotFound: React.FC = () => {
   const navigate = useNavigate();
 
   const handleGoHome = () => {
-    navigate('/');
+    void navigate('/');
   };
 
   const handleGoBack = () => {
-    navigate(-1);
+    void navigate(-1);
   };
 
   const handleSearch = () => {
-    navigate('/marketplace');
+    void navigate('/marketplace');
   };
 
   return (
@@ -72,13 +72,13 @@ const NotFound: React.FC = () => {
           </h3>
           <div className="flex flex-wrap justify-center gap-4 text-sm">
             <button
-              onClick={() => navigate('/marketplace')}
+              onClick={() => { void navigate('/marketplace'); }}
               className="text-purple-600 hover:text-purple-700 underline"
             >
               Marketplace
             </button>
             <button
-              onClick={() => navigate('/portals')}
+              onClick={() => { void navigate('/portals'); }}
               className="text-purple-600 hover:text-purple-700 underline"
             >
               Sign In

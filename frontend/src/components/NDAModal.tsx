@@ -14,13 +14,13 @@ interface NDAModalProps {
   onNDASigned: () => void;
 }
 
-export default function NDAModal({ 
-  isOpen, 
-  onClose, 
-  pitchId, 
+export default function NDAModal({
+  isOpen,
+  onClose,
+  pitchId,
   pitchTitle,
   creatorType,
-  onNDASigned 
+  onNDASigned: _onNDASigned
 }: NDAModalProps) {
   const { user } = useBetterAuthStore();
   const [loading, setLoading] = useState(false);
@@ -75,7 +75,13 @@ export default function NDAModal({
       }
 
       // Prepare request data
-      const requestData = {
+      const requestData: {
+        pitchId: number;
+        message: string;
+        templateId: number | undefined;
+        expiryDays: number;
+        customNdaUrl?: string;
+      } = {
         pitchId,
         message: formData.customTerms || `Requesting access to enhanced information for ${pitchTitle}`,
         templateId: formData.ndaType === 'standard' ? undefined : 1,
@@ -86,12 +92,12 @@ export default function NDAModal({
       if (formData.ndaType === 'upload' && uploadedFiles.length > 0) {
         // The file upload service should have already uploaded the file
         // We'll pass the file URL to the NDA request
-        (requestData as any).customNdaUrl = uploadedFiles[0].url;
+        requestData.customNdaUrl = uploadedFiles[0].url;
       }
 
       // Submit NDA request
       setUploadProgress(75);
-      const nda = await ndaService.requestNDA(requestData);
+      const _nda = await ndaService.requestNDA(requestData);
       
       setUploadProgress(100);
       setStep('success');
@@ -117,20 +123,12 @@ export default function NDAModal({
     }
   };
 
-  const handleFilesUploaded = (files: any[]) => {
-    const ndaFiles: UploadedNDAFile[] = files.map(file => ({
-      id: file.id,
-      filename: file.filename,
-      url: file.url,
-      size: file.size,
-      mimeType: file.mimeType,
-      uploadedAt: file.uploadedAt
-    }));
-    setUploadedFiles(ndaFiles);
+  const handleFilesUploaded = (files: UploadedNDAFile[]) => {
+    setUploadedFiles(files);
     setError(''); // Clear any upload errors
   };
 
-  const handleFormDataChange = (field: keyof NDARequestFormData, value: any) => {
+  const handleFormDataChange = <K extends keyof NDARequestFormData>(field: K, value: NDARequestFormData[K]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (error) setError(''); // Clear errors when user makes changes
   };
@@ -370,7 +368,7 @@ export default function NDAModal({
                 Cancel
               </button>
               <button
-                onClick={handleSubmit}
+                onClick={() => { void handleSubmit(); }}
                 disabled={loading || (formData.ndaType === 'upload' && uploadedFiles.length === 0) || !formData.acceptTerms}
                 className={`px-6 py-2 rounded-lg font-medium transition-colors ${
                   loading || (formData.ndaType === 'upload' && uploadedFiles.length === 0) || !formData.acceptTerms

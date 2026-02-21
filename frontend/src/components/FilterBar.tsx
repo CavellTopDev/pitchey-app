@@ -3,9 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import SavedFilters from './SavedFilters';
 import EmailAlerts from './EmailAlerts';
 import { 
-  X, 
-  ChevronDown, 
-  Filter, 
+  X,
+  ChevronDown,
   SlidersHorizontal,
   Check,
   Search,

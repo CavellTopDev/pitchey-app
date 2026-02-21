@@ -3,7 +3,7 @@
  */
 
 interface CachedSession {
-  user: any | null;
+  user: unknown | null;
   timestamp: number;
 }
 
@@ -22,7 +22,7 @@ export const sessionCache = {
       const cached = localStorage.getItem(SESSION_CACHE_KEY);
       if (!cached) return null;
       
-      const session: CachedSession = JSON.parse(cached);
+      const session = JSON.parse(cached) as CachedSession;
       const now = Date.now();
       
       // Check if cache is still valid
@@ -37,7 +37,7 @@ export const sessionCache = {
     }
   },
 
-  set(user: any | null): void {
+  set(user: unknown | null): void {
     try {
       const session: CachedSession = {
         user,

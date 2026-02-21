@@ -29,7 +29,7 @@ interface CreatorAnalyticsProps {
 export const CreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({ 
   pitchPerformance 
 }) => {
-  const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
+  const [_timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
 
   const performanceData = {
     views: [

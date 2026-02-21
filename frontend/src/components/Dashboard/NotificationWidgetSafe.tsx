@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, BellRing, X, ExternalLink } from 'lucide-react';
+import { Bell, BellRing, X } from 'lucide-react';
 
 interface Notification {
   id: string;
@@ -87,15 +87,6 @@ function NotificationWidgetSafe({
     }
   };
 
-  const getNotificationBgColor = (type: string) => {
-    switch (type) {
-      case 'success': return 'bg-green-50 border-green-200';
-      case 'warning': return 'bg-yellow-50 border-yellow-200';
-      case 'error': return 'bg-red-50 border-red-200';
-      default: return 'bg-blue-50 border-blue-200';
-    }
-  };
-
   const formatTimestamp = (timestamp: Date) => {
     try {
       const now = new Date();
@@ -107,7 +98,7 @@ function NotificationWidgetSafe({
       if (hours < 24) return `${hours} hours ago`;
       
       return timestamp.toLocaleDateString();
-    } catch (err) {
+    } catch {
       return 'Recently';
     }
   };

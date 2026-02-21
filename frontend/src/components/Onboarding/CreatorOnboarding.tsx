@@ -4,7 +4,6 @@ import { useOnboardingStore } from '../../store/onboardingStore';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { GuidedTour } from './GuidedTour';
 import { OnboardingWelcome } from './OnboardingWelcome';
-import { OnboardingProgress } from './OnboardingProgress';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -13,7 +12,6 @@ import { CREATOR_ROUTES } from '../../config/navigation.routes';
 import type { TutorialStep } from '../../store/onboardingStore';
 
 export const CreatorOnboarding: React.FC = () => {
-  const navigate = useNavigate();
   const { user } = useBetterAuthStore();
   const {
     currentFlow,
@@ -27,7 +25,6 @@ export const CreatorOnboarding: React.FC = () => {
     skipOnboarding
   } = useOnboardingStore();
 
-  const [currentStepComponent, setCurrentStepComponent] = useState<string | null>(null);
   const [showTour, setShowTour] = useState(false);
 
   // Initialize onboarding for creators
@@ -345,10 +342,10 @@ const ProfileSetupStep: React.FC<{
       </div>
 
       <div className="flex gap-4">
-        <Button 
-          className="flex-1" 
+        <Button
+          className="flex-1"
           onClick={() => {
-            navigate(CREATOR_ROUTES.profile);
+            void navigate(CREATOR_ROUTES.profile);
             onComplete();
           }}
         >
@@ -428,10 +425,10 @@ const FirstPitchStep: React.FC<{
       </div>
 
       <div className="flex gap-4">
-        <Button 
-          className="flex-1" 
+        <Button
+          className="flex-1"
           onClick={() => {
-            navigate(CREATOR_ROUTES.pitchNew);
+            void navigate(CREATOR_ROUTES.pitchNew);
             onComplete();
           }}
         >
@@ -546,10 +543,10 @@ const DashboardTourStep: React.FC<{
         <Button className="flex-1" onClick={onStartTour}>
           Take Dashboard Tour
         </Button>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           onClick={() => {
-            navigate(CREATOR_ROUTES.dashboard);
+            void navigate(CREATOR_ROUTES.dashboard);
             onComplete();
           }}
         >

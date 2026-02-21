@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Star, Eye, Heart, DollarSign, Calendar, Users, TrendingUp, ChevronRight, Filter } from 'lucide-react';
+import { Star, Eye, Heart, DollarSign, Calendar, Users, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface InvestmentOpportunity {
@@ -96,7 +96,7 @@ export default function InvestmentOpportunities({
     if (onOpportunityClick) {
       onOpportunityClick(opportunity);
     } else {
-      navigate(`/investor/pitch/${opportunity.id}`);
+      void navigate(`/investor/pitch/${opportunity.id}`);
     }
   };
 
@@ -105,7 +105,7 @@ export default function InvestmentOpportunities({
     if (onInvestClick) {
       onInvestClick(opportunity);
     } else {
-      navigate(`/investor/pitch/${opportunity.id}?tab=invest`);
+      void navigate(`/investor/pitch/${opportunity.id}?tab=invest`);
     }
   };
 
@@ -115,7 +115,7 @@ export default function InvestmentOpportunities({
         <div className="animate-pulse">
           <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
           <div className="space-y-4">
-            {[...Array(3)].map((_, i) => (
+            {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="h-32 bg-gray-200 rounded"></div>
             ))}
           </div>
@@ -159,7 +159,7 @@ export default function InvestmentOpportunities({
             {/* Sort Options */}
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
+              onChange={(e) => setSortBy(e.target.value as 'match' | 'views' | 'budget' | 'date')}
               className="text-sm border border-gray-300 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {showMatchScore && <option value="match">Best Match</option>}

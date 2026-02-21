@@ -2,6 +2,20 @@ import { useEffect, useState, useCallback } from 'react';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import type { ConnectionQuality } from '../types/websocket';
 
+interface NetworkInformation extends EventTarget {
+  type?: string;
+  effectiveType?: string;
+  downlink?: number;
+  rtt?: number;
+  saveData?: boolean;
+}
+
+interface NavigatorWithConnection extends Navigator {
+  connection?: NetworkInformation;
+  mozConnection?: NetworkInformation;
+  webkitConnection?: NetworkInformation;
+}
+
 interface ConnectionMonitorState {
   isOnline: boolean;
   connectionType: 'wifi' | 'cellular' | 'ethernet' | 'unknown';
@@ -65,18 +79,17 @@ export function useConnectionMonitor(): UseConnectionMonitorResult {
   // Monitor network information API
   useEffect(() => {
     const updateConnectionInfo = () => {
-      const connection = (navigator as any).connection || 
-                        (navigator as any).mozConnection || 
-                        (navigator as any).webkitConnection;
-      
-      if (connection) {
+      const nav = navigator as NavigatorWithConnection;
+      const connection = nav.connection ?? nav.mozConnection ?? nav.webkitConnection;
+
+      if (connection !== undefined) {
         setConnectionState(prev => ({
           ...prev,
-          connectionType: connection.type || 'unknown',
-          effectiveType: connection.effectiveType || 'unknown',
-          downlink: connection.downlink || 0,
-          rtt: connection.rtt || 0,
-          saveData: connection.saveData || false,
+          connectionType: (connection.type ?? 'unknown') as ConnectionMonitorState['connectionType'],
+          effectiveType: (connection.effectiveType ?? 'unknown') as ConnectionMonitorState['effectiveType'],
+          downlink: connection.downlink ?? 0,
+          rtt: connection.rtt ?? 0,
+          saveData: connection.saveData ?? false,
         }));
       }
     };
@@ -96,15 +109,16 @@ export function useConnectionMonitor(): UseConnectionMonitorResult {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     
-    const connection = (navigator as any).connection;
-    if (connection) {
+    const nav = navigator as NavigatorWithConnection;
+    const connection = nav.connection;
+    if (connection !== undefined) {
       connection.addEventListener('change', updateConnectionInfo);
     }
-    
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      if (connection) {
+      if (connection !== undefined) {
         connection.removeEventListener('change', updateConnectionInfo);
       }
     };
@@ -170,7 +184,7 @@ export function useConnectionMonitor(): UseConnectionMonitorResult {
       }));
       
       return response.ok && latency < 5000; // Consider good if < 5s
-    } catch (error) {
+    } catch (_error) {
       setPerformanceHistory(prev => ({
         ...prev,
         failures: prev.failures + 1,
