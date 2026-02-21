@@ -4328,15 +4328,24 @@ pitchey_analytics_datapoints_per_minute 1250
    */
   private async handleWebSocketToken(request: Request): Promise<Response> {
     try {
-      // Validate the user's session using Better Auth
-      const { BetterAuthSessionHandler } = await import('./auth/better-auth-session-handler');
-      const { createAuthErrorResponse, getCorsHeaders } = await import('./utils/response');
+      const { getCorsHeaders } = await import('./utils/response');
+      const origin = request.headers.get('Origin');
 
-      const sessionHandler = new BetterAuthSessionHandler(this.env);
-      const sessionResult = await sessionHandler.validateSession(request);
+      // Use the same validateAuth path as all other authenticated endpoints
+      const authResult = await this.validateAuth(request);
 
-      if (!sessionResult.valid || !sessionResult.user) {
-        return createAuthErrorResponse();
+      if (!authResult.valid || !authResult.user) {
+        console.warn('[WS Token] Auth validation failed — no valid session found');
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Authentication required'
+        }), {
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+            ...getCorsHeaders(origin)
+          }
+        });
       }
 
       // Get the session ID from cookies to use as WebSocket token
@@ -4345,8 +4354,20 @@ pitchey_analytics_datapoints_per_minute 1250
       const sessionId = parseSessionCookie(cookieHeader);
 
       if (!sessionId) {
-        return createAuthErrorResponse();
+        console.warn('[WS Token] Session cookie not found in request headers');
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Session cookie not found'
+        }), {
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+            ...getCorsHeaders(origin)
+          }
+        });
       }
+
+      console.log(`[WS Token] Token issued for user ${authResult.user.id}`);
 
       // Return the session ID that can be used as a token for WebSocket
       return new Response(JSON.stringify({
@@ -4358,7 +4379,7 @@ pitchey_analytics_datapoints_per_minute 1250
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          ...getCorsHeaders(request.headers.get('Origin'))
+          ...getCorsHeaders(origin)
         }
       });
     } catch (error) {
@@ -9132,19 +9153,17 @@ pitchey_analytics_datapoints_per_minute 1250
       let username: string | null = null;
 
       if (token) {
-        // Validate token (which is a Better Auth session ID)
+        // Validate token (which is a session ID from /api/ws/token)
+        // Use the same validateAuth path as all other endpoints
         try {
-          const { BetterAuthSessionHandler } = await import('./auth/better-auth-session-handler');
-          const sessionHandler = new BetterAuthSessionHandler(this.env);
-          // Build a fake request with the session cookie so we can validate
           const fakeHeaders = new Headers(request.headers);
-          fakeHeaders.set('Cookie', `better-auth.session_token=${token}; pitchey-session=${token}`);
+          fakeHeaders.set('Cookie', `pitchey-session=${token}`);
           const fakeRequest = new Request(request.url, { headers: fakeHeaders });
-          const sessionResult = await sessionHandler.validateSession(fakeRequest);
-          if (sessionResult.valid && sessionResult.user) {
-            userId = String(sessionResult.user.id);
-            portalType = sessionResult.user.userType || sessionResult.user.user_type || 'creator';
-            username = sessionResult.user.name || sessionResult.user.email || undefined;
+          const authResult = await this.validateAuth(fakeRequest);
+          if (authResult.valid && authResult.user) {
+            userId = String(authResult.user.id);
+            portalType = authResult.user.userType || authResult.user.user_type || 'creator';
+            username = authResult.user.name || authResult.user.email || undefined;
           }
         } catch (authErr) {
           console.warn('WebSocket token auth failed:', authErr);
@@ -9152,15 +9171,13 @@ pitchey_analytics_datapoints_per_minute 1250
       }
 
       if (!userId) {
-        // Try cookie-based auth as fallback
+        // Try cookie-based auth as fallback (same validateAuth path)
         try {
-          const { BetterAuthSessionHandler } = await import('./auth/better-auth-session-handler');
-          const sessionHandler = new BetterAuthSessionHandler(this.env);
-          const sessionResult = await sessionHandler.validateSession(request);
-          if (sessionResult.valid && sessionResult.user) {
-            userId = String(sessionResult.user.id);
-            portalType = sessionResult.user.userType || sessionResult.user.user_type || 'creator';
-            username = sessionResult.user.name || sessionResult.user.email || undefined;
+          const authResult = await this.validateAuth(request);
+          if (authResult.valid && authResult.user) {
+            userId = String(authResult.user.id);
+            portalType = authResult.user.userType || authResult.user.user_type || 'creator';
+            username = authResult.user.name || authResult.user.email || undefined;
           }
         } catch (authErr) {
           console.warn('WebSocket cookie auth failed:', authErr);
