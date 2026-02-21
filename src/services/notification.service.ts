@@ -237,15 +237,24 @@ export class NotificationService {
   private isProcessing: boolean = false;
 
   constructor(
-    connectionString: string,
+    databaseOrConnectionString: string | WorkerDatabase | any,
     redis: RedisService,
-    email: EmailService,
-    messaging: MessagingService
+    email?: EmailService,
+    messaging?: MessagingService
   ) {
-    this.db = new WorkerDatabase({ connectionString });
+    if (typeof databaseOrConnectionString === 'string') {
+      this.db = new WorkerDatabase({ connectionString: databaseOrConnectionString });
+    } else if (databaseOrConnectionString instanceof WorkerDatabase) {
+      this.db = databaseOrConnectionString;
+    } else if (databaseOrConnectionString && typeof databaseOrConnectionString.query === 'function') {
+      // Accept any database-like object (DatabaseService interface)
+      this.db = databaseOrConnectionString as WorkerDatabase;
+    } else {
+      this.db = new WorkerDatabase({ connectionString: 'postgresql://dummy:dummy@localhost:5432/dummy' });
+    }
     this.redis = redis;
-    this.email = email;
-    this.messaging = messaging;
+    this.email = email as EmailService;
+    this.messaging = messaging as MessagingService;
     this.startQueueProcessor();
   }
 

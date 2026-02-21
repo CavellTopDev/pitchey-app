@@ -17322,15 +17322,11 @@ const workerHandler = {
         let userId: string | undefined;
 
         // Extract user ID from session if available (for logging)
+        // Note: userId is left undefined for unauthenticated requests;
+        // logRequestMetrics passes null for the integer user_id column.
         try {
-          const cookieHeader = request.headers.get('cookie') || '';
-          const { parseSessionCookie } = await import('./config/session.config');
-          const sessionId = parseSessionCookie(cookieHeader);
-          if (sessionId) {
-            // This is just for logging - actual auth is handled by Better Auth
-            // We don't decode the session here, just mark that a session exists
-            userId = 'authenticated-user';
-          }
+          // Actual user ID resolution happens in the route handlers.
+          // We don't resolve it here since it would require a DB/KV lookup.
         } catch (e) {
           // Ignore session extraction errors for logging
         }

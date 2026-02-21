@@ -18,7 +18,7 @@ export interface Env {
  */
 export function getDb(env: Env) {
   if (!env.DATABASE_URL) {
-    console.error('DATABASE_URL not configured');
+    console.warn('DATABASE_URL not configured — skipping DB connection');
     return null;
   }
   
