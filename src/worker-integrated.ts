@@ -4,6 +4,11 @@
  * Combines authentication, database, file upload, and WebSocket support
  */
 
+// Polyfill process for transitively imported modules that reference process.env
+if (typeof process === 'undefined') {
+  (globalThis as any).process = { env: {}, pid: 0, versions: {} };
+}
+
 // Sentry Error Tracking
 import * as Sentry from '@sentry/cloudflare';
 

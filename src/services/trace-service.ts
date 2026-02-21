@@ -219,10 +219,7 @@ export class TraceService {
             span.events.length
           ],
           indexes: [
-            span.operation,
-            span.status,
-            span.service,
-            span.error ? 'error' : 'success'
+            `${span.service}:${span.operation}`.substring(0, 96)
           ]
         });
       }

@@ -64,9 +64,7 @@ export class DatabaseMetricsService {
           metrics.timestamp
         ],
         indexes: [
-          metrics.table,           // Index by table for table-specific queries
-          metrics.queryType,       // Index by query type
-          `${metrics.table}:${metrics.queryType}` // Combined index
+          `${metrics.table}:${metrics.queryType}`.substring(0, 96)
         ]
       });
     } catch (error) {
@@ -98,9 +96,9 @@ export class DatabaseMetricsService {
           metrics.queryCount,
           metrics.timestamp
         ],
-        // Analytics Engine supports only 1 index per data point
+        // Analytics Engine supports only 1 index per data point (max 96 bytes)
         indexes: [
-          `${metrics.method}:${metrics.endpoint}` // Combined method + endpoint index
+          `${metrics.method}:${metrics.endpoint}`.substring(0, 96)
         ]
       });
     } catch (error) {
@@ -132,9 +130,7 @@ export class DatabaseMetricsService {
           1 // Error count (always 1 per event)
         ],
         indexes: [
-          metrics.type,            // Error type grouping
-          metrics.source,          // Error source
-          `${metrics.type}:${metrics.source}` // Combined index
+          `${metrics.type}:${metrics.source}`.substring(0, 96)
         ]
       });
     } catch (error) {

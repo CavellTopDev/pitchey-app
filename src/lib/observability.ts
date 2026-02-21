@@ -238,7 +238,7 @@ export class MetricsCollector {
         tags?.region || '',
       ],
       doubles: [duration, statusCode >= 400 ? 1 : 0, statusCode >= 500 ? 1 : 0],
-      indexes: [`${method}:${path}`],
+      indexes: [`${method}:${path}`.substring(0, 96)],
     });
   }
 
@@ -283,7 +283,7 @@ export class MetricsCollector {
     dataset.writeDataPoint({
       blobs: [queryType, table, success ? 'success' : 'failure'],
       doubles: [duration, rowCount, success ? 0 : 1],
-      indexes: [`db:${queryType}:${table}`],
+      indexes: [`db:${queryType}:${table}`.substring(0, 96)],
     });
   }
 
