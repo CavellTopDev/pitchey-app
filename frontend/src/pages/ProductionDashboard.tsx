@@ -147,6 +147,11 @@ function ProductionDashboard() {
   const ndaFileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchInvestmentData = useCallback(async () => {
+    // Guard against calling without a valid session (prevents 401 errors in Sentry)
+    if (!user?.id) {
+      return;
+    }
+
     let cancelled = false;
     try {
       setSectionStatus(prev => ({ ...prev, investments: { loaded: false, error: null } }));

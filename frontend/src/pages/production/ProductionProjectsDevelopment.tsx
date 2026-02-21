@@ -80,69 +80,6 @@ export default function ProductionProjectsDevelopment() {
     } catch (err) {
       console.error('Error fetching development projects:', err);
       setError(err instanceof Error ? err.message : 'Failed to load development projects');
-      // Fallback to demo data for development
-      setProjects([
-        {
-          id: '1',
-          title: 'Ocean\'s Secret',
-          genre: 'Thriller',
-          status: 'script-review',
-          budget: 3200000,
-          estimatedStartDate: '2024-12-01',
-          progress: 25,
-          team: 12,
-          director: 'James Park',
-          scriptwriter: 'Emily Chen',
-          priority: 'high',
-          phase: 'script',
-          lastActivity: '2024-11-25',
-          daysInDevelopment: 45
-        },
-        {
-          id: '2',
-          title: 'Time Traveler\'s Dilemma',
-          genre: 'Sci-Fi',
-          status: 'financing',
-          budget: 8000000,
-          estimatedStartDate: '2025-01-15',
-          progress: 10,
-          team: 8,
-          priority: 'urgent',
-          phase: 'planning',
-          lastActivity: '2024-11-26',
-          daysInDevelopment: 30
-        },
-        {
-          id: '3',
-          title: 'Silent Echoes',
-          genre: 'Drama',
-          status: 'casting',
-          budget: 2800000,
-          estimatedStartDate: '2024-12-15',
-          progress: 65,
-          team: 18,
-          director: 'Maria Santos',
-          producer: 'Alex Kim',
-          priority: 'medium',
-          phase: 'pre-production',
-          lastActivity: '2024-11-27',
-          daysInDevelopment: 78
-        },
-        {
-          id: '4',
-          title: 'Digital Frontier',
-          genre: 'Action',
-          status: 'development',
-          budget: 12000000,
-          estimatedStartDate: '2025-03-01',
-          progress: 5,
-          team: 4,
-          priority: 'low',
-          phase: 'concept',
-          lastActivity: '2024-11-20',
-          daysInDevelopment: 15
-        }
-      ]);
     } finally {
       setLoading(false);
     }

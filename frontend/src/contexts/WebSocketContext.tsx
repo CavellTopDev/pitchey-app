@@ -644,7 +644,11 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   
   function handleConnect() {
     setUsingFallback(false); // We're now using WebSocket successfully
-    
+
+    // Stop polling services — WebSocket is active, no need for fallback traffic
+    pollingService.stop();
+    presenceFallbackService.stop();
+
     // Update presence to online when connected
     if (user) {
       updatePresence('online');
@@ -728,7 +732,11 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   
   // Enhanced error handler
   function handleError(error: Event) {
-    console.error('[WebSocketContext] WebSocket error:', error);
+    // Serialize Event/ErrorEvent properly instead of logging [object Event]
+    const errorInfo = error instanceof ErrorEvent
+      ? { message: error.message, filename: error.filename, lineno: error.lineno }
+      : { type: error.type, eventPhase: error.eventPhase };
+    console.error('[WebSocketContext] WebSocket error:', errorInfo);
     
     // Create user-friendly error notification
     const errorNotification: NotificationData = {

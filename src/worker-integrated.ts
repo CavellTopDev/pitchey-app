@@ -2815,6 +2815,14 @@ class RouteRegistry {
       const { investorOpportunitiesHandler } = await import('./handlers/investor-sidebar');
       return investorOpportunitiesHandler(req, this.env);
     });
+    this.register('GET', '/api/investor/settings', async (req) => {
+      const { investorSettingsGetHandler } = await import('./handlers/investor-sidebar');
+      return investorSettingsGetHandler(req, this.env);
+    });
+    this.register('PUT', '/api/investor/settings', async (req) => {
+      const { investorSettingsSaveHandler } = await import('./handlers/investor-sidebar');
+      return investorSettingsSaveHandler(req, this.env);
+    });
 
     // Creator Portal Sidebar Routes (real DB queries)
     this.register('GET', '/api/creator/activity', async (req) => {
@@ -10352,7 +10360,35 @@ pitchey_analytics_datapoints_per_minute 1250
   }
 
   private async getMarketForecast(request: Request): Promise<Response> {
-    return new ApiResponseBuilder(request).success({ forecast: [] });
+    const builder = new ApiResponseBuilder(request);
+    try {
+      // Monthly pitch creation + investment trends over the last 12 months
+      const trends = await this.db.query(`
+        SELECT
+          TO_CHAR(date_trunc('month', p.created_at), 'YYYY-MM') as month,
+          COUNT(*)::int as pitches_created,
+          COALESCE(SUM(i.total_invested), 0) as total_invested,
+          COALESCE(COUNT(DISTINCT i.pitch_id), 0)::int as pitches_funded
+        FROM pitches p
+        LEFT JOIN (
+          SELECT pitch_id, SUM(amount) as total_invested
+          FROM investments
+          GROUP BY pitch_id
+        ) i ON i.pitch_id = p.id
+        WHERE p.created_at >= NOW() - INTERVAL '12 months'
+        GROUP BY date_trunc('month', p.created_at)
+        ORDER BY month
+      `).catch(() => []);
+
+      return builder.success({ forecast: trends.map((t: any) => ({
+        month: t.month,
+        pitchesCreated: parseInt(String(t.pitches_created || '0'), 10),
+        totalInvested: parseFloat(String(t.total_invested || '0')),
+        pitchesFunded: parseInt(String(t.pitches_funded || '0'), 10),
+      }))});
+    } catch (error) {
+      return builder.success({ forecast: [] });
+    }
   }
 
   private async getPortfolioRisk(request: Request): Promise<Response> {
@@ -10408,13 +10444,106 @@ pitchey_analytics_datapoints_per_minute 1250
   private async getProjectRisk(request: Request): Promise<Response> {
     const authResult = await this.requirePortalAuth(request, 'investor');
     if (!authResult.authorized) return authResult.response!;
-    return new ApiResponseBuilder(request).success({ risks: [] });
+
+    const builder = new ApiResponseBuilder(request);
+    try {
+      const risks = await this.db.query(`
+        SELECT
+          i.id as investment_id,
+          i.amount,
+          i.status,
+          i.roi_percentage,
+          p.title,
+          p.genre,
+          p.status as pitch_status,
+          p.updated_at as last_activity,
+          CASE
+            WHEN i.roi_percentage < 0 THEN 'high'
+            WHEN i.amount > 50000 THEN 'high'
+            WHEN p.updated_at < NOW() - INTERVAL '30 days' THEN 'medium'
+            ELSE 'low'
+          END as risk_level
+        FROM investments i
+        JOIN pitches p ON i.pitch_id = p.id
+        WHERE i.investor_id = $1
+        ORDER BY
+          CASE
+            WHEN i.roi_percentage < 0 THEN 1
+            WHEN i.amount > 50000 THEN 2
+            WHEN p.updated_at < NOW() - INTERVAL '30 days' THEN 3
+            ELSE 4
+          END
+      `, [authResult.user!.id]);
+
+      return builder.success({ risks: (risks || []).map((r: any) => ({
+        investmentId: r.investment_id,
+        title: r.title,
+        genre: r.genre,
+        amount: parseFloat(String(r.amount || '0')),
+        roiPercentage: r.roi_percentage != null ? parseFloat(String(r.roi_percentage)) : null,
+        status: r.status,
+        pitchStatus: r.pitch_status,
+        lastActivity: r.last_activity,
+        riskLevel: r.risk_level,
+      }))});
+    } catch (error) {
+      return builder.success({ risks: [] });
+    }
   }
 
   private async getRiskRecommendations(request: Request): Promise<Response> {
     const authResult = await this.requirePortalAuth(request, 'investor');
     if (!authResult.authorized) return authResult.response!;
-    return new ApiResponseBuilder(request).success({ recommendations: [] });
+
+    const builder = new ApiResponseBuilder(request);
+    try {
+      const data = await this.db.query(`
+        SELECT
+          COUNT(*)::int as total_investments,
+          COUNT(DISTINCT p.genre)::int as genre_count,
+          COALESCE(AVG(i.amount), 0) as avg_investment,
+          COALESCE(SUM(CASE WHEN i.roi_percentage < 0 THEN 1 ELSE 0 END), 0)::int as negative_roi_count,
+          COALESCE(SUM(CASE WHEN i.amount > 50000 THEN 1 ELSE 0 END), 0)::int as large_investment_count,
+          (SELECT p2.genre FROM investments i2 JOIN pitches p2 ON i2.pitch_id = p2.id WHERE i2.investor_id = $1 GROUP BY p2.genre ORDER BY COUNT(*) DESC LIMIT 1) as top_genre,
+          (SELECT COUNT(*)::int FROM investments i2 JOIN pitches p2 ON i2.pitch_id = p2.id WHERE i2.investor_id = $1 AND p2.genre = (SELECT p3.genre FROM investments i3 JOIN pitches p3 ON i3.pitch_id = p3.id WHERE i3.investor_id = $1 GROUP BY p3.genre ORDER BY COUNT(*) DESC LIMIT 1)) as top_genre_count
+        FROM investments i
+        LEFT JOIN pitches p ON i.pitch_id = p.id
+        WHERE i.investor_id = $1
+      `, [authResult.user!.id]);
+
+      const d = data[0] || {};
+      const total = parseInt(String(d.total_investments || '0'), 10);
+      const genreCount = parseInt(String(d.genre_count || '0'), 10);
+      const negativeRoi = parseInt(String(d.negative_roi_count || '0'), 10);
+      const largeCount = parseInt(String(d.large_investment_count || '0'), 10);
+      const topGenreCount = parseInt(String(d.top_genre_count || '0'), 10);
+
+      const recommendations: Array<{ type: string; priority: string; message: string }> = [];
+
+      if (total === 0) {
+        recommendations.push({ type: 'info', priority: 'low', message: 'Start investing to receive personalized risk recommendations.' });
+      } else {
+        if (genreCount < 3 && total > 2) {
+          recommendations.push({ type: 'diversification', priority: 'high', message: `Your portfolio spans only ${genreCount} genre(s). Consider diversifying across more genres to reduce risk.` });
+        }
+        if (d.top_genre && topGenreCount > total * 0.5) {
+          recommendations.push({ type: 'concentration', priority: 'medium', message: `${Math.round(topGenreCount / total * 100)}% of your investments are in ${d.top_genre}. Consider rebalancing.` });
+        }
+        if (negativeRoi > 0) {
+          recommendations.push({ type: 'performance', priority: 'high', message: `${negativeRoi} investment(s) have negative ROI. Review these for potential action.` });
+        }
+        if (largeCount > total * 0.3) {
+          recommendations.push({ type: 'size', priority: 'medium', message: 'A significant portion of your investments are high-value. Consider splitting into smaller positions.' });
+        }
+        if (recommendations.length === 0) {
+          recommendations.push({ type: 'info', priority: 'low', message: 'Your portfolio risk profile looks well-balanced. Keep monitoring for changes.' });
+        }
+      }
+
+      return builder.success({ recommendations });
+    } catch (error) {
+      return builder.success({ recommendations: [] });
+    }
   }
 
   private async getAllInvestments(request: Request): Promise<Response> {

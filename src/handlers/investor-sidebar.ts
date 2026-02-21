@@ -427,11 +427,77 @@ export async function investorReportsHandler(request: Request, env: Env): Promis
   const userId = await getUserId(request, env);
   if (!userId) return authError(origin);
 
-  // No reports table exists yet -- return the structure with empty data
-  return jsonResponse({
-    reports: [],
-    availableTypes: ['quarterly', 'annual', 'tax', 'performance'],
-  }, origin);
+  const sql = getDb(env);
+  if (!sql) return jsonResponse({ reports: [], availableTypes: ['quarterly', 'annual', 'tax', 'performance'] }, origin);
+
+  try {
+    // Check if user has any investment activity to generate reports from
+    const activity = await sql`
+      SELECT
+        COUNT(*)::int as total_investments,
+        MIN(created_at) as first_investment,
+        MAX(created_at) as last_investment,
+        COALESCE(SUM(amount), 0) as total_amount
+      FROM investments
+      WHERE investor_id = ${userId}
+    `;
+
+    const a = activity[0] || {};
+    const totalInvestments = parseInt(String(a.total_investments || '0'), 10);
+
+    // No activity = no reports to show
+    if (totalInvestments === 0) {
+      return jsonResponse({ reports: [], availableTypes: ['quarterly', 'annual', 'tax', 'performance'] }, origin);
+    }
+
+    // Generate available reports based on real investment history
+    const reports: Array<Record<string, unknown>> = [];
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
+
+    // Most recent quarter performance report
+    const qLabel = `Q${currentQuarter > 1 ? currentQuarter - 1 : 4} ${currentQuarter > 1 ? currentYear : currentYear - 1}`;
+    reports.push({
+      id: `perf-${qLabel}`,
+      title: `${qLabel} Portfolio Performance`,
+      type: 'quarterly',
+      category: 'performance',
+      date: now.toISOString().split('T')[0],
+      fileSize: '-',
+      format: 'pdf',
+      description: `Performance summary for ${qLabel} based on ${totalInvestments} investment(s)`,
+    });
+
+    // Annual tax report if activity exists in current or previous year
+    reports.push({
+      id: `tax-${currentYear}`,
+      title: `Annual Tax Summary ${currentYear}`,
+      type: 'annual',
+      category: 'tax',
+      date: now.toISOString().split('T')[0],
+      fileSize: '-',
+      format: 'pdf',
+      description: `Tax documentation for investment activities in ${currentYear}`,
+    });
+
+    // Portfolio overview
+    reports.push({
+      id: `portfolio-${currentYear}`,
+      title: `Portfolio Overview`,
+      type: 'custom',
+      category: 'portfolio',
+      date: now.toISOString().split('T')[0],
+      fileSize: '-',
+      format: 'pdf',
+      description: `Current portfolio breakdown across ${totalInvestments} investment(s) totaling $${parseFloat(String(a.total_amount || '0')).toLocaleString()}`,
+    });
+
+    return jsonResponse({ reports, availableTypes: ['quarterly', 'annual', 'tax', 'performance'] }, origin);
+  } catch (error) {
+    console.error('[investorReportsHandler] Error:', error);
+    return jsonResponse({ reports: [], availableTypes: ['quarterly', 'annual', 'tax', 'performance'] }, origin);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -443,11 +509,66 @@ export async function investorTaxDocumentsHandler(request: Request, env: Env): P
   const userId = await getUserId(request, env);
   if (!userId) return authError(origin);
 
-  // No tax documents table exists yet -- return the structure with empty data
-  return jsonResponse({
-    documents: [],
-    taxYear: new Date().getFullYear(),
-  }, origin);
+  const url = new URL(request.url);
+  const year = parseInt(url.searchParams.get('year') || String(new Date().getFullYear()), 10);
+
+  const sql = getDb(env);
+  if (!sql) return jsonResponse({ documents: [], taxYear: year }, origin);
+
+  try {
+    // Generate tax summaries from financial_transactions and investments
+    const txSummary = await sql`
+      SELECT
+        type,
+        COUNT(*)::int as count,
+        COALESCE(SUM(amount), 0) as total
+      FROM financial_transactions
+      WHERE user_id = ${userId}
+        AND EXTRACT(YEAR FROM created_at) = ${year}
+        AND status = 'completed'
+      GROUP BY type
+    `;
+
+    const investmentSummary = await sql`
+      SELECT
+        COUNT(*)::int as total_investments,
+        COALESCE(SUM(amount), 0) as total_invested,
+        COALESCE(SUM(CASE WHEN roi_percentage > 0 THEN amount * roi_percentage / 100 ELSE 0 END), 0) as total_gains,
+        COALESCE(SUM(CASE WHEN roi_percentage < 0 THEN amount * ABS(roi_percentage) / 100 ELSE 0 END), 0) as total_losses
+      FROM investments
+      WHERE investor_id = ${userId}
+        AND EXTRACT(YEAR FROM created_at) = ${year}
+    `;
+
+    const documents: Array<{ id: string; title: string; type: string; year: number; summary: Record<string, unknown> }> = [];
+    const inv = investmentSummary[0] || {};
+    const totalInvested = parseFloat(String(inv.total_invested || '0'));
+
+    if (totalInvested > 0 || txSummary.length > 0) {
+      documents.push({
+        id: `tax-summary-${year}`,
+        title: `Tax Year ${year} Investment Summary`,
+        type: 'annual_summary',
+        year,
+        summary: {
+          totalInvestments: parseInt(String(inv.total_investments || '0'), 10),
+          totalInvested,
+          totalGains: parseFloat(String(inv.total_gains || '0')),
+          totalLosses: parseFloat(String(inv.total_losses || '0')),
+          transactions: txSummary.map((t: any) => ({
+            type: t.type,
+            count: t.count,
+            total: parseFloat(String(t.total || '0')),
+          })),
+        },
+      });
+    }
+
+    return jsonResponse({ documents, taxYear: year }, origin);
+  } catch (error) {
+    console.error('[investorTaxDocumentsHandler] Error:', error);
+    return jsonResponse({ documents: [], taxYear: year }, origin);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -947,5 +1068,134 @@ export async function investorOpportunitiesHandler(request: Request, env: Env): 
   } catch (error) {
     console.error('[investorOpportunitiesHandler] Query error:', error);
     return jsonResponse(emptyData, origin);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// investorSettingsGetHandler
+//    GET /api/investor/settings
+// ---------------------------------------------------------------------------
+export async function investorSettingsGetHandler(request: Request, env: Env): Promise<Response> {
+  const origin = request.headers.get('Origin');
+  const userId = await getUserId(request, env);
+  if (!userId) return authError(origin);
+
+  const sql = getDb(env);
+  if (!sql) return jsonResponse({ notifications: {}, privacy: {}, security: {}, preferences: {} }, origin);
+
+  try {
+    const rows = await sql`
+      SELECT preferences, privacy_settings, alert_preferences,
+             email_notifications, notifications_enabled, two_factor_enabled
+      FROM users WHERE id = ${userId}
+    `;
+    const user = rows[0];
+    if (!user) return jsonResponse({ notifications: {}, privacy: {}, security: {}, preferences: {} }, origin);
+
+    const prefs = (user.preferences as Record<string, unknown>) || {};
+    const privacy = (user.privacy_settings as Record<string, unknown>) || {};
+    const alerts = (user.alert_preferences as Record<string, unknown>) || {};
+
+    return jsonResponse({
+      notifications: {
+        emailAlerts: user.email_notifications ?? true,
+        pushNotifications: (alerts.pushNotifications as boolean) ?? false,
+        smsAlerts: (alerts.smsAlerts as boolean) ?? false,
+        weeklyDigest: (alerts.weeklyDigest as boolean) ?? true,
+        pitchUpdates: (alerts.pitchUpdates as boolean) ?? true,
+        investmentAlerts: (alerts.investmentAlerts as boolean) ?? true,
+        ndaReminders: (alerts.ndaReminders as boolean) ?? true,
+      },
+      privacy: {
+        profileVisible: (privacy.profileVisible as boolean) ?? true,
+        showInvestments: (privacy.showInvestments as boolean) ?? false,
+        allowMessages: (privacy.allowMessages as boolean) ?? true,
+        dataSharing: (privacy.dataSharing as boolean) ?? false,
+      },
+      security: {
+        twoFactorAuth: user.two_factor_enabled ?? false,
+        loginAlerts: (prefs.loginAlerts as boolean) ?? true,
+        sessionTimeout: (prefs.sessionTimeout as string) ?? '30',
+      },
+      preferences: {
+        currency: (prefs.currency as string) ?? 'USD',
+        language: (prefs.language as string) ?? 'en',
+        timezone: (prefs.timezone as string) ?? 'America/Los_Angeles',
+        theme: (prefs.theme as string) ?? 'light',
+      },
+    }, origin);
+  } catch (error) {
+    console.error('[investorSettingsGetHandler] Error:', error);
+    return jsonResponse({ notifications: {}, privacy: {}, security: {}, preferences: {} }, origin);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// investorSettingsSaveHandler
+//    PUT /api/investor/settings
+// ---------------------------------------------------------------------------
+export async function investorSettingsSaveHandler(request: Request, env: Env): Promise<Response> {
+  const origin = request.headers.get('Origin');
+  const userId = await getUserId(request, env);
+  if (!userId) return authError(origin);
+
+  const sql = getDb(env);
+  if (!sql) {
+    return new Response(JSON.stringify({ success: false, error: 'Database unavailable' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json', ...getCorsHeaders(origin) },
+    });
+  }
+
+  try {
+    const body = await request.json() as Record<string, unknown>;
+    const notifications = (body.notifications ?? {}) as Record<string, unknown>;
+    const privacy = (body.privacy ?? {}) as Record<string, unknown>;
+    const security = (body.security ?? {}) as Record<string, unknown>;
+    const preferences = (body.preferences ?? {}) as Record<string, unknown>;
+
+    const alertPrefs = {
+      pushNotifications: notifications.pushNotifications ?? false,
+      smsAlerts: notifications.smsAlerts ?? false,
+      weeklyDigest: notifications.weeklyDigest ?? true,
+      pitchUpdates: notifications.pitchUpdates ?? true,
+      investmentAlerts: notifications.investmentAlerts ?? true,
+      ndaReminders: notifications.ndaReminders ?? true,
+    };
+
+    const privacySettings = {
+      profileVisible: privacy.profileVisible ?? true,
+      showInvestments: privacy.showInvestments ?? false,
+      allowMessages: privacy.allowMessages ?? true,
+      dataSharing: privacy.dataSharing ?? false,
+    };
+
+    const prefsJson = {
+      loginAlerts: security.loginAlerts ?? true,
+      sessionTimeout: security.sessionTimeout ?? '30',
+      currency: preferences.currency ?? 'USD',
+      language: preferences.language ?? 'en',
+      timezone: preferences.timezone ?? 'America/Los_Angeles',
+      theme: preferences.theme ?? 'light',
+    };
+
+    await sql`
+      UPDATE users SET
+        email_notifications = ${notifications.emailAlerts ?? true},
+        alert_preferences = ${JSON.stringify(alertPrefs)}::jsonb,
+        privacy_settings = ${JSON.stringify(privacySettings)}::jsonb,
+        preferences = ${JSON.stringify(prefsJson)}::jsonb,
+        two_factor_enabled = ${security.twoFactorAuth ?? false},
+        updated_at = NOW()
+      WHERE id = ${userId}
+    `;
+
+    return jsonResponse({ saved: true }, origin);
+  } catch (error) {
+    console.error('[investorSettingsSaveHandler] Error:', error);
+    return new Response(JSON.stringify({ success: false, error: 'Failed to save settings' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...getCorsHeaders(origin) },
+    });
   }
 }

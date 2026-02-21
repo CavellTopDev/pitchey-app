@@ -118,50 +118,50 @@ export default function ProductionRevenue() {
     setLoading(true);
     setError(null);
     try {
-      // Fetch analytics data from production service
-      const period = timeRange === 'week' ? 'month' : timeRange as 'month' | 'quarter' | 'year';
-      const analytics = await ProductionService.getAnalytics(period);
+      const response = await ProductionService.getRevenue();
+      const data = response || {};
 
-      // Transform analytics data to revenue format
-      const projectPerformance = analytics.projectPerformance || [];
-      const totalSpent = projectPerformance.reduce((sum: number, p: { spent: number }) => sum + (p.spent || 0), 0);
-      const totalBudget = projectPerformance.reduce((sum: number, p: { budget: number }) => sum + (p.budget || 0), 0);
+      const revenueByProject = (data.revenueByProject || []) as Array<{ project_title: string; revenue: number; investment_count: number }>;
+      const revenueByMonth = (data.revenueByMonth || []) as Array<{ month: string; revenue: number }>;
 
-      // Create transactions from project performance
-      const transactions: Transaction[] = projectPerformance.slice(0, 5).map((p: { project: string; spent: number; onSchedule: boolean }, index: number) => ({
+      // Transform project data into transactions
+      const transactions: Transaction[] = revenueByProject.slice(0, 5).map((p, index) => ({
         id: index + 1,
-        project: p.project,
-        amount: p.spent || 0,
-        date: new Date(Date.now() - index * 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        status: p.onSchedule ? 'completed' : 'pending'
+        project: p.project_title || 'Untitled',
+        amount: Number(p.revenue) || 0,
+        date: new Date().toISOString().split('T')[0],
+        status: 'completed'
       }));
 
-      // Generate chart data based on time range
+      // Transform monthly data into chart format
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const currentMonth = new Date().getMonth();
-      const chartMonths = timeRange === 'year' ? 12 : timeRange === 'quarter' ? 3 : 6;
-      const chartData: ChartDataPoint[] = [];
+      const chartData: ChartDataPoint[] = revenueByMonth.map((m) => {
+        const monthNum = parseInt(m.month.split('-')[1], 10) - 1;
+        return {
+          month: months[monthNum] || m.month,
+          revenue: Number(m.revenue) || 0,
+        };
+      });
 
-      for (let i = chartMonths - 1; i >= 0; i--) {
-        const monthIndex = (currentMonth - i + 12) % 12;
-        chartData.push({
-          month: months[monthIndex],
-          revenue: Math.floor(totalBudget / chartMonths * (0.8 + Math.random() * 0.4))
-        });
+      // Calculate growth from last 2 months
+      let growth = 0;
+      if (revenueByMonth.length >= 2) {
+        const curr = Number(revenueByMonth[revenueByMonth.length - 1].revenue) || 0;
+        const prev = Number(revenueByMonth[revenueByMonth.length - 2].revenue) || 1;
+        growth = Math.round(((curr - prev) / prev) * 100);
       }
 
       setRevenueData({
-        totalRevenue: totalBudget,
-        monthlyRevenue: Math.floor(totalBudget / 12),
-        yearlyRevenue: totalBudget,
-        growth: analytics.dealConversionRate || 0,
+        totalRevenue: Number(data.totalRevenue) || 0,
+        monthlyRevenue: Number(data.monthlyRevenue) || 0,
+        yearlyRevenue: Number(data.yearlyRevenue) || 0,
+        growth,
         transactions,
         chartData
       });
     } catch (err) {
       console.error('Error fetching revenue data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load revenue data');
-      // Keep previous data on error
     } finally {
       setLoading(false);
     }

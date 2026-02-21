@@ -996,10 +996,14 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
       };
       
       ws.onerror = (error) => {
+        // Serialize Event properly instead of logging [object Object]
+        const errorInfo = error instanceof ErrorEvent
+          ? { message: error.message, filename: error.filename }
+          : { type: error.type };
         console.error('WebSocket error occurred:', {
           readyState: ws.readyState,
           url: ws.url,
-          error: error
+          error: errorInfo
         });
         
         // Record failure in circuit breaker for connection errors

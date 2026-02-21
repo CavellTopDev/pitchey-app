@@ -191,6 +191,17 @@ export const investorApi = {
       : '/api/investor/tax-documents';
     return apiClient.get<{ documents: TaxDocument[] }>(endpoint);
   },
+
+  // Reports
+  getReports: () =>
+    apiClient.get('/api/investor/reports'),
+
+  // Settings
+  getSettings: () =>
+    apiClient.get('/api/investor/settings'),
+
+  saveSettings: (settings: Record<string, unknown>) =>
+    apiClient.put('/api/investor/settings', settings),
 };
 
 interface Activity {

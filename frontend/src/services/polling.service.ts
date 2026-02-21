@@ -15,9 +15,11 @@ class PollingService {
   private isActive: boolean = false;
   private lastPollTimes: Map<string, number> = new Map();
   private messageHandlers: Set<(message: WebSocketMessage) => void> = new Set();
+  private visibilityHandler: (() => void) | null = null;
+  private pausedByVisibility: boolean = false;
 
   private config: PollingConfig = {
-    interval: 5000, // 5 seconds base interval
+    interval: 15000, // 15 seconds base interval (was 5s — reduced Sentry transaction volume)
     maxRetries: 3,
     backoffMultiplier: 2,
     endpoints: [
@@ -27,7 +29,25 @@ class PollingService {
     ]
   };
 
-  private constructor() {}
+  private constructor() {
+    // Pause polling when tab is hidden to reduce unnecessary traffic
+    if (typeof document !== 'undefined') {
+      this.visibilityHandler = () => {
+        if (document.hidden) {
+          if (this.isActive) {
+            this.pausedByVisibility = true;
+            this.stopIntervals();
+          }
+        } else {
+          if (this.pausedByVisibility) {
+            this.pausedByVisibility = false;
+            this.resumeIntervals();
+          }
+        }
+      };
+      document.addEventListener('visibilitychange', this.visibilityHandler);
+    }
+  }
 
   static getInstance(): PollingService {
     if (!PollingService.instance) {
@@ -51,12 +71,22 @@ class PollingService {
 
   public stop(): void {
     this.isActive = false;
-    
-    // Clear all intervals
-    this.pollingIntervals.forEach(interval => clearInterval(interval));
-    this.pollingIntervals.clear();
+    this.pausedByVisibility = false;
+    this.stopIntervals();
     this.retryCounters.clear();
     this.lastPollTimes.clear();
+  }
+
+  private stopIntervals(): void {
+    this.pollingIntervals.forEach(interval => clearInterval(interval));
+    this.pollingIntervals.clear();
+  }
+
+  private resumeIntervals(): void {
+    if (!this.isActive) return;
+    this.config.endpoints.forEach(endpoint => {
+      this.startPolling(endpoint);
+    });
   }
 
   public addMessageHandler(handler: (message: WebSocketMessage) => void): void {

@@ -1,65 +1,128 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  User, Bell, Shield, CreditCard, FileText, 
-  Globe, Key, Smartphone, Mail, Save
+import {
+  User, Bell, Shield, CreditCard, FileText,
+  Globe, Key, Smartphone, Mail, Save, Loader2
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'react-hot-toast';
+import { investorApi } from '../../services/investor.service';
+
+interface SettingsState {
+  notifications: {
+    emailAlerts: boolean;
+    pushNotifications: boolean;
+    smsAlerts: boolean;
+    weeklyDigest: boolean;
+    pitchUpdates: boolean;
+    investmentAlerts: boolean;
+    ndaReminders: boolean;
+  };
+  privacy: {
+    profileVisible: boolean;
+    showInvestments: boolean;
+    allowMessages: boolean;
+    dataSharing: boolean;
+  };
+  security: {
+    twoFactorAuth: boolean;
+    loginAlerts: boolean;
+    sessionTimeout: string;
+  };
+  preferences: {
+    currency: string;
+    language: string;
+    timezone: string;
+    theme: string;
+  };
+}
+
+const defaultSettings: SettingsState = {
+  notifications: {
+    emailAlerts: true,
+    pushNotifications: false,
+    smsAlerts: false,
+    weeklyDigest: true,
+    pitchUpdates: true,
+    investmentAlerts: true,
+    ndaReminders: true,
+  },
+  privacy: {
+    profileVisible: true,
+    showInvestments: false,
+    allowMessages: true,
+    dataSharing: false,
+  },
+  security: {
+    twoFactorAuth: false,
+    loginAlerts: true,
+    sessionTimeout: '30',
+  },
+  preferences: {
+    currency: 'USD',
+    language: 'en',
+    timezone: 'America/Los_Angeles',
+    theme: 'light',
+  },
+};
 
 const InvestorSettings = () => {
   const navigate = useNavigate();
-  
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState<SettingsState>(defaultSettings);
 
-  // Settings state
-  const [settings, setSettings] = useState({
-    notifications: {
-      emailAlerts: true,
-      pushNotifications: false,
-      smsAlerts: false,
-      weeklyDigest: true,
-      pitchUpdates: true,
-      investmentAlerts: true,
-      ndaReminders: true
-    },
-    privacy: {
-      profileVisible: true,
-      showInvestments: false,
-      allowMessages: true,
-      dataSharing: false
-    },
-    security: {
-      twoFactorAuth: false,
-      loginAlerts: true,
-      sessionTimeout: '30'
-    },
-    preferences: {
-      currency: 'USD',
-      language: 'en',
-      timezone: 'America/Los_Angeles',
-      theme: 'light'
-    }
-  });
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await investorApi.getSettings();
+        if (response.success && response.data) {
+          const d = response.data as Partial<SettingsState>;
+          setSettings({
+            notifications: { ...defaultSettings.notifications, ...d.notifications },
+            privacy: { ...defaultSettings.privacy, ...d.privacy },
+            security: { ...defaultSettings.security, ...d.security },
+            preferences: { ...defaultSettings.preferences, ...d.preferences },
+          });
+        }
+      } catch (err) {
+        const e = err instanceof Error ? err : new Error(String(err));
+        console.error('Failed to load settings:', e.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   const handleSaveSettings = async (section: string) => {
-    setLoading(true);
+    setSaving(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      toast.success(`${section} settings saved successfully`);
-    } catch (error) {
-      toast.error('Failed to save settings');
+      const response = await investorApi.saveSettings(settings as unknown as Record<string, unknown>);
+      if (response.success) {
+        toast.success(`${section} settings saved successfully`);
+      } else {
+        toast.error('Failed to save settings');
+      }
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      toast.error(`Failed to save settings: ${e.message}`);
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
-      
       <div className="container mx-auto px-4 py-8 mt-20">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl font-bold mb-8">Settings</h1>
@@ -150,12 +213,12 @@ const InvestorSettings = () => {
                 />
               </label>
 
-              <Button 
+              <Button
                 onClick={() => handleSaveSettings('Notification')}
-                disabled={loading}
+                disabled={saving}
                 className="w-full"
               >
-                <Save className="h-4 w-4 mr-2" />
+                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                 Save Notification Settings
               </Button>
             </CardContent>
@@ -224,12 +287,12 @@ const InvestorSettings = () => {
                 />
               </label>
 
-              <Button 
+              <Button
                 onClick={() => handleSaveSettings('Privacy')}
-                disabled={loading}
+                disabled={saving}
                 className="w-full"
               >
-                <Save className="h-4 w-4 mr-2" />
+                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                 Save Privacy Settings
               </Button>
             </CardContent>
@@ -281,12 +344,12 @@ const InvestorSettings = () => {
                 />
               </label>
 
-              <Button 
+              <Button
                 onClick={() => handleSaveSettings('Security')}
-                disabled={loading}
+                disabled={saving}
                 className="w-full"
               >
-                <Save className="h-4 w-4 mr-2" />
+                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                 Save Security Settings
               </Button>
             </CardContent>
@@ -304,7 +367,7 @@ const InvestorSettings = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button 
+              <Button
                 onClick={() => navigate('/investor/profile')}
                 variant="outline"
                 className="w-full justify-start"
@@ -313,7 +376,7 @@ const InvestorSettings = () => {
                 Edit Profile
               </Button>
 
-              <Button 
+              <Button
                 onClick={() => navigate('/investor/tax-documents')}
                 variant="outline"
                 className="w-full justify-start"
@@ -322,7 +385,7 @@ const InvestorSettings = () => {
                 Tax Documents
               </Button>
 
-              <Button 
+              <Button
                 onClick={() => navigate('/investor/payment-methods')}
                 variant="outline"
                 className="w-full justify-start"
@@ -342,7 +405,7 @@ const InvestorSettings = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button 
+              <Button
                 variant="outline"
                 className="w-full border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
                 onClick={() => {
@@ -354,7 +417,7 @@ const InvestorSettings = () => {
                 Deactivate Account
               </Button>
 
-              <Button 
+              <Button
                 variant="destructive"
                 className="w-full"
                 onClick={() => {

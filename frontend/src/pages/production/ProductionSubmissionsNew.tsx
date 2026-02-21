@@ -49,77 +49,10 @@ export default function ProductionSubmissionsNew() {
           const data = await response.json();
           setSubmissions(data.data?.submissions || data.submissions || []);
         } else {
-          // Fallback to demo data for development
-          setSubmissions([
-            {
-              id: '1',
-              title: 'Quantum Dreams',
-              creator: 'Alex Thompson',
-              creatorEmail: 'alex@example.com',
-              submittedDate: '2024-12-08',
-              genre: 'Sci-Fi',
-              budget: 2500000,
-              status: 'new',
-              rating: 0,
-              synopsis: 'A scientist discovers how to enter people\'s dreams and must navigate the subconscious to save humanity.',
-              attachments: 3,
-              lastActivity: '2 hours ago',
-              priority: 'high',
-              daysOld: 0
-            },
-            {
-              id: '2',
-              title: 'City of Echoes',
-              creator: 'Maria Rodriguez',
-              creatorEmail: 'maria@example.com',
-              submittedDate: '2024-12-07',
-              genre: 'Mystery',
-              budget: 1800000,
-              status: 'new',
-              rating: 0,
-              synopsis: 'A detective investigating disappearances discovers an underground city that exists in parallel to ours.',
-              attachments: 5,
-              lastActivity: '5 hours ago',
-              priority: 'medium',
-              daysOld: 1
-            },
-            {
-              id: '3',
-              title: 'The Last Signal',
-              creator: 'James Chen',
-              creatorEmail: 'james@example.com',
-              submittedDate: '2024-12-06',
-              genre: 'Thriller',
-              budget: 3200000,
-              status: 'new',
-              rating: 0,
-              synopsis: 'When all communication networks fail, a small team must reach a remote station to prevent global catastrophe.',
-              attachments: 4,
-              lastActivity: '1 day ago',
-              priority: 'high',
-              daysOld: 2
-            },
-            {
-              id: '4',
-              title: 'Dancing with Shadows',
-              creator: 'Emma Wilson',
-              creatorEmail: 'emma@example.com',
-              submittedDate: '2024-12-05',
-              genre: 'Drama',
-              budget: 1200000,
-              status: 'new',
-              rating: 0,
-              synopsis: 'A former ballerina returns to her hometown to save the local dance academy from closure.',
-              attachments: 2,
-              lastActivity: '2 days ago',
-              priority: 'low',
-              daysOld: 3
-            }
-          ]);
+          throw new Error(`Failed to fetch new submissions: ${response.status}`);
         }
       } catch (error) {
         console.error('Error fetching new submissions:', error);
-        // Use demo data on error
         setSubmissions([]);
       } finally {
         setLoading(false);
