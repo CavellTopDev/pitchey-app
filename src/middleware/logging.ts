@@ -142,10 +142,19 @@ function endLogging(
       duration,
     });
   } else if (response.status >= 400) {
-    logger.warn('Request error', {
-      statusCode: response.status,
-      duration,
-    });
+    // 401/403/404 are expected client errors — log as info, not warn
+    const isExpectedClientError = [401, 403, 404].includes(response.status);
+    if (isExpectedClientError) {
+      logger.info('Request completed', {
+        statusCode: response.status,
+        duration,
+      });
+    } else {
+      logger.warn('Request error', {
+        statusCode: response.status,
+        duration,
+      });
+    }
   } else {
     logger.info('Request completed', {
       statusCode: response.status,

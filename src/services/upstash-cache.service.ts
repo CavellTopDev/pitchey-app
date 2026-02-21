@@ -20,6 +20,14 @@ export class UpstashCacheService {
       this.redis = new Redis({
         url: env.UPSTASH_REDIS_REST_URL,
         token: env.UPSTASH_REDIS_REST_TOKEN,
+        // Strip 'cache' from RequestInit — Cloudflare Workers doesn't support it
+        fetch: (input, init) => {
+          if (init) {
+            const { cache, ...rest } = init as RequestInit & { cache?: string };
+            return fetch(input, rest);
+          }
+          return fetch(input);
+        },
       });
     } else {
       this.redis = null;

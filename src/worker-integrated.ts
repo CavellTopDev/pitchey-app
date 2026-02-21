@@ -652,8 +652,7 @@ class RouteRegistry {
     try {
       // Check for required DATABASE_URL
       if (!env.DATABASE_URL) {
-        console.error('DATABASE_URL is not configured');
-        // Don't throw, just log the error
+        console.warn('DATABASE_URL is not configured — some features will be unavailable');
       }
 
       // Initialize Neon database with the new service
