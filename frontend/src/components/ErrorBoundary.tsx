@@ -49,8 +49,24 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    // Detect stale chunk errors (e.g. after a deploy) and auto-reload once
+    const isChunkError = error.message &&
+      (/dynamically imported module/i.test(error.message) ||
+       /loading chunk/i.test(error.message) ||
+       /failed to fetch/i.test(error.message));
+
+    if (isChunkError) {
+      const reloadedKey = 'pitchey_chunk_reload';
+      if (!sessionStorage.getItem(reloadedKey)) {
+        sessionStorage.setItem(reloadedKey, '1');
+        window.location.reload();
+        return;
+      }
+      // Already reloaded once — fall through to show error UI
+    }
+
     this.setState({ error, errorInfo });
-    
+
     // Enhanced error logging
     const errorReport = {
       errorId: this.state.errorId,

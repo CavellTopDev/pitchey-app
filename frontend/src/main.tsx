@@ -29,6 +29,19 @@ import { initSentry } from './monitoring/sentry-config'
 // Initialize Sentry for production error tracking
 initSentry()
 
+// Handle stale chunk errors after deployment — Vite fires this when a
+// lazy-loaded module can't be fetched (e.g. old hash no longer on CDN).
+// Auto-reload once to pick up the new index.html with correct hashes.
+window.addEventListener('vite:preloadError', (event) => {
+  const reloadedKey = 'pitchey_chunk_reload';
+  if (!sessionStorage.getItem(reloadedKey)) {
+    sessionStorage.setItem(reloadedKey, '1');
+    window.location.reload();
+  }
+  // Prevent the error from propagating if we've already reloaded once
+  event.preventDefault();
+});
+
 const rootElement = document.getElementById('root');
 
 if (rootElement) {
@@ -49,6 +62,10 @@ if (rootElement) {
     root.render(
       React.createElement(AppWithErrorCapture)
     );
+
+    // Clear the chunk reload flag on successful render — ensures future
+    // deploys can trigger a fresh reload if needed.
+    sessionStorage.removeItem('pitchey_chunk_reload');
   } catch (error) {
     console.warn('main.tsx: Fatal error during app initialization:', error);
     window.__fatalInitError = error as Error;
