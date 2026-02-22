@@ -1016,57 +1016,136 @@ export async function investorOpportunitiesHandler(request: Request, env: Env): 
   const origin = request.headers.get('Origin');
   const url = new URL(request.url);
   const genre = url.searchParams.get('genre');
-  const sortBy = url.searchParams.get('sortBy') || 'created_at';
-  const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '10', 10)));
+  const sortBy = url.searchParams.get('sortBy') || 'popularity';
+  const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '20', 10)));
+  const offset = Math.max(0, parseInt(url.searchParams.get('offset') || '0', 10));
 
   const emptyData = { opportunities: [] as any[], total: 0 };
 
   const sql = getDb(env);
   if (!sql) return jsonResponse(emptyData, origin);
 
-  try {
-    let opportunities: any[];
+  // --- Redis cache (3 min TTL) ---
+  const { UpstashCacheService } = await import('../services/upstash-cache.service');
+  const cache = new UpstashCacheService(env);
+  const cacheKey = `investor:opportunities:${sortBy}:${genre || 'all'}:o${offset}:l${limit}`;
 
-    if (genre && genre !== 'all') {
-      opportunities = await sql`
-        SELECT
-          p.id,
-          p.title,
-          p.genre,
-          p.logline,
-          p.status,
-          p.thumbnail_url,
-          p.created_at,
-          u.name AS creator_name
-        FROM pitches p
-        JOIN users u ON u.id::text = p.user_id::text
-        WHERE p.status = 'published'
-          AND p.genre ILIKE ${'%' + genre + '%'}
-        ORDER BY p.created_at DESC
-        LIMIT ${limit}
-      `;
-    } else {
-      opportunities = await sql`
-        SELECT
-          p.id,
-          p.title,
-          p.genre,
-          p.logline,
-          p.status,
-          p.thumbnail_url,
-          p.created_at,
-          u.name AS creator_name
-        FROM pitches p
-        JOIN users u ON u.id::text = p.user_id::text
-        WHERE p.status = 'published'
-        ORDER BY p.created_at DESC
-        LIMIT ${limit}
-      `;
+  if (cache.isConnected) {
+    try {
+      const cached = await cache.get<{ opportunities: any[]; total: number }>(cacheKey);
+      if (cached) return jsonResponse(cached, origin);
+    } catch {
+      // cache miss — continue to DB
+    }
+  }
+
+  try {
+    // Build ORDER BY from sortBy param
+    let orderClause: string;
+    switch (sortBy) {
+      case 'popularity':
+        orderClause = '(COALESCE(p.view_count,0) + COALESCE(p.like_count,0)*2 + COALESCE(p.nda_count,0)*5) DESC';
+        break;
+      case 'roi':
+        orderClause = 'COALESCE(md.avg_roi, 0) DESC, p.created_at DESC';
+        break;
+      case 'matchScore':
+        orderClause = 'match_score DESC';
+        break;
+      case 'deadline':
+      default:
+        orderClause = 'p.created_at DESC';
+        break;
     }
 
-    return jsonResponse({ opportunities, total: opportunities.length }, origin);
+    const genreFilter = genre && genre !== 'all'
+      ? sql`AND p.genre ILIKE ${'%' + genre + '%'}`
+      : sql``;
+
+    const rows = await sql`
+      SELECT
+        p.id,
+        p.title,
+        p.logline,
+        p.genre,
+        p.status,
+        p.title_image AS thumbnail_url,
+        p.budget,
+        COALESCE(p.investment_total, 0) AS raised_amount,
+        COALESCE(p.investment_count, 0) AS investors,
+        COALESCE(p.view_count, 0) AS view_count,
+        COALESCE(p.like_count, 0) AS like_count,
+        COALESCE(p.nda_count, 0) AS nda_count,
+        COALESCE(p.rating_average, 0) AS rating_average,
+        p.created_at,
+        u.name AS creator_name,
+        md.avg_roi,
+        -- Match score: weighted engagement metrics scaled 0-100
+        LEAST(100, (
+          COALESCE(p.view_count,0) * 0.5
+          + COALESCE(p.like_count,0) * 3
+          + COALESCE(p.nda_count,0) * 10
+          + COALESCE(p.rating_average,0) * 10
+        )::int) AS match_score
+      FROM pitches p
+      JOIN users u ON u.id::text = p.user_id::text
+      LEFT JOIN LATERAL (
+        SELECT avg_roi FROM market_data
+        WHERE genre ILIKE p.genre
+        ORDER BY data_date DESC LIMIT 1
+      ) md ON true
+      WHERE (p.seeking_investment = true OR p.status = 'published')
+        ${genreFilter}
+      ORDER BY ${sql.unsafe(orderClause)}
+      LIMIT ${limit} OFFSET ${offset}
+    `;
+
+    // Get total count for pagination
+    const countResult = await sql`
+      SELECT COUNT(*)::int AS total
+      FROM pitches p
+      WHERE (p.seeking_investment = true OR p.status = 'published')
+        ${genreFilter}
+    `;
+    const total = countResult[0]?.total ?? rows.length;
+
+    // Map rows to InvestmentOpportunity shape
+    const opportunities = rows.map((r: any) => {
+      const budget = Number(r.budget) || 0;
+      let riskLevel: 'low' | 'medium' | 'high' = 'medium';
+      if (budget > 0 && budget < 100000) riskLevel = 'low';
+      else if (budget >= 1000000) riskLevel = 'high';
+
+      return {
+        id: r.id,
+        title: r.title,
+        logline: r.logline,
+        genre: r.genre,
+        status: r.status,
+        thumbnailUrl: r.thumbnail_url,
+        targetAmount: budget,
+        raisedAmount: Number(r.raised_amount) || 0,
+        investors: Number(r.investors) || 0,
+        expectedROI: r.avg_roi != null ? Number(r.avg_roi) : null,
+        matchScore: Number(r.match_score) || 0,
+        riskLevel,
+        minInvestment: null,
+        creatorName: r.creator_name,
+        createdAt: r.created_at,
+      };
+    });
+
+    const result = { opportunities, total };
+
+    // Cache the result (fire-and-forget)
+    if (cache.isConnected) {
+      cache.set(cacheKey, result, 180).catch(() => {});
+    }
+
+    return jsonResponse(result, origin);
   } catch (error) {
-    console.error('[investorOpportunitiesHandler] Query error:', error);
+    const e = error instanceof Error ? error : new Error(String(error));
+    console.error('[investorOpportunitiesHandler] Query error:', e.message);
     return jsonResponse(emptyData, origin);
   }
 }

@@ -391,9 +391,14 @@ const InvestorDiscover = () => {
 };
 
 const PitchCard = ({ pitch, viewMode }: { pitch: PitchItem; viewMode: 'grid' | 'list' }) => {
+  const navigate = useNavigate();
+
   if (viewMode === 'list') {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
+      <div
+        className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer"
+        onClick={() => { void navigate(`/investor/pitches/${pitch.id}`); }}
+      >
         <div className="flex gap-4">
           <img
             src={pitch.thumbnail}
@@ -456,7 +461,10 @@ const PitchCard = ({ pitch, viewMode }: { pitch: PitchItem; viewMode: 'grid' | '
           <span className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full">
             {pitch.status}
           </span>
-          <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+          <button
+            onClick={() => { void navigate(`/investor/pitches/${pitch.id}`); }}
+            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+          >
             View Details →
           </button>
         </div>
