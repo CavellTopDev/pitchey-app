@@ -15,6 +15,7 @@ const TaxDocuments = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [year, setYear] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [documents, setDocuments] = useState<any[]>([]);
 
   useEffect(() => {
@@ -24,25 +25,19 @@ const TaxDocuments = () => {
   const loadTaxDocuments = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await investorApi.getTaxDocuments(year);
 
       if (response.success && response.data) {
         setDocuments(response.data.documents || []);
       } else {
-        // Use fallback data
-        setDocuments([
-          { id: 1, name: `${year} Tax Summary`, type: 'Tax Summary', year: year, date: `${year}-12-01`, status: 'available', size: '2.3 MB' },
-          { id: 2, name: `${year} Investment Gains Report`, type: 'Gains Report', year: year, date: `${year}-12-01`, status: 'available', size: '1.8 MB' },
-          { id: 3, name: `${year} Q3 Quarterly Statement`, type: 'Quarterly', year: year, date: `${year}-09-30`, status: 'available', size: '950 KB' },
-        ]);
+        setDocuments([]);
       }
-    } catch (error) {
-      console.error('Failed to load tax documents:', error);
-      setDocuments([
-        { id: 1, name: `${year} Tax Summary`, type: 'Tax Summary', year: year, date: `${year}-12-01`, status: 'available', size: '2.3 MB' },
-        { id: 2, name: `${year} Investment Gains Report`, type: 'Gains Report', year: year, date: `${year}-12-01`, status: 'available', size: '1.8 MB' },
-        { id: 3, name: `${year} Q3 Quarterly Statement`, type: 'Quarterly', year: year, date: `${year}-09-30`, status: 'available', size: '950 KB' },
-      ]);
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to load tax documents:', e.message);
+      setError(e.message);
+      setDocuments([]);
     } finally {
       setLoading(false);
     }
@@ -152,12 +147,39 @@ const TaxDocuments = () => {
           </CardContent>
         </Card>
 
+        {error !== null && (
+          <Card className="mb-6 border-red-200 bg-red-50">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-red-800">Failed to load tax documents</p>
+                  <p className="text-sm text-red-600 mt-1">{error}</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => { void loadTaxDocuments(); }} className="border-red-300 text-red-700">
+                  <FileText className="h-3 w-3 mr-1" />
+                  Retry
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle>Available Documents</CardTitle>
             <CardDescription>Your tax and financial documents</CardDescription>
           </CardHeader>
           <CardContent>
+            {filteredDocuments.length === 0 && error === null ? (
+              <div className="text-center py-12">
+                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No documents found</h3>
+                <p className="text-gray-600">
+                  {searchQuery ? 'Try adjusting your search.' : `No tax documents available for ${year}.`}
+                </p>
+              </div>
+            ) : (
             <div className="space-y-4">
               {filteredDocuments.map(doc => (
                 <div key={doc.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
@@ -184,6 +206,7 @@ const TaxDocuments = () => {
                 </div>
               ))}
             </div>
+            )}
           </CardContent>
         </Card>
       </main>

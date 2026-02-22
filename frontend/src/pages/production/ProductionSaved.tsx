@@ -349,35 +349,39 @@ export default function ProductionSaved() {
           </div>
         )}
 
-        {/* Categories Section */}
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Film className="w-5 h-5" />
-              Saved by Category
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center p-4 bg-purple-50 rounded-lg">
-                <div className="text-2xl font-bold text-purple-600">12</div>
-                <div className="text-sm text-gray-600">Feature Films</div>
-              </div>
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-600">8</div>
-                <div className="text-sm text-gray-600">TV Series</div>
-              </div>
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <div className="text-2xl font-bold text-green-600">5</div>
-                <div className="text-sm text-gray-600">Web Series</div>
-              </div>
-              <div className="text-center p-4 bg-orange-50 rounded-lg">
-                <div className="text-2xl font-bold text-orange-600">3</div>
-                <div className="text-sm text-gray-600">Documentaries</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Categories Section — computed from actual saved data */}
+        {savedPitches.length > 0 && (() => {
+          const categoryCounts: Record<string, number> = {};
+          savedPitches.forEach(p => {
+            const fmt = p.format || 'Other';
+            categoryCounts[fmt] = (categoryCounts[fmt] || 0) + 1;
+          });
+          const categoryColors = ['bg-purple-50 text-purple-600', 'bg-blue-50 text-blue-600', 'bg-green-50 text-green-600', 'bg-orange-50 text-orange-600', 'bg-pink-50 text-pink-600', 'bg-teal-50 text-teal-600'];
+          const entries = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1]);
+          return (
+            <Card className="mt-8">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Film className="w-5 h-5" />
+                  Saved by Category
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {entries.map(([category, count], i) => {
+                    const color = categoryColors[i % categoryColors.length];
+                    return (
+                      <div key={category} className={`text-center p-4 rounded-lg ${color.split(' ')[0]}`}>
+                        <div className={`text-2xl font-bold ${color.split(' ')[1]}`}>{count}</div>
+                        <div className="text-sm text-gray-600">{category}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
       </main>
     </div>
   );
