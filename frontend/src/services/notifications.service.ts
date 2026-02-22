@@ -36,71 +36,34 @@ export class NotificationsService {
     try {
       // Use the working /api/user/notifications endpoint
       const response = await apiClient.get<any>(`/api/user/notifications?limit=${limit}`);
-      
+
       if (response.success && response.data?.notifications) {
         return response.data.notifications;
       }
-      
+
       return [];
-    } catch (error: any) {
-      // If we get a 401, return demo notifications instead of empty array
-      if (error?.response?.status === 401 || error?.message?.includes('401')) {
-        // Return demo notifications for better UX when auth fails
-        const demoNotifications: Notification[] = [
-          {
-            id: 1,
-            type: 'info',
-            title: 'Welcome to Pitchey',
-            message: 'Explore trending pitches and discover investment opportunities',
-            isRead: false,
-            createdAt: new Date().toISOString(),
-            userId: 0,
-            data: {}
-          },
-          {
-            id: 2,
-            type: 'success',
-            title: 'Profile Complete',
-            message: 'Your profile is set up and ready to go',
-            isRead: true,
-            createdAt: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-            userId: 0,
-            data: {}
-          },
-          {
-            id: 3,
-            type: 'info',
-            title: 'New Features Available',
-            message: 'Check out our latest platform updates',
-            isRead: true,
-            createdAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-            userId: 0,
-            data: {}
-          }
-        ];
-        return demoNotifications.slice(0, limit);
-      }
-      
+    } catch (error: unknown) {
       console.warn('Failed to fetch notifications:', error);
       return [];
     }
   }
 
   /**
-   * Get only unread notifications
+   * Get unread notification count from the backend.
+   * The /api/notifications/unread endpoint returns { count: N }.
    */
-  static async getUnreadNotifications(): Promise<Notification[]> {
+  static async getUnreadCount(): Promise<number> {
     try {
-      const response = await apiClient.get<Notification[]>('/api/notifications/unread');
+      const response = await apiClient.get<{ count: number }>('/api/notifications/unread');
 
       if (response.success && response.data) {
-        return Array.isArray(response.data) ? response.data : [];
+        return (response.data as any).count ?? 0;
       }
 
-      return [];
+      return 0;
     } catch (error: unknown) {
-      console.error('Failed to fetch unread notifications:', error);
-      return [];
+      console.error('Failed to fetch unread count:', error);
+      return 0;
     }
   }
 

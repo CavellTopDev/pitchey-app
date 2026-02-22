@@ -10849,7 +10849,7 @@ pitchey_analytics_datapoints_per_minute 1250
 
     try {
       const notifications = await this.db.query(`
-        SELECT 
+        SELECT
           n.*,
           u.name as from_user_name,
           u.avatar as from_user_avatar
@@ -10859,13 +10859,6 @@ pitchey_analytics_datapoints_per_minute 1250
         ORDER BY n.created_at DESC
         LIMIT $2 OFFSET $3
       `, [authResult.user.id, limit, offset]);
-
-      // Mark fetched notifications as read
-      await this.db.query(`
-        UPDATE notifications
-        SET is_read = true
-        WHERE user_id = $1 AND is_read = false
-      `, [authResult.user.id]);
 
       return builder.success({ notifications });
     } catch (error) {

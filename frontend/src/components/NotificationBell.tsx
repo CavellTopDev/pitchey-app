@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Bell, BellRing, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../contexts/WebSocketContext';
-import { NotificationsService, type Notification as ApiNotification } from '../services/notifications.service';
+import { NotificationsService } from '../services/notifications.service';
 
 interface NotificationBellProps {
   className?: string;
@@ -10,42 +10,40 @@ interface NotificationBellProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
-export function NotificationBell({ 
-  className = '', 
+export function NotificationBell({
+  className = '',
   showLabel = false,
-  size = 'md' 
+  size = 'md'
 }: NotificationBellProps) {
   const navigate = useNavigate();
   const { notifications: wsNotifications } = useNotifications();
 
-  const [apiNotifications, setApiNotifications] = useState<ApiNotification[]>([]);
+  const [apiUnreadCount, setApiUnreadCount] = useState(0);
   const [hasNewNotifications, setHasNewNotifications] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const previousCountRef = useRef(0);
 
-  // Load API notifications
+  // Load unread count from API
   useEffect(() => {
-    const loadNotifications = async () => {
+    const loadUnreadCount = async () => {
       try {
-        const notifications = await NotificationsService.getUnreadNotifications();
-        // Defensive check: ensure notifications is always an array
-        setApiNotifications(Array.isArray(notifications) ? notifications : []);
+        const count = await NotificationsService.getUnreadCount();
+        setApiUnreadCount(count);
       } catch (error) {
-        console.error('Failed to load notifications:', error);
-        setApiNotifications([]); // Set empty array on error
+        console.error('Failed to load unread count:', error);
       }
     };
 
-    void loadNotifications();
+    void loadUnreadCount();
 
     // Refresh every 30 seconds
-    const interval = setInterval(() => { void loadNotifications(); }, 30000);
+    const interval = setInterval(() => { void loadUnreadCount(); }, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // Calculate total unread count with defensive checks
-  const unreadCount = (Array.isArray(apiNotifications) ? apiNotifications.filter(n => !n.isRead) : []).length + 
-                     (Array.isArray(wsNotifications) ? wsNotifications.filter(n => !n.read) : []).length;
+  // Total unread = DB unread count + WebSocket-delivered unread
+  const wsUnread = Array.isArray(wsNotifications) ? wsNotifications.filter(n => !n.read).length : 0;
+  const unreadCount = apiUnreadCount + wsUnread;
 
   // Animate when new notifications arrive
   useEffect(() => {
