@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
-import { uploadService, UploadResult, UploadProgress } from '../services/upload.service';
+import { uploadService, UploadResult, UploadProgress } from '@features/uploads/services/upload.service';
 
 export interface PendingUpload {
   id: string;

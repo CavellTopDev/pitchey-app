@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Upload, X, File, Image, Video, FileText, AlertCircle, CheckCircle } from 'lucide-react';
-import { API_URL } from '../config';
+import { API_URL } from '@/config';
 
 interface FileUploadProps {
   onFilesUploaded?: (files: UploadedFile[]) => void;

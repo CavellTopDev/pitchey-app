@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { X, Upload, FileText, Shield, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { ndaService } from '../services/nda.service';
 import { useBetterAuthStore } from '../store/betterAuthStore';
-import FileUpload from './FileUpload';
+import FileUpload from '@features/uploads/components/FileUpload';
 import type { NDARequestFormData, UploadedNDAFile } from '@shared/types/nda.types';
 
 interface NDAModalProps {

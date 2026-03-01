@@ -13,7 +13,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useToast } from '@shared/components/feedback/ToastProvider';
-import { uploadService } from '../../services/upload.service';
+import { uploadService } from '@features/uploads/services/upload.service';
 import { NDAService, type NDATemplate } from '../../services/nda.service';
 
 export interface NDADocument {

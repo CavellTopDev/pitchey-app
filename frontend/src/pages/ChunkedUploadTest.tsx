@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import ChunkedUploadDemo from '../components/FileUpload/ChunkedUploadDemo';
+import ChunkedUploadDemo from '@features/uploads/components/FileUpload/ChunkedUploadDemo';
 
 const ChunkedUploadTest: React.FC = () => {
   return (

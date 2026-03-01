@@ -5,7 +5,7 @@ import { useBetterAuthStore } from '../store/betterAuthStore';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import LoadingSpinner from '@shared/components/feedback/LoadingSpinner';
 import { pitchService } from '../services/pitch.service';
-import { uploadService } from '../services/upload.service';
+import { uploadService } from '@features/uploads/services/upload.service';
 import { getGenresSync, getFormatsSync, FALLBACK_GENRES } from '@config/pitchConstants';
 import { useFormValidation } from '../hooks/useFormValidation';
 import { usePitchUploadManager } from '../hooks/usePitchUploadManager';
@@ -16,11 +16,11 @@ import { CharacterManagement } from '../components/CharacterManagement';
 import type { Character } from '@shared/types/character';
 import { serializeCharacters } from '../utils/characterUtils';
 // DocumentUpload removed — using DocumentUploadHub instead (Karl feedback #6)
-import type { DocumentFile } from '../components/DocumentUpload';
-import DocumentUploadHub from '../components/FileUpload/DocumentUploadHub';
+import type { DocumentFile } from '@features/uploads/components/DocumentUpload';
+import DocumentUploadHub from '@features/uploads/components/FileUpload/DocumentUploadHub';
 import NDAUploadSection from '../components/FileUpload/NDAUploadSection';
 import type { NDADocument } from '../components/FileUpload/NDAUploadSection';
-import type { EnhancedUploadResult } from '../services/enhanced-upload.service';
+import type { EnhancedUploadResult } from '@features/uploads/services/enhanced-upload.service';
 import {
   ToneAndStyleSection,
   CompsSection,

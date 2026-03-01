@@ -28,7 +28,7 @@ vi.mock('../../services/pitch.service', () => ({
 }))
 
 // ─── upload.service ─────────────────────────────────────────────────
-vi.mock('../../services/upload.service', () => ({
+vi.mock('@features/uploads/services/upload.service', () => ({
   uploadService: {
     uploadDocument: vi.fn().mockResolvedValue({ url: 'https://cdn.example.com/image.jpg' }),
   },
@@ -51,7 +51,7 @@ vi.mock('../../components/CharacterManagement', () => ({
 }))
 
 // ─── DocumentUpload component ────────────────────────────────────────
-vi.mock('../../components/DocumentUpload', () => ({
+vi.mock('@features/uploads/components/DocumentUpload', () => ({
   DocumentUpload: ({ documents, onChange }: any) => (
     <div data-testid="document-upload">Document Upload ({documents?.length || 0} files)</div>
   ),

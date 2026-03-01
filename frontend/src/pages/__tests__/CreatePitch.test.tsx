@@ -56,7 +56,7 @@ vi.mock('../../services/pitch.service', () => ({
 }))
 
 // ─── upload.service ─────────────────────────────────────────────────
-vi.mock('../../services/upload.service', () => ({
+vi.mock('@features/uploads/services/upload.service', () => ({
   uploadService: {
     uploadDocument: vi.fn().mockResolvedValue({ url: 'https://cdn.example.com/file.pdf' }),
   },
@@ -198,7 +198,7 @@ vi.mock('../../utils/characterUtils', () => ({
 }))
 
 // ─── DocumentUploadHub ───────────────────────────────────────────────
-vi.mock('../../components/FileUpload/DocumentUploadHub', () => ({
+vi.mock('@features/uploads/components/FileUpload/DocumentUploadHub', () => ({
   default: ({ onFilesSelected, disabled }: any) => (
     <div data-testid="document-upload-hub">Document Upload Hub</div>
   ),

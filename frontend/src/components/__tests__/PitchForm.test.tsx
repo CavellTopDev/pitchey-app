@@ -12,7 +12,7 @@ vi.mock('../../services/pitch.service', () => ({
   },
 }))
 
-vi.mock('../../services/upload.service', () => ({
+vi.mock('@features/uploads/services/upload.service', () => ({
   uploadService: {
     uploadFile: vi.fn(),
   },
@@ -215,7 +215,7 @@ vi.mock('../../components/CharacterManagement', () => ({
 }))
 
 // Mock DocumentUpload component
-vi.mock('../../components/DocumentUpload', () => ({
+vi.mock('@features/uploads/components/DocumentUpload', () => ({
   DocumentUpload: vi.fn(({ documents, onAdd: _onAdd, onRemove: _onRemove }) => (
     <div data-testid="document-upload">
       <h3>Document Upload</h3>
@@ -225,7 +225,7 @@ vi.mock('../../components/DocumentUpload', () => ({
 }))
 
 // Mock DocumentUploadHub component
-vi.mock('../../components/FileUpload/DocumentUploadHub', () => ({
+vi.mock('@features/uploads/components/FileUpload/DocumentUploadHub', () => ({
   default: vi.fn(() => (
     <div data-testid="document-upload-hub">Document Upload Hub</div>
   )),
@@ -291,7 +291,7 @@ vi.mock('../../components/PitchForm/EnhancedPitchFormSections', () => ({
 }))
 
 // Mock enhanced upload service
-vi.mock('../../services/enhanced-upload.service', () => ({
+vi.mock('@features/uploads/services/enhanced-upload.service', () => ({
   enhancedUploadService: {
     uploadFile: vi.fn(),
   },
