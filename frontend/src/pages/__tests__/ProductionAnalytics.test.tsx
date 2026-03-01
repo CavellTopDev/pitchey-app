@@ -35,11 +35,11 @@ vi.mock('../../config', () => ({
   API_URL: 'http://localhost:8001',
 }))
 
-vi.mock('../../components/charts/RevenueChart', () => ({
+vi.mock('@features/analytics/components/charts/RevenueChart', () => ({
   RevenueChart: ({ data }: any) => <div data-testid="revenue-chart">Revenue Chart</div>,
 }))
 
-vi.mock('../../components/charts/ROIChart', () => ({
+vi.mock('@features/analytics/components/charts/ROIChart', () => ({
   ROIChart: ({ data }: any) => <div data-testid="roi-chart">ROI Chart</div>,
 }))
 

@@ -9,7 +9,7 @@ import { QuickNDAStatus } from '../components/NDA/NDADashboardIntegration';
 import { getSubscriptionTier } from '../config/subscription-plans';
 import { InvestmentService } from '@features/deals/services/investment.service';
 import FundingOverview from '@features/deals/components/Investment/FundingOverview';
-import { EnhancedCreatorAnalytics } from '../components/Analytics/EnhancedCreatorAnalytics';
+import { EnhancedCreatorAnalytics } from '@features/analytics/components/Analytics/EnhancedCreatorAnalytics';
 // import { NotificationWidget } from '../components/Dashboard/NotificationWidget';
 import { withPortalErrorBoundary } from '../components/ErrorBoundary/PortalErrorBoundary';
 import { useSentryPortal } from '../hooks/useSentryPortal';

@@ -93,7 +93,7 @@ vi.mock('@features/deals/components/Investment/FundingOverview', () => ({
   default: ({ metrics }: any) => <div data-testid="funding-overview">{metrics?.totalFunding}</div>,
 }))
 
-vi.mock('../../components/Analytics/EnhancedCreatorAnalytics', () => ({
+vi.mock('@features/analytics/components/Analytics/EnhancedCreatorAnalytics', () => ({
   EnhancedCreatorAnalytics: () => <div data-testid="enhanced-analytics" />,
 }))
 

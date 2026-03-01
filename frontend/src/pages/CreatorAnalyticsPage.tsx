@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import {
   BarChart3, Activity, TrendingUp, Film, Target, AlertCircle, RefreshCw
 } from 'lucide-react';
-import { CreatorAnalytics } from '../components/Analytics/CreatorAnalytics';
+import { CreatorAnalytics } from '@features/analytics/components/Analytics/CreatorAnalytics';
 import CreatorActivity from './creator/CreatorActivity';
 import CreatorStats from './creator/CreatorStats';
-import { CreatorService } from '../services/creator.service';
-import { AnalyticsService } from '../services/analytics.service';
+import { CreatorService } from '@features/analytics/services/creator.service';
+import { AnalyticsService } from '@features/analytics/services/analytics.service';
 
 export default function CreatorAnalyticsPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'stats'>('overview');

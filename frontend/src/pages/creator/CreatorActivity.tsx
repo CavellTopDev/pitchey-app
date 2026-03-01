@@ -6,7 +6,7 @@ import {
   Calendar, Clock, ChevronRight, Filter, RefreshCw,
   AlertCircle
 } from 'lucide-react';
-import { CreatorService, type CreatorActivity as CreatorActivityType } from '../../services/creator.service';
+import { CreatorService, type CreatorActivity as CreatorActivityType } from '@features/analytics/services/creator.service';
 
 interface ActivityItem {
   id: string;

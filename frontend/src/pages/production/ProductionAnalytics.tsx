@@ -7,8 +7,8 @@ import {
 } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { config } from '../../config';
-import { RevenueChart } from '../../components/charts/RevenueChart';
-import { ROIChart } from '../../components/charts/ROIChart';
+import { RevenueChart } from '@features/analytics/components/charts/RevenueChart';
+import { ROIChart } from '@features/analytics/components/charts/ROIChart';
 
 interface AnalyticsMetric {
   title: string;

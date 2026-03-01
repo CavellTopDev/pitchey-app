@@ -3,7 +3,7 @@ import {
   BarChart3, Eye, Heart, FileText, TrendingUp,
   AlertCircle, RefreshCw
 } from 'lucide-react';
-import { CreatorService, type CreatorAnalytics } from '../../services/creator.service';
+import { CreatorService, type CreatorAnalytics } from '@features/analytics/services/creator.service';
 import { PitchService, type Pitch } from '../../services/pitch.service';
 
 interface PitchWithAnalytics {

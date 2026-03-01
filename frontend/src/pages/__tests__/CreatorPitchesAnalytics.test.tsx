@@ -18,7 +18,7 @@ vi.mock('react-router-dom', async () => {
 
 // ─── CreatorService mock ─────────────────────────────────────────────
 const mockGetAnalytics = vi.fn()
-vi.mock('../../services/creator.service', () => ({
+vi.mock('@features/analytics/services/creator.service', () => ({
   CreatorService: {
     getAnalytics: mockGetAnalytics,
   },

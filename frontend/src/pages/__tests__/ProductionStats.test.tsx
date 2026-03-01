@@ -39,11 +39,11 @@ vi.mock('../../services/production.service', () => ({
   },
 }))
 
-vi.mock('../../components/charts/RevenueChart', () => ({
+vi.mock('@features/analytics/components/charts/RevenueChart', () => ({
   RevenueChart: () => <div data-testid="revenue-chart">Revenue Chart</div>,
 }))
 
-vi.mock('../../components/charts/ProjectStatusChart', () => ({
+vi.mock('@features/analytics/components/charts/ProjectStatusChart', () => ({
   ProjectStatusChart: () => <div data-testid="project-status-chart">Project Status Chart</div>,
 }))
 

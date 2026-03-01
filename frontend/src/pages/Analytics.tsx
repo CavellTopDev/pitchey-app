@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, TrendingUp, Eye, Heart, MessageSquare, Download, Calendar, Users, BarChart3 } from 'lucide-react';
 import { API_URL } from '../config';
-import { AnalyticsService } from '../services/analytics.service';
+import { AnalyticsService } from '@features/analytics/services/analytics.service';
 
 interface AnalyticsData {
   overview: {

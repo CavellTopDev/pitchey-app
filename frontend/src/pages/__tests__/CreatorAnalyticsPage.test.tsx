@@ -6,18 +6,18 @@ import CreatorAnalyticsPage from '../CreatorAnalyticsPage'
 const mockGetDashboardMetrics = vi.fn()
 const mockGetCreatorAnalytics = vi.fn()
 
-vi.mock('../../services/analytics.service', () => ({
+vi.mock('@features/analytics/services/analytics.service', () => ({
   AnalyticsService: { getDashboardMetrics: (...args: any[]) => mockGetDashboardMetrics(...args) },
   analyticsService: { getDashboardMetrics: (...args: any[]) => mockGetDashboardMetrics(...args) },
 }))
 
-vi.mock('../../services/creator.service', () => ({
+vi.mock('@features/analytics/services/creator.service', () => ({
   CreatorService: { getAnalytics: (...args: any[]) => mockGetCreatorAnalytics(...args) },
   creatorService: { getAnalytics: (...args: any[]) => mockGetCreatorAnalytics(...args) },
 }))
 
 // Mock sub-components to keep tests focused
-vi.mock('../../components/Analytics/CreatorAnalytics', () => ({
+vi.mock('@features/analytics/components/Analytics/CreatorAnalytics', () => ({
   CreatorAnalytics: ({ pitchPerformance }: any) => (
     <div data-testid="creator-analytics">
       Views: {pitchPerformance?.totalViews || 0}

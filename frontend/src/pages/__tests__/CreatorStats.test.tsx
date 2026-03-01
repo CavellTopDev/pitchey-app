@@ -19,7 +19,7 @@ vi.mock('react-router-dom', async () => {
 })
 
 // ─── Creator Service ─────────────────────────────────────────────────
-vi.mock('../../services/creator.service', () => ({
+vi.mock('@features/analytics/services/creator.service', () => ({
   CreatorService: {
     getDashboard: mockGetDashboard,
   },

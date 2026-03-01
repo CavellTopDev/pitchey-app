@@ -1,5 +1,5 @@
 // Analytics Service - Complete analytics and reporting
-import { apiClient } from '../lib/api-client';
+import { apiClient } from '@/lib/api-client';
 import {
   safeAccess,
   safeNumber,

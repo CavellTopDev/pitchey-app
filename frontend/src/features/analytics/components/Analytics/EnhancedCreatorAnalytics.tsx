@@ -15,7 +15,7 @@ import { AnalyticCard } from './AnalyticCard';
 import { TimeRangeFilter } from './TimeRangeFilter';
 import { AnalyticsExport } from './AnalyticsExport';
 import { analyticsService } from '../../services/analytics.service';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { 
   LineChart, 
   BarChart, 

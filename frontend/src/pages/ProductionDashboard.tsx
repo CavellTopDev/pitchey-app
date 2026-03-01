@@ -23,7 +23,7 @@ import { config } from '../config';
 import FollowButton from '@features/browse/components/FollowButton';
 import NDAManagementPanel from '../components/NDAManagementPanel';
 import FormatDisplay from '../components/FormatDisplay';
-import { EnhancedProductionAnalytics } from '../components/Analytics/EnhancedProductionAnalytics';
+import { EnhancedProductionAnalytics } from '@features/analytics/components/Analytics/EnhancedProductionAnalytics';
 import { withPortalErrorBoundary } from '../components/ErrorBoundary/PortalErrorBoundary';
 import { useSentryPortal } from '../hooks/useSentryPortal';
 import { useWebSocket } from '@shared/contexts/WebSocketContext';

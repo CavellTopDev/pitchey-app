@@ -98,7 +98,7 @@ vi.mock('@features/deals/components/Investment/FundingOverview', () => ({
   ),
 }))
 
-vi.mock('../../components/Analytics/EnhancedCreatorAnalytics', () => ({
+vi.mock('@features/analytics/components/Analytics/EnhancedCreatorAnalytics', () => ({
   EnhancedCreatorAnalytics: () => <div data-testid="creator-analytics">Analytics</div>,
 }))
 

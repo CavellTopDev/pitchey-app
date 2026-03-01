@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Eye, Heart, MessageSquare, Share2, TrendingUp, Calendar, Users, Download } from 'lucide-react';
-import { analyticsService, type PitchAnalytics } from '../services/analytics.service';
+import { analyticsService, type PitchAnalytics } from '@features/analytics/services/analytics.service';
 import { pitchService } from '../services/pitch.service';
 
 

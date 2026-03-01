@@ -21,7 +21,7 @@ import { AnalyticCard } from './AnalyticCard';
 import { TimeRangeFilter } from './TimeRangeFilter';
 import { PerformanceChart } from './PerformanceChart';
 import { AnalyticsExport } from './AnalyticsExport';
-import { config } from '../../config';
+import { config } from '@/config';
 import type { TimeRange } from '../../services/analytics.service';
 import { 
   LineChart, 

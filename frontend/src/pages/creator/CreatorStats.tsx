@@ -13,7 +13,7 @@ import {
   PieChart as RechartsPieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, ResponsiveContainer
 } from 'recharts';
-import { CreatorService, type CreatorStats as CreatorStatsType, type CreatorAnalytics } from '../../services/creator.service';
+import { CreatorService, type CreatorStats as CreatorStatsType, type CreatorAnalytics } from '@features/analytics/services/creator.service';
 import { PitchService, type Pitch } from '../../services/pitch.service';
 
 interface QuickStat {

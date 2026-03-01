@@ -10,7 +10,7 @@ vi.mock('../../config', () => ({
 
 // Mock AnalyticsService
 const mockExportAnalytics = vi.fn()
-vi.mock('../../services/analytics.service', () => ({
+vi.mock('@features/analytics/services/analytics.service', () => ({
   AnalyticsService: {
     exportAnalytics: (...args: any[]) => mockExportAnalytics(...args),
   },

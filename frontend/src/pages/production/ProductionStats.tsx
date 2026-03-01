@@ -8,8 +8,8 @@ import {
 } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { ProductionService } from '../../services/production.service';
-import { RevenueChart } from '../../components/charts/RevenueChart';
-import { ProjectStatusChart } from '../../components/charts/ProjectStatusChart';
+import { RevenueChart } from '@features/analytics/components/charts/RevenueChart';
+import { ProjectStatusChart } from '@features/analytics/components/charts/ProjectStatusChart';
 
 interface QuickStat {
   id: string;

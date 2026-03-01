@@ -12,7 +12,7 @@ vi.mock('axios', () => ({
 }));
 
 // ─── Mock config to avoid import.meta.env issues ────────────────────
-vi.mock('../../config', () => ({
+vi.mock('@/config', () => ({
   config: { API_URL: 'http://localhost:8001' },
   default: { API_URL: 'http://localhost:8001' },
 }));
