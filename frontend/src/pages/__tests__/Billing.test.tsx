@@ -52,7 +52,7 @@ vi.mock('../../lib/apiServices', () => ({
 }))
 
 // ─── Child components ───────────────────────────────────────────────
-vi.mock('../../components/SubscriptionCard', () => ({
+vi.mock('@features/billing/components/SubscriptionCard', () => ({
   default: ({ subscription }: any) => (
     <div data-testid="subscription-card">
       Subscription: {subscription ? 'active' : 'none'}
@@ -60,7 +60,7 @@ vi.mock('../../components/SubscriptionCard', () => ({
   ),
 }))
 
-vi.mock('../../components/CreditPurchase', () => ({
+vi.mock('@features/billing/components/CreditPurchase', () => ({
   default: ({ credits }: any) => (
     <div data-testid="credit-purchase">
       Credits: {credits?.balance?.credits ?? credits?.credits ?? 0}
@@ -68,7 +68,7 @@ vi.mock('../../components/CreditPurchase', () => ({
   ),
 }))
 
-vi.mock('../../components/PaymentHistory', () => ({
+vi.mock('@features/billing/components/PaymentHistory', () => ({
   default: ({ payments }: any) => (
     <div data-testid="payment-history">
       Payments: {(payments || []).length}
@@ -76,7 +76,7 @@ vi.mock('../../components/PaymentHistory', () => ({
   ),
 }))
 
-vi.mock('../../components/PaymentMethodCard', () => ({
+vi.mock('@features/billing/components/PaymentMethodCard', () => ({
   default: ({ paymentMethods }: any) => (
     <div data-testid="payment-method-card">
       Methods: {(paymentMethods || []).length}

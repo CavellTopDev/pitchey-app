@@ -13,7 +13,7 @@ import {
   AlertTriangle,
   ExternalLink
 } from 'lucide-react';
-import { paymentsAPI } from '../lib/apiServices';
+import { paymentsAPI } from '@/lib/apiServices';
 
 interface SubscriptionCardProps {
   subscription: any;

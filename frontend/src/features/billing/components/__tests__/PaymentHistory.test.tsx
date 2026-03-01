@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '../../test/utils';
+import { render, screen } from '@/test/utils';
 import userEvent from '@testing-library/user-event';
 import PaymentHistory from '../PaymentHistory';
 
 const mockGetPaymentHistory = vi.fn();
-vi.mock('../../lib/apiServices', () => ({
+vi.mock('@/lib/apiServices', () => ({
   paymentsAPI: {
     getPaymentHistory: (...args: any[]) => mockGetPaymentHistory(...args),
   },

@@ -9,7 +9,7 @@ import {
   Check,
   ExternalLink
 } from 'lucide-react';
-import { paymentsAPI } from '../lib/apiServices';
+import { paymentsAPI } from '@/lib/apiServices';
 
 interface PaymentMethodCardProps {
   paymentMethods: any[];

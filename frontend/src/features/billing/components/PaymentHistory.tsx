@@ -13,7 +13,7 @@ import {
   ChevronDown,
   RefreshCw
 } from 'lucide-react';
-import { paymentsAPI } from '../lib/apiServices';
+import { paymentsAPI } from '@/lib/apiServices';
 
 interface PaymentHistoryProps {
   payments: any[];

@@ -15,10 +15,10 @@ import {
 } from 'lucide-react';
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import { paymentsAPI } from '../lib/apiServices';
-import SubscriptionCard from '../components/SubscriptionCard';
-import CreditPurchase from '../components/CreditPurchase';
-import PaymentHistory from '../components/PaymentHistory';
-import PaymentMethodCard from '../components/PaymentMethodCard';
+import SubscriptionCard from '@features/billing/components/SubscriptionCard';
+import CreditPurchase from '@features/billing/components/CreditPurchase';
+import PaymentHistory from '@features/billing/components/PaymentHistory';
+import PaymentMethodCard from '@features/billing/components/PaymentMethodCard';
 import { getSubscriptionTier } from '../config/subscription-plans';
 
 export default function Billing() {

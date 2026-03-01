@@ -11,8 +11,8 @@ import {
   BarChart3,
   ExternalLink
 } from 'lucide-react';
-import { paymentsAPI } from '../lib/apiServices';
-import { CREDIT_PACKAGES } from '../config/subscription-plans';
+import { paymentsAPI } from '@/lib/apiServices';
+import { CREDIT_PACKAGES } from '@config/subscription-plans';
 
 interface CreditPurchaseProps {
   credits: any;
