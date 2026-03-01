@@ -64,7 +64,7 @@ vi.mock('framer-motion', () => {
   }
 })
 
-vi.mock('../../components/FollowButton', () => ({
+vi.mock('@features/browse/components/FollowButton', () => ({
   default: () => <button>Follow</button>,
 }))
 

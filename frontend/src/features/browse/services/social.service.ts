@@ -1,5 +1,5 @@
 // Social Service - Follows, likes, and social interactions
-import { apiClient } from '../lib/api-client';
+import { apiClient } from '@/lib/api-client';
 import type { User, Pitch } from '@shared/types/api';
 
 export interface Follow {

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Search, X, Clock, TrendingUp } from 'lucide-react';
-import { apiClient } from '../../lib/api-client';
+import { apiClient } from '@/lib/api-client';
 
 interface SearchSuggestion {
   query: string;

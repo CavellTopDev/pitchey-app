@@ -20,7 +20,7 @@ import { NotificationWidget } from '../components/Dashboard/NotificationWidget';
 import { NotificationBell } from '../components/NotificationBell';
 import { getSubscriptionTier } from '../config/subscription-plans';
 import { config } from '../config';
-import FollowButton from '../components/FollowButton';
+import FollowButton from '@features/browse/components/FollowButton';
 import NDAManagementPanel from '../components/NDAManagementPanel';
 import FormatDisplay from '../components/FormatDisplay';
 import { EnhancedProductionAnalytics } from '../components/Analytics/EnhancedProductionAnalytics';

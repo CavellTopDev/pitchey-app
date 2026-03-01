@@ -9,7 +9,7 @@ vi.mock('axios', () => ({
   },
 }));
 
-vi.mock('../../config', () => ({
+vi.mock('@/config', () => ({
   config: { API_URL: 'http://localhost:8001' },
 }));
 

@@ -14,10 +14,10 @@ import {
   AlertCircle,
   TrendingUp
 } from 'lucide-react';
-import { API_URL } from '../config';
+import { API_URL } from '@/config';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import type { FilterState } from './FilterBar';
-import { useBetterAuthStore } from '../store/betterAuthStore';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 
 interface EmailAlert {
   id: number;

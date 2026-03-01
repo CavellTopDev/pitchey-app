@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
-import { pitchAPI } from '../lib/api';
-import type { Pitch } from '../lib/api';
+import { pitchAPI } from '@/lib/api';
+import type { Pitch } from '@/lib/api';
 
 interface UseSearchOptions {
   debounceMs?: number;

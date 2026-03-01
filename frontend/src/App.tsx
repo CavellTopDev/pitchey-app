@@ -202,7 +202,7 @@ const TemplateEditor = lazy(() => import('./components/Legal/TemplateEditor'));
 const LegalDocumentDashboard = lazy(() => import('./components/Legal/LegalDocumentDashboard'));
 
 // Browse Pages
-const BrowseTabsFixed = lazy(() => import('./components/BrowseTabsFixed'));
+const BrowseTabsFixed = lazy(() => import('@features/browse/components/BrowseTabsFixed'));
 const BrowseGenres = lazy(() => import('./pages/BrowseGenres'));
 const BrowseTopRated = lazy(() => import('./pages/BrowseTopRated'));
 

@@ -30,14 +30,14 @@ vi.mock('../../config', () => ({
   getApiUrl: () => 'http://localhost:8787',
 }))
 
-vi.mock('../../services/follow.service', () => ({
+vi.mock('@features/browse/services/follow.service', () => ({
   followService: {
     isFollowing: (...args: any[]) => mockIsFollowing(...args),
     toggleFollow: (...args: any[]) => mockToggleFollow(...args),
   },
 }))
 
-vi.mock('../../components/FollowButton', () => ({
+vi.mock('@features/browse/components/FollowButton', () => ({
   default: ({ creatorId }: any) => (
     <button data-testid="follow-button">Follow {creatorId}</button>
   ),

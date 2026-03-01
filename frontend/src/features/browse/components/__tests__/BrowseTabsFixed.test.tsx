@@ -12,7 +12,7 @@ const { mockPitchService, mockNavigate } = vi.hoisted(() => ({
   mockNavigate: vi.fn(),
 }))
 
-vi.mock('../../services/pitch.service', () => ({
+vi.mock('@/services/pitch.service', () => ({
   PitchService: mockPitchService,
 }))
 
@@ -39,7 +39,7 @@ vi.mock('framer-motion', () => {
   }
 })
 
-vi.mock('../Loading/LoadingSpinner', () => ({
+vi.mock('@shared/ui/Loading/LoadingSpinner', () => ({
   default: () => <div data-testid="loading-spinner">Loading...</div>,
 }))
 

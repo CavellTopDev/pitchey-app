@@ -6,10 +6,10 @@ import {
   MessageSquare, Bookmark, UserPlus, UserCheck, TrendingUp
 } from 'lucide-react';
 import { useBetterAuthStore } from '../store/betterAuthStore';
-import FollowButton from '../components/FollowButton';
+import FollowButton from '@features/browse/components/FollowButton';
 import { config } from '../config';
 import FormatDisplay from '../components/FormatDisplay';
-import { followService } from '../services/follow.service';
+import { followService } from '@features/browse/services/follow.service';
 
 interface CreatorData {
   id: number;
