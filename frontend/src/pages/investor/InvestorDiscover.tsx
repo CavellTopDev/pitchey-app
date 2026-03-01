@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { TrendingUp, Star, Film, Search, Filter, Grid, List, ArrowLeft, Home, RefreshCw, AlertCircle, WifiOff } from 'lucide-react';
 import { Button } from '@shared/components/ui/button';
-import { InvestorService, type InvestmentOpportunity } from '../../services/investor.service';
+import { InvestorService, type InvestmentOpportunity } from '@features/deals/services/investor.service';
 
 interface PitchItem {
   id: number;

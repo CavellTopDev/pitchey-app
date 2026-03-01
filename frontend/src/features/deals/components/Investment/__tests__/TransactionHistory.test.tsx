@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '../../../test/utils';
+import { render, screen, waitFor } from '@/test/utils';
 import TransactionHistory from '../TransactionHistory';
 
 const mockGetTransactions = vi.fn();

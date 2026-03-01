@@ -18,7 +18,7 @@ vi.mock('react-router-dom', async () => {
 
 // ─── InvestorService ─────────────────────────────────────────────────
 const mockGetOpportunities = vi.fn()
-vi.mock('../../services/investor.service', () => ({
+vi.mock('@features/deals/services/investor.service', () => ({
   InvestorService: {
     getOpportunities: mockGetOpportunities,
     getWatchlist: vi.fn(),

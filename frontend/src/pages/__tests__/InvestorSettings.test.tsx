@@ -29,7 +29,7 @@ vi.mock('../../store/betterAuthStore', () => ({
 // ─── investorApi ────────────────────────────────────────────────────
 const mockGetSettings = vi.fn()
 const mockSaveSettings = vi.fn()
-vi.mock('../../services/investor.service', () => ({
+vi.mock('@features/deals/services/investor.service', () => ({
   investorApi: {
     getSettings: mockGetSettings,
     saveSettings: mockSaveSettings,

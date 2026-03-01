@@ -7,7 +7,7 @@ import {
   BarChart3, PieChart, Activity, Zap
 } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { investorApi } from '@/services/investor.service';
+import { investorApi } from '@features/deals/services/investor.service';
 
 interface CoInvestor {
   id: string;

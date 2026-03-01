@@ -50,7 +50,7 @@ vi.mock('../../lib/apiServices', () => ({
   },
 }))
 
-vi.mock('../../services/investment.service', () => ({
+vi.mock('@features/deals/services/investment.service', () => ({
   InvestmentService: {
     getCreatorFunding: mockGetCreatorFunding,
   },
@@ -89,7 +89,7 @@ vi.mock('../../components/NotificationBell', () => ({
   NotificationBell: () => <div data-testid="notification-bell" />,
 }))
 
-vi.mock('../../components/Investment/FundingOverview', () => ({
+vi.mock('@features/deals/components/Investment/FundingOverview', () => ({
   default: ({ metrics }: any) => <div data-testid="funding-overview">{metrics?.totalFunding}</div>,
 }))
 

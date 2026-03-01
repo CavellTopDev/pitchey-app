@@ -59,7 +59,7 @@ vi.mock('../../lib/apiServices', () => ({
   },
 }))
 
-vi.mock('../../services/investment.service', () => ({
+vi.mock('@features/deals/services/investment.service', () => ({
   InvestmentService: {
     getCreatorFunding: mockGetCreatorFunding,
   },
@@ -90,7 +90,7 @@ vi.mock('../../components/NDA/NDADashboardIntegration', () => ({
   QuickNDAStatus: () => <div data-testid="quick-nda-status">NDA Status</div>,
 }))
 
-vi.mock('../../components/Investment/FundingOverview', () => ({
+vi.mock('@features/deals/components/Investment/FundingOverview', () => ({
   default: ({ metrics }: any) => (
     <div data-testid="funding-overview">
       <span>Total Funding: {metrics?.totalFunding}</span>

@@ -7,7 +7,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@shared/components/ui/card';
 import { Button } from '@shared/components/ui/button';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { investorApi } from '@/services/investor.service';
+import { investorApi } from '@features/deals/services/investor.service';
 
 const RiskAssessment = () => {
   const navigate = useNavigate();

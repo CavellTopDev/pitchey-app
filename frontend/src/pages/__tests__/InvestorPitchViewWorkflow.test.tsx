@@ -39,7 +39,7 @@ vi.mock('../../lib/api-client', () => ({
   },
 }));
 
-vi.mock('../../services/investor.service', () => ({
+vi.mock('@features/deals/services/investor.service', () => ({
   InvestorService: {
     addToWatchlist: (...args: any[]) => mockAddToWatchlist(...args),
     removeFromWatchlist: (...args: any[]) => mockRemoveFromWatchlist(...args),

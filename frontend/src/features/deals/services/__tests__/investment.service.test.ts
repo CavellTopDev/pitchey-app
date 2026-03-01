@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock api-client BEFORE importing the service
-vi.mock('../../lib/api-client', () => ({
+vi.mock('@/lib/api-client', () => ({
   default: {
     get: vi.fn(),
     post: vi.fn(),
@@ -16,7 +16,7 @@ vi.mock('../../lib/api-client', () => ({
   },
 }))
 
-import apiClientDefault from '../../lib/api-client'
+import apiClientDefault from '@/lib/api-client'
 import { InvestmentService } from '../investment.service'
 
 // The service uses `import apiClient from '../lib/api-client'` (default export)

@@ -32,7 +32,7 @@ vi.mock('../../store/betterAuthStore', () => ({
 }))
 
 // ─── Investor service ────────────────────────────────────────────────
-vi.mock('@/services/investor.service', () => ({
+vi.mock('@features/deals/services/investor.service', () => ({
   investorApi: {
     getTaxDocuments: mockGetTaxDocuments,
   },

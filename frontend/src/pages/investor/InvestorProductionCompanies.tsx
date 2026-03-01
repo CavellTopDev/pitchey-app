@@ -6,7 +6,7 @@ import {
   Briefcase, Clock, CheckCircle, AlertCircle
 } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { investorApi } from '@/services/investor.service';
+import { investorApi } from '@features/deals/services/investor.service';
 
 interface ProductionCompany {
   id: string;

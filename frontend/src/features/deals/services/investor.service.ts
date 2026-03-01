@@ -1,5 +1,5 @@
 // Investor Service - Dashboard and investor-specific operations
-import { apiClient } from '../lib/api-client';
+import { apiClient } from '@/lib/api-client';
 import type { 
 
   Pitch, 

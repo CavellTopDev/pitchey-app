@@ -4,7 +4,7 @@ import InvestorNetwork from '../investor/InvestorNetwork'
 
 const mockGetNetwork = vi.fn()
 
-vi.mock('@/services/investor.service', () => ({
+vi.mock('@features/deals/services/investor.service', () => ({
   investorApi: {
     getNetwork: (...args: any[]) => mockGetNetwork(...args),
   },

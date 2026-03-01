@@ -4,7 +4,7 @@ import InvestorCreators from '../investor/InvestorCreators'
 
 const mockGetCreators = vi.fn()
 
-vi.mock('@/services/investor.service', () => ({
+vi.mock('@features/deals/services/investor.service', () => ({
   investorApi: {
     getCreators: (...args: any[]) => mockGetCreators(...args),
   },

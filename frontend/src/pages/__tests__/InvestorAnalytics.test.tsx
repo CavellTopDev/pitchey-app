@@ -24,7 +24,7 @@ vi.mock('../../store/betterAuthStore', () => ({
   }),
 }))
 
-vi.mock('../../services/investor.service', () => ({
+vi.mock('@features/deals/services/investor.service', () => ({
   InvestorService: {
     getAnalytics: mockGetAnalytics,
   },

@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { pitchAPI } from '../../lib/api';
 import { apiClient } from '../../lib/api-client';
-import { InvestorService } from '../../services/investor.service';
+import { InvestorService } from '@features/deals/services/investor.service';
 import FormatDisplay from '../../components/FormatDisplay';
 import { getCreditCost } from '../../config/subscription-plans';
 

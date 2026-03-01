@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@shared/components/ui/card';
 import { Button } from '@shared/components/ui/button';
-import { investorApi } from '@/services/investor.service';
+import { investorApi } from '@features/deals/services/investor.service';
 
 interface FinancialSummaryData {
   available_funds: number;

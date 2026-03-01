@@ -12,7 +12,7 @@ import { Switch } from '@shared/components/ui/switch';
 import { Alert, AlertDescription } from '@shared/components/ui/alert';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { toast } from 'react-hot-toast';
-import { investorApi } from '@/services/investor.service';
+import { investorApi } from '@features/deals/services/investor.service';
 
 const InvestorWallet = () => {
   const navigate = useNavigate();

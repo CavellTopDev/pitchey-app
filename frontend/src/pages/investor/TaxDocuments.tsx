@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@shar
 import { Button } from '@shared/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { investorApi } from '@/services/investor.service';
+import { investorApi } from '@features/deals/services/investor.service';
 
 const TaxDocuments = () => {
   const { logout } = useBetterAuthStore();

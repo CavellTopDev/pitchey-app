@@ -7,7 +7,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@shared/components/ui/card';
 import { Button } from '@shared/components/ui/button';
 import { toast } from 'react-hot-toast';
-import { investorApi } from '../../services/investor.service';
+import { investorApi } from '@features/deals/services/investor.service';
 
 interface SettingsState {
   notifications: {

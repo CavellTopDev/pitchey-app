@@ -13,7 +13,7 @@ import {
   XAxis, YAxis, CartesianGrid, ResponsiveContainer
 } from 'recharts';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { investorApi } from '@/services/investor.service';
+import { investorApi } from '@features/deals/services/investor.service';
 
 interface PerformanceMetrics {
   totalReturn: number;

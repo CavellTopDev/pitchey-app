@@ -7,7 +7,7 @@ import {
   ChevronRight, Plus, Check, X
 } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { investorApi } from '@/services/investor.service';
+import { investorApi } from '@features/deals/services/investor.service';
 
 interface NetworkMember {
   id: string;

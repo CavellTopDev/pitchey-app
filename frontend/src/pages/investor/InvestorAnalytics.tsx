@@ -18,7 +18,7 @@ import {
 } from 'recharts';
 import { InvestorNavigation } from '../../components/InvestorNavigation';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { InvestorService } from '../../services/investor.service';
+import { InvestorService } from '@features/deals/services/investor.service';
 import { AlertCircle } from 'lucide-react';
 
 interface AnalyticsMetric {

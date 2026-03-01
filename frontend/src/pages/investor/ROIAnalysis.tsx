@@ -8,8 +8,8 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@shared/components/ui/card';
 import { Button } from '@shared/components/ui/button';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { investorApi } from '@/services/investor.service';
-import type { ROISummary, ROIMetric } from '@/services/investor.service';
+import { investorApi } from '@features/deals/services/investor.service';
+import type { ROISummary, ROIMetric } from '@features/deals/services/investor.service';
 import {
   BarChart,
   Bar,

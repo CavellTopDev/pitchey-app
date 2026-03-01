@@ -28,7 +28,7 @@ vi.mock('../../store/betterAuthStore', () => ({
 
 // ─── InvestorService ─────────────────────────────────────────────────
 const mockGetWatchlist = vi.fn()
-vi.mock('../../services/investor.service', () => ({
+vi.mock('@features/deals/services/investor.service', () => ({
   InvestorService: {
     getWatchlist: mockGetWatchlist,
     getOpportunities: vi.fn(),

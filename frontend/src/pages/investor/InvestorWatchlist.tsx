@@ -7,7 +7,7 @@ import {
   CheckCircle, XCircle, Target, Activity, Globe
 } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { InvestorService } from '../../services/investor.service';
+import { InvestorService } from '@features/deals/services/investor.service';
 
 interface WatchlistItem {
   id: string;

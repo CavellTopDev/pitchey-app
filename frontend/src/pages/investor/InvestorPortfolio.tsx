@@ -7,7 +7,7 @@ import {
   BarChart3, Target, RefreshCw, Search, Grid3X3, List,
   Heart, MessageSquare, Settings, Plus, Minus, X
 } from 'lucide-react';
-import { InvestmentService } from '../../services/investment.service';
+import { InvestmentService } from '@features/deals/services/investment.service';
 
 interface Investment {
   id: string;

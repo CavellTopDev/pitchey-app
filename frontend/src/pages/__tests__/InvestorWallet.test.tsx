@@ -33,7 +33,7 @@ const mockGetTransactionStats = vi.fn()
 const mockGetAllInvestments = vi.fn()
 const mockGetTransactions = vi.fn()
 
-vi.mock('../../services/investor.service', () => ({
+vi.mock('@features/deals/services/investor.service', () => ({
   investorApi: {
     getFinancialSummary: mockGetFinancialSummary,
     getRecentTransactions: mockGetRecentTransactions,
@@ -51,7 +51,7 @@ vi.mock('../../services/investor.service', () => ({
 }))
 
 // ─── Also mock from @/services path ────────────────────────────────
-vi.mock('@/services/investor.service', () => ({
+vi.mock('@features/deals/services/investor.service', () => ({
   investorApi: {
     getFinancialSummary: mockGetFinancialSummary,
     getRecentTransactions: mockGetRecentTransactions,

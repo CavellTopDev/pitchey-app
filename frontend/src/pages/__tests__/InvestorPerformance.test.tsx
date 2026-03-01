@@ -6,7 +6,7 @@ const mockGetPerformance = vi.fn()
 const mockGetROISummary = vi.fn()
 const mockGetROIByCategory = vi.fn()
 
-vi.mock('@/services/investor.service', () => ({
+vi.mock('@features/deals/services/investor.service', () => ({
   investorApi: {
     getPerformance: (...args: any[]) => mockGetPerformance(...args),
     getROISummary: (...args: any[]) => mockGetROISummary(...args),
