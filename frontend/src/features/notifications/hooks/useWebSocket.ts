@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { notificationService } from '../services/notification.service';
-import { getUserId } from '../lib/apiServices';
+import { getUserId } from '@/lib/apiServices';
 import { useWebSocket as useWebSocketContext } from '@shared/contexts/WebSocketContext';
 
 interface WebSocketMessage {

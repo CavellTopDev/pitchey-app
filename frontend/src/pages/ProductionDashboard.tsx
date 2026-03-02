@@ -17,7 +17,7 @@ import { ndaAPI, analyticsAPI, companyAPI, paymentsAPI, pitchServicesAPI } from 
 import { API_URL } from '../config';
 import apiClient from '../lib/api-client';
 import { NotificationWidget } from '../components/Dashboard/NotificationWidget';
-import { NotificationBell } from '../components/NotificationBell';
+import { NotificationBell } from '@features/notifications/components/NotificationBell';
 import { getSubscriptionTier } from '../config/subscription-plans';
 import { config } from '../config';
 import FollowButton from '@features/browse/components/FollowButton';

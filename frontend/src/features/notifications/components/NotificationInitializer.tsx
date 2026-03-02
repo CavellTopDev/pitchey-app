@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useBetterAuthStore } from '../store/betterAuthStore';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { useRealTimeNotifications } from '../hooks/useRealTimeNotifications';
 import { useWebSocket } from '@shared/contexts/WebSocketContext';
 

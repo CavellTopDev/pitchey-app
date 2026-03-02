@@ -8,7 +8,7 @@ import {
   FolderOpen, UserPlus, Layers, Target, Activity, Award,
   DollarSign, PieChart, Clock, CheckCircle, AlertCircle
 } from 'lucide-react';
-import { NotificationBell } from './NotificationBell';
+import { NotificationBell } from '@features/notifications/components/NotificationBell';
 import { NDANotificationBadge } from './NDANotifications';
 
 interface EnhancedNavigationProps {

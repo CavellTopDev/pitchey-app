@@ -4,8 +4,8 @@ import { useBetterAuthStore } from '../store/betterAuthStore';
 import { 
   Home, Film, LogOut, Search, Menu, X, Plus 
 } from 'lucide-react';
-import { NotificationBell } from './NotificationBell';
-import { useRealTimeNotifications } from '../hooks/useRealTimeNotifications';
+import { NotificationBell } from '@features/notifications/components/NotificationBell';
+import { useRealTimeNotifications } from '@features/notifications/hooks/useRealTimeNotifications';
 import { getDashboardRoute } from '../utils/navigation';
 
 

@@ -33,7 +33,7 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate }
 })
 
-vi.mock('../../hooks/useWebSocket', () => ({
+vi.mock('@features/notifications/hooks/useWebSocket', () => ({
   useMessaging: () => mockMessaging,
 }))
 

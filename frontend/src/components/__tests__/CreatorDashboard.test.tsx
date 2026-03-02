@@ -102,7 +102,7 @@ vi.mock('@features/analytics/components/Analytics/EnhancedCreatorAnalytics', () 
   EnhancedCreatorAnalytics: () => <div data-testid="creator-analytics">Analytics</div>,
 }))
 
-vi.mock('../../components/NotificationBell', () => ({
+vi.mock('@features/notifications/components/NotificationBell', () => ({
   NotificationBell: () => <div data-testid="notification-bell">Bell</div>,
 }))
 

@@ -85,7 +85,7 @@ vi.mock('../../components/NDA/NDADashboardIntegration', () => ({
   QuickNDAStatus: () => <div data-testid="quick-nda" />,
 }))
 
-vi.mock('../../components/NotificationBell', () => ({
+vi.mock('@features/notifications/components/NotificationBell', () => ({
   NotificationBell: () => <div data-testid="notification-bell" />,
 }))
 

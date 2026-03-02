@@ -10,7 +10,7 @@ import { useBetterAuthStore } from '../../../store/betterAuthStore';
 import { getDashboardRoute } from '../../../utils/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@shared/components/ui/card';
 import { toast } from 'react-hot-toast';
-import { NotificationsService } from '../../../services/notifications.service';
+import { NotificationsService } from '@features/notifications/services/notifications.service';
 
 interface NotificationSettings {
   email: {

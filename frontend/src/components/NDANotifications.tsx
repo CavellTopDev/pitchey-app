@@ -16,8 +16,8 @@ import {
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import { ndaService, type NDA } from '../services/nda.service';
 import { useToast } from '@shared/components/feedback/ToastProvider';
-import { useWebSocket } from '../hooks/useWebSocket';
-import { notificationService } from '../services/notification.service';
+import { useWebSocket } from '@features/notifications/hooks/useWebSocket';
+import { notificationService } from '@features/notifications/services/notification.service';
 
 interface NDANotificationItem {
   id: number;

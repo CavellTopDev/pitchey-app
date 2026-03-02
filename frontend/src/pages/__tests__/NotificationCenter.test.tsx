@@ -43,7 +43,7 @@ const mockUpdatePreferences = vi.fn()
 const mockConvertToFrontendFormat = vi.fn()
 const mockGetNotificationActions = vi.fn()
 
-vi.mock('../../services/notifications.service', () => ({
+vi.mock('@features/notifications/services/notifications.service', () => ({
   NotificationsService: {
     getNotifications: mockGetNotifications,
     getPreferences: mockGetPreferences,

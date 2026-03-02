@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { config } from '../config';
-import { useBetterAuthStore } from '../store/betterAuthStore';
+import { config } from '@/config';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import type { 
   WebSocketMessage, 
   ConnectionStatus, 

@@ -30,7 +30,7 @@ if (import.meta.env.DEV) {
 
 // Immediately needed components (not lazy loaded)
 import Layout from './components/Layout';
-import { NotificationInitializer } from './components/NotificationInitializer';
+import { NotificationInitializer } from '@features/notifications/components/NotificationInitializer';
 // TestNotifications and TestSentry components removed
 
 // Lazy load Homepage with prefetch

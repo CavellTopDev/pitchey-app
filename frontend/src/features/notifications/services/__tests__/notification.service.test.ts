@@ -3,20 +3,20 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 // NotificationService uses browser APIs (Notification, document, navigator)
 // and dynamically imports betterAuthStore and api-client
 
-vi.mock('../../store/betterAuthStore', () => ({
+vi.mock('@/store/betterAuthStore', () => ({
   useBetterAuthStore: {
     getState: vi.fn().mockReturnValue({ user: { id: 1, email: 'test@test.com' } }),
   },
 }))
 
-vi.mock('../../lib/api-client', () => ({
+vi.mock('@/lib/api-client', () => ({
   default: {
     get: vi.fn(),
     post: vi.fn(),
   },
 }))
 
-vi.mock('../../constants/brand', () => ({
+vi.mock('@/constants/brand', () => ({
   BRAND: { logo: '/logo.svg', name: 'Pitchey' },
 }))
 
@@ -280,10 +280,10 @@ describe('NotificationService', () => {
 
   describe('getNotifications', () => {
     it('fetches notifications from API when user is authenticated', async () => {
-      const { useBetterAuthStore } = await import('../../store/betterAuthStore')
+      const { useBetterAuthStore } = await import('@/store/betterAuthStore')
       vi.mocked(useBetterAuthStore.getState).mockReturnValue({ user: { id: 1, email: 'test@test.com' } } as any)
 
-      const apiClient = (await import('../../lib/api-client')).default as any
+      const apiClient = (await import('@/lib/api-client')).default as any
       apiClient.get.mockResolvedValue({
         success: true,
         data: { notifications: [{ id: 1, type: 'pitch_view', title: 'View' }], unreadCount: 1, hasMore: false },
@@ -295,7 +295,7 @@ describe('NotificationService', () => {
     })
 
     it('returns empty when user is not authenticated', async () => {
-      const { useBetterAuthStore } = await import('../../store/betterAuthStore')
+      const { useBetterAuthStore } = await import('@/store/betterAuthStore')
       vi.mocked(useBetterAuthStore.getState).mockReturnValue({ user: null } as any)
 
       const result = await service.getNotifications()
@@ -304,10 +304,10 @@ describe('NotificationService', () => {
     })
 
     it('returns empty on API error', async () => {
-      const { useBetterAuthStore } = await import('../../store/betterAuthStore')
+      const { useBetterAuthStore } = await import('@/store/betterAuthStore')
       vi.mocked(useBetterAuthStore.getState).mockReturnValue({ user: { id: 1 } } as any)
 
-      const apiClient = (await import('../../lib/api-client')).default as any
+      const apiClient = (await import('@/lib/api-client')).default as any
       apiClient.get.mockRejectedValue(new Error('Network error'))
 
       const result = await service.getNotifications()

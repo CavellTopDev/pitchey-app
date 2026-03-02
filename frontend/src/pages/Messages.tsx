@@ -5,7 +5,7 @@ import {
   RefreshCw, Users, Circle, Smile, FileText, Image, Video, Music,
   Lock, Unlock, Check, CheckCheck, Clock, X, WifiOff
 } from 'lucide-react';
-import { useMessaging } from '../hooks/useWebSocket';
+import { useMessaging } from '@features/notifications/hooks/useWebSocket';
 import { getUserId } from '../lib/apiServices';
 import { apiClient } from '../lib/api-client';
 import { getCreditCost } from '../config/subscription-plans';

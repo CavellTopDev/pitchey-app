@@ -5,7 +5,7 @@ import {
   Users, Home, Film, Search, Shield, BarChart3,
   Settings, ChevronDown
 } from 'lucide-react';
-import { NotificationBell } from './NotificationBell';
+import { NotificationBell } from '@features/notifications/components/NotificationBell';
 import { NDANotificationBadge } from './NDANotifications';
 import { getSubscriptionTier } from '../config/subscription-plans';
 import { EnhancedNavigationShadcn } from './EnhancedNavigationShadcn';

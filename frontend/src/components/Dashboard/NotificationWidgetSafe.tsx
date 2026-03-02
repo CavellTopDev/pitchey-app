@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, BellRing, X } from 'lucide-react';
-import { NotificationsService } from '../../services/notifications.service';
+import { NotificationsService } from '@features/notifications/services/notifications.service';
 
 interface Notification {
   id: string;

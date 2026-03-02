@@ -34,7 +34,7 @@ vi.mock('../config', () => ({
 }));
 
 // Mock the services used by WebSocketContext
-vi.mock('../services/presence-fallback.service', () => ({
+vi.mock('@features/notifications/services/presence-fallback.service', () => ({
   presenceFallbackService: {
     start: vi.fn(),
     stop: vi.fn(),
@@ -43,7 +43,7 @@ vi.mock('../services/presence-fallback.service', () => ({
   },
 }));
 
-vi.mock('../services/polling.service', () => ({
+vi.mock('@features/notifications/services/polling.service', () => ({
   pollingService: {
     start: vi.fn(),
     stop: vi.fn(),
