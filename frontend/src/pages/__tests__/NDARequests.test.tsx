@@ -34,7 +34,7 @@ vi.mock('../../store/betterAuthStore', () => ({
   }),
 }))
 
-vi.mock('../../services/nda.service', () => ({
+vi.mock('@features/ndas/services/nda.service', () => ({
   NDAService: {
     getNDAs: mockGetNDAs,
     signNDA: mockSignNDA,

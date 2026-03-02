@@ -81,12 +81,12 @@ vi.mock('@/components/ErrorBoundary/PortalErrorBoundary', () => ({
   withPortalErrorBoundary: (Component: any) => Component,
 }))
 
-vi.mock('../../components/NDANotifications', () => ({
+vi.mock('@features/ndas/components/NDANotifications', () => ({
   NDANotificationBadge: () => <div data-testid="nda-badge">NDA Badge</div>,
   NDANotificationPanel: () => <div data-testid="nda-panel">NDA Panel</div>,
 }))
 
-vi.mock('../../components/NDA/NDADashboardIntegration', () => ({
+vi.mock('@features/ndas/components/NDA/NDADashboardIntegration', () => ({
   QuickNDAStatus: () => <div data-testid="quick-nda-status">NDA Status</div>,
 }))
 

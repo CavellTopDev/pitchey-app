@@ -4,8 +4,8 @@ import { TrendingUp, Eye, MessageSquare, Upload, BarChart3, Calendar, Plus, Shie
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import { paymentsAPI } from '../lib/apiServices';
 import apiClient from '../lib/api-client';
-import { NDANotificationPanel } from '../components/NDANotifications';
-import { QuickNDAStatus } from '../components/NDA/NDADashboardIntegration';
+import { NDANotificationPanel } from '@features/ndas/components/NDANotifications';
+import { QuickNDAStatus } from '@features/ndas/components/NDA/NDADashboardIntegration';
 import { getSubscriptionTier } from '../config/subscription-plans';
 import { InvestmentService } from '@features/deals/services/investment.service';
 import FundingOverview from '@features/deals/components/Investment/FundingOverview';

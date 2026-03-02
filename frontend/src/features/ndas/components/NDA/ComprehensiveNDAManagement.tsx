@@ -9,7 +9,7 @@ import { ndaService } from '../../services/nda.service';
 import type { NDA, NDARequest } from '@shared/types/nda.types';
 import NDAManagementPanel from '../NDAManagementPanel';
 import NDAStatusBadge from '../NDAStatusBadge';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 
 interface ComprehensiveNDAManagementProps {
   userType: 'creator' | 'investor' | 'production';

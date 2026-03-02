@@ -232,7 +232,7 @@ vi.mock('@features/uploads/components/FileUpload/DocumentUploadHub', () => ({
 }))
 
 // Mock NDAUploadSection component with full NDA UI
-vi.mock('../../components/FileUpload/NDAUploadSection', () => ({
+vi.mock('@features/ndas/components/NDAUploadSection', () => ({
   default: vi.fn(({ ndaDocument, onChange, disabled }) => {
     const currentType = ndaDocument?.ndaType || 'none'
     return (

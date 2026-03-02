@@ -6,7 +6,7 @@ import {
   Settings, ChevronDown
 } from 'lucide-react';
 import { NotificationBell } from '@features/notifications/components/NotificationBell';
-import { NDANotificationBadge } from './NDANotifications';
+import { NDANotificationBadge } from '@features/ndas/components/NDANotifications';
 import { getSubscriptionTier } from '../config/subscription-plans';
 import { EnhancedNavigationShadcn } from './EnhancedNavigationShadcn';
 import {

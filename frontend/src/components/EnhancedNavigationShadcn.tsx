@@ -9,7 +9,7 @@ import {
   ChevronRight, Building, ShoppingCart
 } from 'lucide-react';
 import { NotificationBell } from '@features/notifications/components/NotificationBell';
-import { NDANotificationBadge } from './NDANotifications';
+import { NDANotificationBadge } from '@features/ndas/components/NDANotifications';
 import {
   DropdownMenu,
   DropdownMenuContent,

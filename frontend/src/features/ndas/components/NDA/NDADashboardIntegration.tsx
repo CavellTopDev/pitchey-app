@@ -6,7 +6,7 @@ import {
   ArrowRight, Calendar, Users
 } from 'lucide-react';
 import { ndaService, type NDA } from '../../services/nda.service';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import NDAStatusBadge from '../NDAStatusBadge';
 
 interface NDADashboardStats {

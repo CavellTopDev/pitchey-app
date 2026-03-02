@@ -15,7 +15,7 @@ const { mockGetNDAs, mockApproveNDA, mockRejectNDA, mockBulkApprove, mockBulkRej
   mockError: vi.fn(),
 }));
 
-vi.mock('../../../services/nda.service', () => ({
+vi.mock('@features/ndas/services/nda.service', () => ({
   ndaService: {
     getNDAs: (...args: unknown[]) => mockGetNDAs(...args),
     approveNDA: (...args: unknown[]) => mockApproveNDA(...args),

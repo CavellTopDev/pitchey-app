@@ -13,7 +13,7 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
-import { useBetterAuthStore } from '../store/betterAuthStore';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { ndaService, type NDA } from '../services/nda.service';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { useWebSocket } from '@features/notifications/hooks/useWebSocket';

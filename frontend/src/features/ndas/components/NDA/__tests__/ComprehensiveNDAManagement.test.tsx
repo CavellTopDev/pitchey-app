@@ -23,11 +23,11 @@ const { mockNdaService, mockAuthStore } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../../services/nda.service', () => ({
+vi.mock('@features/ndas/services/nda.service', () => ({
   ndaService: mockNdaService,
 }));
 
-vi.mock('../../../store/betterAuthStore', () => ({
+vi.mock('@/store/betterAuthStore', () => ({
   useBetterAuthStore: () => mockAuthStore,
 }));
 

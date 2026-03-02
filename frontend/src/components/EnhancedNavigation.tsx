@@ -9,7 +9,7 @@ import {
   DollarSign, PieChart, Clock, CheckCircle, AlertCircle
 } from 'lucide-react';
 import { NotificationBell } from '@features/notifications/components/NotificationBell';
-import { NDANotificationBadge } from './NDANotifications';
+import { NDANotificationBadge } from '@features/ndas/components/NDANotifications';
 
 interface EnhancedNavigationProps {
   user: any;

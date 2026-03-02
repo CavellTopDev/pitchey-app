@@ -54,7 +54,7 @@ vi.mock('../../lib/api', () => ({
 }))
 
 // ─── nda.service ─────────────────────────────────────────────────────
-vi.mock('../../services/nda.service', () => ({
+vi.mock('@features/ndas/services/nda.service', () => ({
   ndaService: {
     getNDAStatus: mockGetNDAStatus,
     requestNDA: vi.fn().mockResolvedValue({ success: true }),
@@ -62,7 +62,7 @@ vi.mock('../../services/nda.service', () => ({
 }))
 
 // ─── NDAWizard component ─────────────────────────────────────────────
-vi.mock('../../components/NDAWizard', () => ({
+vi.mock('@features/ndas/components/NDAWizard', () => ({
   default: ({ isOpen, onClose, pitchId, pitchTitle }: any) =>
     isOpen ? (
       <div data-testid="nda-wizard">

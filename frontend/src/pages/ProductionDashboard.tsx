@@ -21,7 +21,7 @@ import { NotificationBell } from '@features/notifications/components/Notificatio
 import { getSubscriptionTier } from '../config/subscription-plans';
 import { config } from '../config';
 import FollowButton from '@features/browse/components/FollowButton';
-import NDAManagementPanel from '../components/NDAManagementPanel';
+import NDAManagementPanel from '@features/ndas/components/NDAManagementPanel';
 import FormatDisplay from '../components/FormatDisplay';
 import { EnhancedProductionAnalytics } from '@features/analytics/components/Analytics/EnhancedProductionAnalytics';
 import { withPortalErrorBoundary } from '../components/ErrorBoundary/PortalErrorBoundary';

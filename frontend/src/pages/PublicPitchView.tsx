@@ -4,8 +4,8 @@ import { ArrowLeft, Eye, Heart, Share2, Tag, Film, Calendar, User, Shield, Lock,
 import { pitchAPI } from '../lib/api';
 import type { Pitch } from '../lib/api';
 import { useBetterAuthStore } from '../store/betterAuthStore';
-import { ndaService } from '../services/nda.service';
-import NDAWizard from '../components/NDAWizard';
+import { ndaService } from '@features/ndas/services/nda.service';
+import NDAWizard from '@features/ndas/components/NDAWizard';
 import FormatDisplay from '../components/FormatDisplay';
 
 export default function PublicPitchView() {

@@ -5,7 +5,7 @@ import NDAModal from '../NDAModal'
 import { ndaService } from '../../services/nda.service'
 
 // Mock the NDA service
-vi.mock('../../services/nda.service', () => {
+vi.mock('@features/ndas/services/nda.service', () => {
   const mockNdaService = {
     canRequestNDA: vi.fn(),
     requestNDA: vi.fn(),

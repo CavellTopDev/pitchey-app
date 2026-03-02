@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import MultipleFileUpload, { EnhancedMediaFile } from './MultipleFileUpload';
-import NDAUploadSection, { NDADocument } from '@/components/FileUpload/NDAUploadSection';
+import NDAUploadSection, { NDADocument } from '@features/ndas/components/NDAUploadSection';
 import { enhancedUploadService, EnhancedUploadOptions, EnhancedUploadResult, BatchUploadProgress } from '../../services/enhanced-upload.service';
 import { useBetterAuthStore } from '@/store/betterAuthStore';
 

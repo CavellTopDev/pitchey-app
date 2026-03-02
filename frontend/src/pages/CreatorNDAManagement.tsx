@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Shield } from 'lucide-react';
 import { useBetterAuthStore } from '../store/betterAuthStore';
-import ComprehensiveNDAManagement from '../components/NDA/ComprehensiveNDAManagement';
+import ComprehensiveNDAManagement from '@features/ndas/components/NDA/ComprehensiveNDAManagement';
 import BackButton from '../components/BackButton';
 
 export default function CreatorNDAManagement() {

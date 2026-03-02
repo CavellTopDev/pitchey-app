@@ -18,8 +18,8 @@ import { serializeCharacters } from '@features/pitches/utils/characterUtils';
 // DocumentUpload removed — using DocumentUploadHub instead (Karl feedback #6)
 import type { DocumentFile } from '@features/uploads/components/DocumentUpload';
 import DocumentUploadHub from '@features/uploads/components/FileUpload/DocumentUploadHub';
-import NDAUploadSection from '../components/FileUpload/NDAUploadSection';
-import type { NDADocument } from '../components/FileUpload/NDAUploadSection';
+import NDAUploadSection from '@features/ndas/components/NDAUploadSection';
+import type { NDADocument } from '@features/ndas/components/NDAUploadSection';
 import type { EnhancedUploadResult } from '@features/uploads/services/enhanced-upload.service';
 import {
   ToneAndStyleSection,

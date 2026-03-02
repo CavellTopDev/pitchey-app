@@ -205,7 +205,7 @@ vi.mock('@features/uploads/components/FileUpload/DocumentUploadHub', () => ({
 }))
 
 // ─── NDAUploadSection ────────────────────────────────────────────────
-vi.mock('../../components/FileUpload/NDAUploadSection', () => ({
+vi.mock('@features/ndas/components/NDAUploadSection', () => ({
   default: ({ ndaDocument, onChange, disabled }: any) => (
     <div data-testid="nda-upload-section">NDA Upload Section</div>
   ),

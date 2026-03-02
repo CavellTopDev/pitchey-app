@@ -4,7 +4,7 @@ import {
   Calendar, User, Building2, FileText, Download,
   Send, Eye, ChevronDown, ChevronUp
 } from 'lucide-react';
-import { API_URL } from '../config';
+import { API_URL } from '@/config';
 import { format, formatDistanceToNow, isPast } from 'date-fns';
 
 interface NDARequest {

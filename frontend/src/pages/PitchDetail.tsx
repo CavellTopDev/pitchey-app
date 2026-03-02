@@ -6,7 +6,7 @@ import { createDownloadClickHandler } from '../utils/fileDownloads';
 import type { Pitch } from '@features/pitches/services/pitch.service';
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import BackButton from '../components/BackButton';
-import EnhancedNDARequest from '../components/NDA/EnhancedNDARequest';
+import EnhancedNDARequest from '@features/ndas/components/NDA/EnhancedNDARequest';
 import FormatDisplay from '../components/FormatDisplay';
 
 export default function PitchDetail() {

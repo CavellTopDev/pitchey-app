@@ -12,7 +12,7 @@ import {
   PenTool,
   Mail
 } from 'lucide-react';
-import { useBetterAuthStore } from '../store/betterAuthStore';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { ndaService, type NDA } from '../services/nda.service';
 
 interface NDAWizardProps {

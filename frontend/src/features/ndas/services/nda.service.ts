@@ -1,5 +1,5 @@
 // NDA Service - Complete NDA management
-import { apiClient } from '../lib/api-client';
+import { apiClient } from '@/lib/api-client';
 import type {
   NDA,
   NDARequest,

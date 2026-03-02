@@ -11,7 +11,7 @@ const { mockGetNDAStats, mockGetNDAs, mockGetNDAAnalytics, mockSuccess, mockErro
   mockError: vi.fn(),
 }));
 
-vi.mock('../../../services/nda.service', () => ({
+vi.mock('@features/ndas/services/nda.service', () => ({
   ndaService: {
     getNDAStats: (...args: unknown[]) => mockGetNDAStats(...args),
     getNDAs: (...args: unknown[]) => mockGetNDAs(...args),

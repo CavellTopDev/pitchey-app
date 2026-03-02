@@ -41,7 +41,7 @@ vi.mock('../../components/BackButton', () => ({
   default: () => <div data-testid="back-button">Back</div>,
 }))
 
-vi.mock('../../components/NDA/EnhancedNDARequest', () => ({
+vi.mock('@features/ndas/components/NDA/EnhancedNDARequest', () => ({
   default: ({ isOpen, onSuccess }: any) =>
     isOpen ? (
       <div data-testid="nda-modal">

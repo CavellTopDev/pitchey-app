@@ -30,7 +30,7 @@ import {
 } from "@shared/components/ui/card";
 import { Badge } from "@shared/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/components/ui/tabs";
-import { NDAService } from '../../services/nda.service';
+import { NDAService } from '@features/ndas/services/nda.service';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
 
