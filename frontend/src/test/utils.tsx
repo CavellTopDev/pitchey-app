@@ -101,7 +101,7 @@ const mockPitchStore = {
 }
 
 // Mock stores
-vi.mock('../store/pitchStore', () => ({
+vi.mock('@features/pitches/store/pitchStore', () => ({
   usePitchStore: () => mockPitchStore,
 }))
 

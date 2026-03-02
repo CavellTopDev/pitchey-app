@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { pitchService } from '../services/pitch.service';
-import type { Pitch } from '../services/pitch.service';
+import { pitchService } from '@features/pitches/services/pitch.service';
+import type { Pitch } from '@features/pitches/services/pitch.service';
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import { PitchCardSkeleton } from '@shared/components/feedback/Skeleton';
 import EmptyState from '../components/EmptyState';

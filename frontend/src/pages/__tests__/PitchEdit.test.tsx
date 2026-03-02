@@ -20,7 +20,7 @@ vi.mock('react-router-dom', async () => {
 })
 
 // ─── pitch.service ──────────────────────────────────────────────────
-vi.mock('../../services/pitch.service', () => ({
+vi.mock('@features/pitches/services/pitch.service', () => ({
   pitchService: {
     getById: mockGetById,
     update: mockUpdate,
@@ -58,7 +58,7 @@ vi.mock('@features/uploads/components/DocumentUpload', () => ({
 }))
 
 // ─── characterUtils ─────────────────────────────────────────────────
-vi.mock('../../utils/characterUtils', () => ({
+vi.mock('@features/pitches/utils/characterUtils', () => ({
   normalizeCharacters: (chars: any) => chars || [],
   serializeCharacters: (chars: any) => chars || [],
 }))

@@ -6,7 +6,7 @@ import { pitchService } from '../../services/pitch.service'
 import { a11y } from '../../utils/accessibility'
 
 // Mock dependencies
-vi.mock('../../services/pitch.service', () => ({
+vi.mock('@features/pitches/services/pitch.service', () => ({
   pitchService: {
     create: vi.fn(),
   },
@@ -42,7 +42,7 @@ vi.mock('../../utils/validation', () => ({
 }))
 
 // Mock character utilities  
-vi.mock('../../utils/characterUtils', () => ({
+vi.mock('@features/pitches/utils/characterUtils', () => ({
   serializeCharacters: vi.fn(() => []),
 }))
 
@@ -200,7 +200,7 @@ vi.mock('../../utils/accessibility', () => ({
 }))
 
 // Mock character utils
-vi.mock('../../utils/characterUtils', () => ({
+vi.mock('@features/pitches/utils/characterUtils', () => ({
   serializeCharacters: vi.fn((chars) => chars),
 }))
 
@@ -279,7 +279,7 @@ vi.mock('../../components/FileUpload/NDAUploadSection', () => ({
 }))
 
 // Mock EnhancedPitchFormSections components
-vi.mock('../../components/PitchForm/EnhancedPitchFormSections', () => ({
+vi.mock('@features/pitches/components/PitchForm/EnhancedPitchFormSections', () => ({
   ToneAndStyleSection: vi.fn(() => <div data-testid="tone-style-section">Tone & Style</div>),
   CompsSection: vi.fn(() => <div data-testid="comps-section">Comps</div>),
   StoryBreakdownSection: vi.fn(() => <div data-testid="story-breakdown-section">Story Breakdown</div>),
@@ -298,7 +298,7 @@ vi.mock('@features/uploads/services/enhanced-upload.service', () => ({
 }))
 
 // Mock usePitchUploadManager hook
-vi.mock('../../hooks/usePitchUploadManager', () => ({
+vi.mock('@features/pitches/hooks/usePitchUploadManager', () => ({
   usePitchUploadManager: vi.fn(() => ({
     uploadQueue: [],
     isUploading: false,

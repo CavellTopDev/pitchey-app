@@ -10,7 +10,7 @@ import { Button } from '@shared/components/ui/button';
 import { Input } from '@shared/components/ui/input';
 import { Skeleton } from '@shared/components/ui/skeleton';
 import { useNavigate } from 'react-router-dom';
-import { SavedPitchesService, type SavedPitch as ApiSavedPitch } from '../../services/saved-pitches.service';
+import { SavedPitchesService, type SavedPitch as ApiSavedPitch } from '@features/pitches/services/saved-pitches.service';
 
 // Loading skeleton for pitch cards
 function PitchCardSkeleton() {

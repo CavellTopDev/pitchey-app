@@ -7,7 +7,7 @@ import {
   ChevronRight, Save, Send, Shield
 } from 'lucide-react';
 import { useBetterAuthStore } from '../store/betterAuthStore';
-import { usePitchStore } from '../store/pitchStore';
+import { usePitchStore } from '@features/pitches/store/pitchStore';
 import { getGenresSync, getFormatsSync, getBudgetRangesSync } from '@config/pitchConstants';
 
 interface MediaFile {

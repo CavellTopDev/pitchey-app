@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Film, TrendingUp, Search, Play, Star, Eye, Heart, Calendar, ArrowRight, Sparkles, User, Building2, Wallet } from 'lucide-react';
 import { useBetterAuthStore } from '../store/betterAuthStore';
-import { pitchService } from '../services/pitch.service';
-import type { Pitch } from '../services/pitch.service';
+import { pitchService } from '@features/pitches/services/pitch.service';
+import type { Pitch } from '@features/pitches/services/pitch.service';
 import { getGenresSync, getFormatsSync } from '@config/pitchConstants';
 import FormatDisplay from '../components/FormatDisplay';
 

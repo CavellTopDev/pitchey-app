@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock api-client BEFORE importing the service
-vi.mock('../../lib/api-client', () => ({
+vi.mock('@/lib/api-client', () => ({
   apiClient: {
     get: vi.fn(),
     post: vi.fn(),
@@ -12,12 +12,12 @@ vi.mock('../../lib/api-client', () => ({
 }))
 
 // Mock config for API_URL used in public methods
-vi.mock('../../config', () => ({
+vi.mock('@/config', () => ({
   API_URL: 'http://localhost:8001',
   config: { apiUrl: 'http://localhost:8001' },
 }))
 
-import { apiClient } from '../../lib/api-client'
+import { apiClient } from '@/lib/api-client'
 import { PitchService } from '../pitch.service'
 
 const mockApiClient = apiClient as {

@@ -5,7 +5,7 @@ import {
   Calendar, Clock, Edit, MoreVertical, Filter, Search,
   Download, Share2, BarChart3, DollarSign, Users, AlertCircle
 } from 'lucide-react';
-import { PitchService, type Pitch } from '../../services/pitch.service';
+import { PitchService, type Pitch } from '@features/pitches/services/pitch.service';
 
 interface PublishedPitch {
   id: string;

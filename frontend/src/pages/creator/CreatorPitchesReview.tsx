@@ -4,7 +4,7 @@ import {
   MessageSquare, Clock, Eye, AlertCircle, RefreshCw,
   FileText, Search, ArrowRight
 } from 'lucide-react';
-import { PitchService, type Pitch } from '../../services/pitch.service';
+import { PitchService, type Pitch } from '@features/pitches/services/pitch.service';
 
 interface ReviewPitch {
   id: number;

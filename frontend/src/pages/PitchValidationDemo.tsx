@@ -14,7 +14,7 @@ import {
   ValidationDashboard, 
   ValidationService,
   ValidationUtils
-} from '../components/PitchValidation';
+} from '@features/pitches/components/PitchValidation';
 
 const PitchValidationDemo: React.FC = () => {
   const [activeDemo, setActiveDemo] = useState<'form' | 'dashboard' | 'analytics'>('form');

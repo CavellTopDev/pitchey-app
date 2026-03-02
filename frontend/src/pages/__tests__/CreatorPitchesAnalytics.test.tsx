@@ -26,7 +26,7 @@ vi.mock('@features/analytics/services/creator.service', () => ({
 
 // ─── PitchService mock ───────────────────────────────────────────────
 const mockGetMyPitches = vi.fn()
-vi.mock('../../services/pitch.service', () => ({
+vi.mock('@features/pitches/services/pitch.service', () => ({
   PitchService: {
     getMyPitches: mockGetMyPitches,
   },

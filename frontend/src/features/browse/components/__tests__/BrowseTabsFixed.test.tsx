@@ -12,7 +12,7 @@ const { mockPitchService, mockNavigate } = vi.hoisted(() => ({
   mockNavigate: vi.fn(),
 }))
 
-vi.mock('@/services/pitch.service', () => ({
+vi.mock('@features/pitches/services/pitch.service', () => ({
   PitchService: mockPitchService,
 }))
 

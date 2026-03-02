@@ -32,7 +32,7 @@ const mockGetPublicNewPitches = vi.fn()
 const mockGetPublicFeaturedPitches = vi.fn()
 const mockGetPublicPitches = vi.fn()
 
-vi.mock('../../services/pitch.service', () => ({
+vi.mock('@features/pitches/services/pitch.service', () => ({
   pitchService: {
     getPublicTrendingPitches: mockGetPublicTrendingPitches,
     getPublicNewPitches: mockGetPublicNewPitches,

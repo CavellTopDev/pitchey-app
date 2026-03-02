@@ -7,7 +7,7 @@ const mockPut = vi.fn();
 const mockDelete = vi.fn();
 const mockPatch = vi.fn();
 
-vi.mock('../../lib/api-client', () => ({
+vi.mock('@/lib/api-client', () => ({
   apiClient: {
     get: (...args: any[]) => mockGet(...args),
     post: (...args: any[]) => mockPost(...args),

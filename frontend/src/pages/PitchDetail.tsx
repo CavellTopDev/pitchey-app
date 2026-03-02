@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Share2, Eye, Calendar, User, Clock, Tag, Film, Heart, LogIn, FileText, Lock, Shield, Briefcase, DollarSign, WifiOff, RefreshCw } from 'lucide-react';
-import { pitchService } from '../services/pitch.service';
+import { pitchService } from '@features/pitches/services/pitch.service';
 import { createDownloadClickHandler } from '../utils/fileDownloads';
-import type { Pitch } from '../services/pitch.service';
+import type { Pitch } from '@features/pitches/services/pitch.service';
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import BackButton from '../components/BackButton';
 import EnhancedNDARequest from '../components/NDA/EnhancedNDARequest';

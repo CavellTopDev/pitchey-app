@@ -1,7 +1,7 @@
 // Pitch Service - Frontend integration with backend API
 
-import { apiClient } from '../lib/api-client';
-import { API_URL } from '../config';
+import { apiClient } from '@/lib/api-client';
+import { API_URL } from '@/config';
 export interface Pitch {
   id: number;
   userId: number;

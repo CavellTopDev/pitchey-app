@@ -18,7 +18,7 @@ vi.mock('../../services/config.service', () => ({
 }))
 
 // Mock pitch service
-vi.mock('../../services/pitch.service', () => ({
+vi.mock('@features/pitches/services/pitch.service', () => ({
   pitchService: {
     getPublicPitches: vi.fn().mockResolvedValue({ pitches: [] }),
   },

@@ -6,7 +6,7 @@ import {
   MoreVertical, Tag, Globe, Lock, CheckCircle
 } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { PitchService, type Pitch } from '../../services/pitch.service';
+import { PitchService, type Pitch } from '@features/pitches/services/pitch.service';
 
 interface DraftPitch {
   id: string;

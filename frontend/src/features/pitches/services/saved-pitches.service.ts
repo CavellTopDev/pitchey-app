@@ -1,5 +1,5 @@
 // Saved Pitches Service - Complete saved pitches management
-import { apiClient } from '../lib/api-client';
+import { apiClient } from '@/lib/api-client';
 import type { Pitch, ApiResponse } from '@shared/types/api';
 
 export interface SavedPitch {

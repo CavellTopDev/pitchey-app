@@ -4,7 +4,7 @@ import {
   AlertCircle, RefreshCw
 } from 'lucide-react';
 import { CreatorService, type CreatorAnalytics } from '@features/analytics/services/creator.service';
-import { PitchService, type Pitch } from '../../services/pitch.service';
+import { PitchService, type Pitch } from '@features/pitches/services/pitch.service';
 
 interface PitchWithAnalytics {
   id: number;

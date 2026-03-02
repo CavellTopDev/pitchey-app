@@ -4,17 +4,17 @@ import { ArrowLeft, Upload, X, FileText, Video, Image as ImageIcon, Shield, Aler
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import LoadingSpinner from '@shared/components/feedback/LoadingSpinner';
-import { pitchService } from '../services/pitch.service';
+import { pitchService } from '@features/pitches/services/pitch.service';
 import { uploadService } from '@features/uploads/services/upload.service';
 import { getGenresSync, getFormatsSync, FALLBACK_GENRES } from '@config/pitchConstants';
 import { useFormValidation } from '../hooks/useFormValidation';
-import { usePitchUploadManager } from '../hooks/usePitchUploadManager';
+import { usePitchUploadManager } from '@features/pitches/hooks/usePitchUploadManager';
 import { PitchFormSchema, type PitchFormData, getCharacterCountInfo } from '../schemas/pitch.schema';
 import { a11y } from '../utils/accessibility';
 import { MESSAGES, VALIDATION_MESSAGES, SUCCESS_MESSAGES, ERROR_MESSAGES } from '@config/messages';
-import { CharacterManagement } from '../components/CharacterManagement';
+import { CharacterManagement } from '@features/pitches/components/CharacterManagement';
 import type { Character } from '@shared/types/character';
-import { serializeCharacters } from '../utils/characterUtils';
+import { serializeCharacters } from '@features/pitches/utils/characterUtils';
 // DocumentUpload removed — using DocumentUploadHub instead (Karl feedback #6)
 import type { DocumentFile } from '@features/uploads/components/DocumentUpload';
 import DocumentUploadHub from '@features/uploads/components/FileUpload/DocumentUploadHub';
@@ -31,7 +31,7 @@ import {
   CreativeAttachmentsManager,
   VideoUrlSection,
   type CreativeAttachment
-} from '../components/PitchForm/EnhancedPitchFormSections';
+} from '@features/pitches/components/PitchForm/EnhancedPitchFormSections';
 
 // PitchFormData type is now imported from pitch.schema.ts
 

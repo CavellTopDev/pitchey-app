@@ -48,7 +48,7 @@ vi.mock('@shared/components/feedback/LoadingSpinner', () => ({
 }))
 
 // ─── pitch.service ──────────────────────────────────────────────────
-vi.mock('../../services/pitch.service', () => ({
+vi.mock('@features/pitches/services/pitch.service', () => ({
   pitchService: {
     create: mockCreate,
     update: mockUpdate,
@@ -93,7 +93,7 @@ vi.mock('../../hooks/useFormValidation', () => ({
 }))
 
 // ─── Upload manager hook ─────────────────────────────────────────────
-vi.mock('../../hooks/usePitchUploadManager', () => ({
+vi.mock('@features/pitches/hooks/usePitchUploadManager', () => ({
   usePitchUploadManager: () => ({
     addUpload: vi.fn().mockReturnValue('upload-id-1'),
     removeUpload: vi.fn(),
@@ -192,7 +192,7 @@ vi.mock('../../components/CharacterManagement', () => ({
 }))
 
 // ─── characterUtils ──────────────────────────────────────────────────
-vi.mock('../../utils/characterUtils', () => ({
+vi.mock('@features/pitches/utils/characterUtils', () => ({
   serializeCharacters: (chars: any) => chars || [],
   normalizeCharacters: (chars: any) => chars || [],
 }))
@@ -212,7 +212,7 @@ vi.mock('../../components/FileUpload/NDAUploadSection', () => ({
 }))
 
 // ─── Enhanced pitch form sections ────────────────────────────────────
-vi.mock('../../components/PitchForm/EnhancedPitchFormSections', () => ({
+vi.mock('@features/pitches/components/PitchForm/EnhancedPitchFormSections', () => ({
   ToneAndStyleSection: ({ value, onChange }: any) => (
     <div data-testid="tone-and-style">Tone and Style</div>
   ),

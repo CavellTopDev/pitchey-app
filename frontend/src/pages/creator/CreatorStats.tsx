@@ -14,7 +14,7 @@ import {
   XAxis, YAxis, CartesianGrid, ResponsiveContainer
 } from 'recharts';
 import { CreatorService, type CreatorStats as CreatorStatsType, type CreatorAnalytics } from '@features/analytics/services/creator.service';
-import { PitchService, type Pitch } from '../../services/pitch.service';
+import { PitchService, type Pitch } from '@features/pitches/services/pitch.service';
 
 interface QuickStat {
   label: string;

@@ -22,7 +22,7 @@ const { mockPitchService, mockPitchAPI, mockNavigate, mockAuthStore } = vi.hoist
   },
 }))
 
-vi.mock('../../services/pitch.service', () => ({
+vi.mock('@features/pitches/services/pitch.service', () => ({
   pitchService: mockPitchService,
   PitchService: mockPitchService,
 }))

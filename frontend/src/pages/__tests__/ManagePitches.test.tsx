@@ -19,7 +19,7 @@ vi.mock('react-router-dom', async () => {
   }
 })
 
-vi.mock('../../services/pitch.service', () => ({
+vi.mock('@features/pitches/services/pitch.service', () => ({
   pitchService: {
     getMyPitches: mockGetMyPitches,
     publish: mockPublish,

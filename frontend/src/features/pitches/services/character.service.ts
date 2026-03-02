@@ -1,7 +1,7 @@
 // Character Service - Frontend integration with character management API
 // Provides comprehensive character CRUD and ordering operations
 
-import { apiClient } from '../lib/api-client';
+import { apiClient } from '@/lib/api-client';
 import type { Character } from '@shared/types/character';
 
 export interface CharacterOrderItem {

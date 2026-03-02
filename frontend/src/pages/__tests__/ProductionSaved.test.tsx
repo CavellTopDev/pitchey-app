@@ -18,7 +18,7 @@ vi.mock('react-router-dom', async () => {
   }
 })
 
-vi.mock('../../services/saved-pitches.service', () => ({
+vi.mock('@features/pitches/services/saved-pitches.service', () => ({
   SavedPitchesService: {
     getSavedPitches: (...args: any[]) => mockGetSavedPitches(...args),
     unsavePitch: (...args: any[]) => mockUnsavePitch(...args),

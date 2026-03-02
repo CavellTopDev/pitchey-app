@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, X, Upload, FileText, Video, Image as ImageIcon, Shield, WifiOff } from 'lucide-react';
-import { pitchService } from '../services/pitch.service';
+import { pitchService } from '@features/pitches/services/pitch.service';
 import { uploadService } from '@features/uploads/services/upload.service';
 import type { Pitch, UpdatePitchInput } from '@shared/types/api';
 import { getGenresSync } from '@config/pitchConstants';
-import { CharacterManagement } from '../components/CharacterManagement';
+import { CharacterManagement } from '@features/pitches/components/CharacterManagement';
 import type { Character } from '@shared/types/character';
-import { normalizeCharacters, serializeCharacters } from '../utils/characterUtils';
+import { normalizeCharacters, serializeCharacters } from '@features/pitches/utils/characterUtils';
 import { DocumentUpload } from '@features/uploads/components/DocumentUpload';
 import type { DocumentFile } from '@features/uploads/components/DocumentUpload';
 

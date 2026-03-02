@@ -10,7 +10,7 @@ import {
   Wifi, WifiOff, AlertTriangle, RefreshCw
 } from 'lucide-react';
 import { useBetterAuthStore } from '../store/betterAuthStore';
-import { usePitchStore } from '../store/pitchStore';
+import { usePitchStore } from '@features/pitches/store/pitchStore';
 import { pitchAPI } from '../lib/api';
 import type { Pitch } from '../lib/api';
 import { ndaAPI, analyticsAPI, companyAPI, paymentsAPI, pitchServicesAPI } from '../lib/apiServices';
