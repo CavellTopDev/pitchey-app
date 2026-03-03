@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import DashboardHeader from '../components/DashboardHeader';
 import { useBetterAuthStore } from '../store/betterAuthStore';
-import CreatorCollaborations from './creator/CreatorCollaborations';
+import CreatorCollaborations from '@portals/creator/pages/CreatorCollaborations';
 import ProductionCollaborations from './production/ProductionCollaborations';
 
 interface TeamMember {

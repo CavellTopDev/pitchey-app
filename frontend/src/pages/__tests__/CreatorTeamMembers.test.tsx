@@ -32,7 +32,7 @@ vi.mock('../../services/team.service', () => ({
 // ─── Dynamic component import ─────────────────────────────────────────
 let CreatorTeamMembers: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../creator/CreatorTeamMembers')
+  const mod = await import('@portals/creator/pages/CreatorTeamMembers')
   CreatorTeamMembers = mod.default
 })
 

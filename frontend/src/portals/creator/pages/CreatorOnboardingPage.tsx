@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { UserService } from '../../services/user.service';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
+import { UserService } from '@/services/user.service';
 
 const MAX_BIO_LENGTH = 500;
 

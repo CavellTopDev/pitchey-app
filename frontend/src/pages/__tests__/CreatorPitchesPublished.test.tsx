@@ -76,7 +76,7 @@ const mockPublishedPitches = [
 let CreatorPitchesPublished: React.ComponentType
 
 beforeAll(async () => {
-  const mod = await import('../creator/CreatorPitchesPublished')
+  const mod = await import('@portals/creator/pages/CreatorPitchesPublished')
   CreatorPitchesPublished = mod.default
 })
 

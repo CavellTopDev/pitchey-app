@@ -56,7 +56,7 @@ const InvestorDashboard = lazy(() => import('./pages/InvestorDashboard'));
 const InvestorDashboardDebug = lazy(() => import('./pages/InvestorDashboardDebug'));
 const ProductionDashboard = lazy(() => import('./pages/ProductionDashboard'));
 const CreatorProfile = lazy(() => import('./pages/CreatorProfile'));
-const OnboardingPage = lazy(() => import('./pages/creator/CreatorOnboardingPage'));
+const OnboardingPage = lazy(() => import('@portals/creator/pages/CreatorOnboardingPage'));
 
 // Public Pages
 const Marketplace = lazy(() => import('./pages/MarketplaceEnhanced'));
@@ -72,17 +72,17 @@ const PitchDetail = lazy(() => import('./pages/PitchDetail'));
 const PitchEdit = lazy(() => import('./pages/PitchEdit'));
 const PitchAnalytics = lazy(() => import('./pages/PitchAnalytics'));
 const CreatorNDAManagement = lazy(() => import('./pages/CreatorNDAManagement'));
-const CreatorPitchView = lazy(() => import('./pages/creator/CreatorPitchView'));
-const CreatorActivity = lazy(() => import('./pages/creator/CreatorActivity'));
-const CreatorStats = lazy(() => import('./pages/creator/CreatorStats'));
-const CreatorPitchesPublished = lazy(() => import('./pages/creator/CreatorPitchesPublished'));
-const CreatorPitchesDrafts = lazy(() => import('./pages/creator/CreatorPitchesDrafts'));
-const CreatorPitchesReview = lazy(() => import('./pages/creator/CreatorPitchesReview'));
-const CreatorPitchesAnalytics = lazy(() => import('./pages/creator/CreatorPitchesAnalytics'));
-const CreatorTeamMembers = lazy(() => import('./pages/creator/CreatorTeamMembers'));
-const CreatorTeamInvite = lazy(() => import('./pages/creator/CreatorTeamInvite'));
-const CreatorTeamRoles = lazy(() => import('./pages/creator/CreatorTeamRoles'));
-const CreatorCollaborations = lazy(() => import('./pages/creator/CreatorCollaborations'));
+const CreatorPitchView = lazy(() => import('@portals/creator/pages/CreatorPitchView'));
+const CreatorActivity = lazy(() => import('@portals/creator/pages/CreatorActivity'));
+const CreatorStats = lazy(() => import('@portals/creator/pages/CreatorStats'));
+const CreatorPitchesPublished = lazy(() => import('@portals/creator/pages/CreatorPitchesPublished'));
+const CreatorPitchesDrafts = lazy(() => import('@portals/creator/pages/CreatorPitchesDrafts'));
+const CreatorPitchesReview = lazy(() => import('@portals/creator/pages/CreatorPitchesReview'));
+const CreatorPitchesAnalytics = lazy(() => import('@portals/creator/pages/CreatorPitchesAnalytics'));
+const CreatorTeamMembers = lazy(() => import('@portals/creator/pages/CreatorTeamMembers'));
+const CreatorTeamInvite = lazy(() => import('@portals/creator/pages/CreatorTeamInvite'));
+const CreatorTeamRoles = lazy(() => import('@portals/creator/pages/CreatorTeamRoles'));
+const CreatorCollaborations = lazy(() => import('@portals/creator/pages/CreatorCollaborations'));
 const CreatorAnalyticsPage = lazy(() => import('./pages/CreatorAnalyticsPage'));
 const ProductionAnalyticsPage = lazy(() => import('./pages/ProductionAnalyticsPage'));
 // TeamManagementPage removed — consolidated into TeamManagement

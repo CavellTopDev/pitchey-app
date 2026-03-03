@@ -35,7 +35,7 @@ vi.mock('@features/pitches/services/pitch.service', () => ({
 // ─── Dynamic component import ─────────────────────────────────────────
 let CreatorPitchesAnalytics: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../creator/CreatorPitchesAnalytics')
+  const mod = await import('@portals/creator/pages/CreatorPitchesAnalytics')
   CreatorPitchesAnalytics = mod.default
 })
 

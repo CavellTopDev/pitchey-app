@@ -5,7 +5,7 @@ import {
   Plus, Check, X, AlertCircle, Save,
   ChevronDown, ChevronUp, Eye, Copy, Settings
 } from 'lucide-react';
-import { TeamService, type TeamRole } from '../../services/team.service';
+import { TeamService, type TeamRole } from '@/services/team.service';
 
 interface Permission {
   id: string;

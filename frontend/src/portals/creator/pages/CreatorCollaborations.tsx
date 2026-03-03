@@ -7,7 +7,7 @@ import {
   Building, Users as UsersIcon, Award, TrendingUp,
   Globe, Lock, Plus, Download, Share2, User
 } from 'lucide-react';
-import { CollaborationService, type Collaboration as ApiCollaboration } from '../../services/collaboration.service';
+import { CollaborationService, type Collaboration as ApiCollaboration } from '@/services/collaboration.service';
 
 interface Collaboration {
   id: string;

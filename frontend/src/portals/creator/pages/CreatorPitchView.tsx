@@ -6,8 +6,8 @@ import {
   Film, DollarSign, Briefcase, TrendingUp, Users,
   FileText, Download, Lock, Unlock
 } from 'lucide-react';
-import { pitchAPI } from '../../lib/api';
-import FormatDisplay from '../../components/FormatDisplay';
+import { pitchAPI } from '@/lib/api';
+import FormatDisplay from '@/components/FormatDisplay';
 
 interface Pitch {
   id: string;

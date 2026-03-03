@@ -103,7 +103,7 @@ const mockPitches = [
 let CreatorStats: React.ComponentType
 
 beforeAll(async () => {
-  const mod = await import('../creator/CreatorStats')
+  const mod = await import('@portals/creator/pages/CreatorStats')
   CreatorStats = mod.default
 })
 

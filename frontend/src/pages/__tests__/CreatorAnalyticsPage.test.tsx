@@ -25,11 +25,11 @@ vi.mock('@features/analytics/components/Analytics/CreatorAnalytics', () => ({
   ),
 }))
 
-vi.mock('../creator/CreatorActivity', () => ({
+vi.mock('@portals/creator/pages/CreatorActivity', () => ({
   default: () => <div data-testid="creator-activity">Activity Tab</div>,
 }))
 
-vi.mock('../creator/CreatorStats', () => ({
+vi.mock('@portals/creator/pages/CreatorStats', () => ({
   default: () => <div data-testid="creator-stats">Stats Tab</div>,
 }))
 

@@ -99,7 +99,7 @@ const mockDraftPitches = [
 let CreatorPitchesDrafts: React.ComponentType
 
 beforeAll(async () => {
-  const mod = await import('../creator/CreatorPitchesDrafts')
+  const mod = await import('@portals/creator/pages/CreatorPitchesDrafts')
   CreatorPitchesDrafts = mod.default
 })
 

@@ -87,7 +87,7 @@ const mockCollaborations = [
 let CreatorCollaborations: React.ComponentType
 
 beforeAll(async () => {
-  const mod = await import('../creator/CreatorCollaborations')
+  const mod = await import('@portals/creator/pages/CreatorCollaborations')
   CreatorCollaborations = mod.default
 })
 

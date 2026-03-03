@@ -13,16 +13,16 @@ const getRelativePath = (absolutePath: string, prefix: string): string => {
 };
 
 // Lazy load all Creator pages
-const CreatorActivity = lazy(() => import('../../pages/creator/CreatorActivity'));
-const CreatorStats = lazy(() => import('../../pages/creator/CreatorStats'));
-const CreatorPitchesPublished = lazy(() => import('../../pages/creator/CreatorPitchesPublished'));
-const CreatorPitchesDrafts = lazy(() => import('../../pages/creator/CreatorPitchesDrafts'));
-const CreatorPitchesReview = lazy(() => import('../../pages/creator/CreatorPitchesReview'));
-const CreatorPitchesAnalytics = lazy(() => import('../../pages/creator/CreatorPitchesAnalytics'));
-const CreatorTeamMembers = lazy(() => import('../../pages/creator/CreatorTeamMembers'));
-const CreatorTeamInvite = lazy(() => import('../../pages/creator/CreatorTeamInvite'));
-const CreatorTeamRoles = lazy(() => import('../../pages/creator/CreatorTeamRoles'));
-const CreatorCollaborations = lazy(() => import('../../pages/creator/CreatorCollaborations'));
+const CreatorActivity = lazy(() => import('@portals/creator/pages/CreatorActivity'));
+const CreatorStats = lazy(() => import('@portals/creator/pages/CreatorStats'));
+const CreatorPitchesPublished = lazy(() => import('@portals/creator/pages/CreatorPitchesPublished'));
+const CreatorPitchesDrafts = lazy(() => import('@portals/creator/pages/CreatorPitchesDrafts'));
+const CreatorPitchesReview = lazy(() => import('@portals/creator/pages/CreatorPitchesReview'));
+const CreatorPitchesAnalytics = lazy(() => import('@portals/creator/pages/CreatorPitchesAnalytics'));
+const CreatorTeamMembers = lazy(() => import('@portals/creator/pages/CreatorTeamMembers'));
+const CreatorTeamInvite = lazy(() => import('@portals/creator/pages/CreatorTeamInvite'));
+const CreatorTeamRoles = lazy(() => import('@portals/creator/pages/CreatorTeamRoles'));
+const CreatorCollaborations = lazy(() => import('@portals/creator/pages/CreatorCollaborations'));
 
 // Lazy load all Investor pages
 const InvestorPortfolio = lazy(() => import('../../pages/investor/InvestorPortfolio'));

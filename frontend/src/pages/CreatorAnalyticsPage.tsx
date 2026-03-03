@@ -3,8 +3,8 @@ import {
   BarChart3, Activity, TrendingUp, Film, Target, AlertCircle, RefreshCw
 } from 'lucide-react';
 import { CreatorAnalytics } from '@features/analytics/components/Analytics/CreatorAnalytics';
-import CreatorActivity from './creator/CreatorActivity';
-import CreatorStats from './creator/CreatorStats';
+import CreatorActivity from '@portals/creator/pages/CreatorActivity';
+import CreatorStats from '@portals/creator/pages/CreatorStats';
 import { CreatorService } from '@features/analytics/services/creator.service';
 import { AnalyticsService } from '@features/analytics/services/analytics.service';
 

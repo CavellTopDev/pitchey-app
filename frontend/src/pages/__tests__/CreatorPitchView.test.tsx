@@ -68,7 +68,7 @@ const mockPitch = {
 let CreatorPitchView: React.ComponentType
 
 beforeAll(async () => {
-  const mod = await import('../creator/CreatorPitchView')
+  const mod = await import('@portals/creator/pages/CreatorPitchView')
   CreatorPitchView = mod.default
 })
 

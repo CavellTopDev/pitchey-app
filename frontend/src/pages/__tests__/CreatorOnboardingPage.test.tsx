@@ -44,7 +44,7 @@ vi.mock('../../services/user.service', () => ({
 // ─── Dynamic component import ─────────────────────────────────────────
 let OnboardingPage: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../creator/CreatorOnboardingPage')
+  const mod = await import('@portals/creator/pages/CreatorOnboardingPage')
   OnboardingPage = mod.default
 })
 

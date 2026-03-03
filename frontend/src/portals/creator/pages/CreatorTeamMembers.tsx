@@ -6,7 +6,7 @@ import {
   XCircle, AlertCircle, Crown, Star, MessageSquare,
   Calendar, Activity, Settings, Globe, Lock
 } from 'lucide-react';
-import { TeamService, type TeamMember as ApiTeamMember } from '../../services/team.service';
+import { TeamService, type TeamMember as ApiTeamMember } from '@/services/team.service';
 
 interface TeamMember {
   id: string;

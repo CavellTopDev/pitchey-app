@@ -6,8 +6,8 @@ import {
   Clock, Globe, Shield, Star,
   ChevronRight, Download, Upload
 } from 'lucide-react';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { TeamService, type TeamInvitation, type TeamRole } from '../../services/team.service';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
+import { TeamService, type TeamInvitation, type TeamRole } from '@/services/team.service';
 
 interface InviteMethod {
   id: 'email' | 'link' | 'bulk' | 'import';

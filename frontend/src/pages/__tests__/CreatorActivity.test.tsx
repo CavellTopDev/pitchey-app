@@ -68,7 +68,7 @@ const mockDashboardData = {
 let CreatorActivity: React.ComponentType
 
 beforeAll(async () => {
-  const mod = await import('../creator/CreatorActivity')
+  const mod = await import('@portals/creator/pages/CreatorActivity')
   CreatorActivity = mod.default
 })
 

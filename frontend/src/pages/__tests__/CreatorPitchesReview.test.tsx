@@ -62,7 +62,7 @@ const mockReviewPitches = [
 let CreatorPitchesReview: React.ComponentType
 
 beforeAll(async () => {
-  const mod = await import('../creator/CreatorPitchesReview')
+  const mod = await import('@portals/creator/pages/CreatorPitchesReview')
   CreatorPitchesReview = mod.default
 })
 
