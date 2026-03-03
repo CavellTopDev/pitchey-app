@@ -50,7 +50,7 @@ const mockTrendsResponse = (overrides: Record<string, any> = {}) => ({
 
 let MarketTrends: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../investor/MarketTrends')
+  const mod = await import('@portals/investor/pages/MarketTrends')
   MarketTrends = mod.default
 })
 

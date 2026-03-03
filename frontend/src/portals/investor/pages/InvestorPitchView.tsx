@@ -8,11 +8,11 @@ import {
   AlertCircle, CheckCircle, XCircle, ChevronRight,
   X, Loader2
 } from 'lucide-react';
-import { pitchAPI } from '../../lib/api';
-import { apiClient } from '../../lib/api-client';
+import { pitchAPI } from '@/lib/api';
+import { apiClient } from '@/lib/api-client';
 import { InvestorService } from '@features/deals/services/investor.service';
-import FormatDisplay from '../../components/FormatDisplay';
-import { getCreditCost } from '../../config/subscription-plans';
+import FormatDisplay from '@/components/FormatDisplay';
+import { getCreditCost } from '@config/subscription-plans';
 
 interface Pitch {
   id: string;

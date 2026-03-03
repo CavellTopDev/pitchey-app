@@ -7,7 +7,7 @@ import {
   List, MoreVertical, Plus, Check, X,
   AlertCircle, RefreshCw
 } from 'lucide-react';
-import { savedPitchesService } from '../../lib/apiServices';
+import { savedPitchesService } from '@/lib/apiServices';
 
 // Local interface for the transformed pitch data used by this component
 interface TransformedPitch {

@@ -107,7 +107,7 @@ const mockStats = {
 
 let TransactionHistory: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../investor/TransactionHistory')
+  const mod = await import('@portals/investor/pages/TransactionHistory')
   TransactionHistory = mod.default
 })
 

@@ -8,8 +8,8 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@shared/components/ui/card';
 import { Button } from '@shared/components/ui/button';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { API_URL } from '../../config';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
+import { API_URL } from '@/config';
 
 interface PerformanceMetric {
   id: string;

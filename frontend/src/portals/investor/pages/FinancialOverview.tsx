@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { 
   DollarSign, TrendingUp, Wallet, PiggyBank,
   CreditCard, Coins, BarChart3, Download, RefreshCw

@@ -6,7 +6,7 @@ import {
   Search, Filter, RefreshCw, Plus, MoreVertical,
   CheckCircle, XCircle, Target, Activity, Globe
 } from 'lucide-react';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { InvestorService } from '@features/deals/services/investor.service';
 
 interface WatchlistItem {

@@ -107,7 +107,7 @@ const makeNDA = (overrides: Record<string, any> = {}) => ({
 
 let NDARequests: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../investor/NDARequests')
+  const mod = await import('@portals/investor/pages/NDARequests')
   NDARequests = mod.default
 })
 

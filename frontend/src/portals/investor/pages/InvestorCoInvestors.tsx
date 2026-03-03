@@ -6,7 +6,7 @@ import {
   ChevronRight, UserPlus, Check, Eye,
   BarChart3, PieChart, Activity, Zap
 } from 'lucide-react';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { investorApi } from '@features/deals/services/investor.service';
 
 interface CoInvestor {

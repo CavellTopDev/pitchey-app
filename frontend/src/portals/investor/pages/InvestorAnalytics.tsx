@@ -16,8 +16,8 @@ import {
   XAxis, YAxis, CartesianGrid, ResponsiveContainer,
   Tooltip, Legend
 } from 'recharts';
-import { InvestorNavigation } from '../../components/InvestorNavigation';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { InvestorNavigation } from '@/components/InvestorNavigation';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { InvestorService } from '@features/deals/services/investor.service';
 import { AlertCircle } from 'lucide-react';
 

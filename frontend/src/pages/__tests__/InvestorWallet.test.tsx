@@ -124,7 +124,7 @@ vi.stubGlobal('WebSocket', MockWebSocket)
 
 let InvestorWallet: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../investor/InvestorWallet')
+  const mod = await import('@portals/investor/pages/InvestorWallet')
   InvestorWallet = mod.default
 })
 

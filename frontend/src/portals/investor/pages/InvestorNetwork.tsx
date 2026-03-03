@@ -6,7 +6,7 @@ import {
   Calendar, MapPin, Link2, Mail, Phone,
   ChevronRight, Plus, Check, X
 } from 'lucide-react';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { investorApi } from '@features/deals/services/investor.service';
 
 interface NetworkMember {

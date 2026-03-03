@@ -104,7 +104,7 @@ const mockInvestments = [
 
 let AllInvestments: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../investor/AllInvestments')
+  const mod = await import('@portals/investor/pages/AllInvestments')
   AllInvestments = mod.default
 })
 

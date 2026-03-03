@@ -102,7 +102,7 @@ const mockPerformanceData = {
 
 let PerformanceTracking: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../investor/PerformanceTracking')
+  const mod = await import('@portals/investor/pages/PerformanceTracking')
   PerformanceTracking = mod.default
 })
 

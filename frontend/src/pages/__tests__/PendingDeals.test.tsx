@@ -106,7 +106,7 @@ const mockDeals = [
 
 let PendingDeals: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../investor/PendingDeals')
+  const mod = await import('@portals/investor/pages/PendingDeals')
   PendingDeals = mod.default
 })
 

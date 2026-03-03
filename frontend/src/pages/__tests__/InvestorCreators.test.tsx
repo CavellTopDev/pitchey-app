@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '../../test/utils'
-import InvestorCreators from '../investor/InvestorCreators'
+import InvestorCreators from '@portals/investor/pages/InvestorCreators'
 
 const mockGetCreators = vi.fn()
 

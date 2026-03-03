@@ -90,7 +90,7 @@ const mockDocuments = [
 
 let TaxDocuments: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../investor/TaxDocuments')
+  const mod = await import('@portals/investor/pages/TaxDocuments')
   TaxDocuments = mod.default
 })
 

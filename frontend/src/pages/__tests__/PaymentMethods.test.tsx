@@ -20,7 +20,7 @@ vi.mock('@/components/ErrorBoundary/PortalErrorBoundary', () => ({
 
 let PaymentMethods: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../investor/PaymentMethods')
+  const mod = await import('@portals/investor/pages/PaymentMethods')
   PaymentMethods = mod.default
 })
 

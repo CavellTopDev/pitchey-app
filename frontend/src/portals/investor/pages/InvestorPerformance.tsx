@@ -12,7 +12,7 @@ import {
   PieChart as RechartsPieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, ResponsiveContainer
 } from 'recharts';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { investorApi } from '@features/deals/services/investor.service';
 
 interface PerformanceMetrics {

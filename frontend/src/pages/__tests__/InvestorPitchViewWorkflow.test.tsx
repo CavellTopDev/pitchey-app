@@ -92,7 +92,7 @@ const makeDetail = (overrides: Record<string, any> = {}): any => ({
 
 let InvestorPitchView: React.ComponentType;
 beforeAll(async () => {
-  const mod = await import('../investor/InvestorPitchView');
+  const mod = await import('@portals/investor/pages/InvestorPitchView');
   InvestorPitchView = mod.default;
 });
 

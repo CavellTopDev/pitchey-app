@@ -99,7 +99,7 @@ const NotificationCenter = lazy(() => import('./pages/NotificationCenter'));
 
 // Investor Pages
 const InvestorBrowse = lazy(() => import('./pages/InvestorBrowse'));
-const InvestorPitchView = lazy(() => import('./pages/investor/InvestorPitchView'));
+const InvestorPitchView = lazy(() => import('@portals/investor/pages/InvestorPitchView'));
 
 // Billing Page
 const Billing = lazy(() => import('./pages/Billing'));
@@ -123,23 +123,23 @@ const ContentModeration = lazy(() => import('./pages/Admin/ContentModeration'));
 
 // Coming Soon Page for unimplemented routes
 const ComingSoon = lazy(() => import('./pages/ComingSoon'));
-const NDARequests = lazy(() => import('./pages/investor/NDARequests'));
+const NDARequests = lazy(() => import('@portals/investor/pages/NDARequests'));
 
 // New Investor Pages
-const PerformanceTracking = lazy(() => import('./pages/investor/PerformanceTracking'));
-const PendingDeals = lazy(() => import('./pages/investor/PendingDeals'));
-const AllInvestments = lazy(() => import('./pages/investor/AllInvestments'));
-const CompletedProjects = lazy(() => import('./pages/investor/CompletedProjects'));
-const ROIAnalysis = lazy(() => import('./pages/investor/ROIAnalysis'));
-const MarketTrends = lazy(() => import('./pages/investor/MarketTrends'));
-const RiskAssessment = lazy(() => import('./pages/investor/RiskAssessment'));
-const FinancialOverview = lazy(() => import('./pages/investor/FinancialOverview'));
-const TransactionHistory = lazy(() => import('./pages/investor/TransactionHistory'));
-const BudgetAllocation = lazy(() => import('./pages/investor/BudgetAllocation'));
-const TaxDocuments = lazy(() => import('./pages/investor/TaxDocuments'));
-const InvestorSettings = lazy(() => import('./pages/investor/InvestorSettings'));
-const InvestorWallet = lazy(() => import('./pages/investor/InvestorWallet'));
-const PaymentMethods = lazy(() => import('./pages/investor/PaymentMethods'));
+const PerformanceTracking = lazy(() => import('@portals/investor/pages/PerformanceTracking'));
+const PendingDeals = lazy(() => import('@portals/investor/pages/PendingDeals'));
+const AllInvestments = lazy(() => import('@portals/investor/pages/AllInvestments'));
+const CompletedProjects = lazy(() => import('@portals/investor/pages/CompletedProjects'));
+const ROIAnalysis = lazy(() => import('@portals/investor/pages/ROIAnalysis'));
+const MarketTrends = lazy(() => import('@portals/investor/pages/MarketTrends'));
+const RiskAssessment = lazy(() => import('@portals/investor/pages/RiskAssessment'));
+const FinancialOverview = lazy(() => import('@portals/investor/pages/FinancialOverview'));
+const TransactionHistory = lazy(() => import('@portals/investor/pages/TransactionHistory'));
+const BudgetAllocation = lazy(() => import('@portals/investor/pages/BudgetAllocation'));
+const TaxDocuments = lazy(() => import('@portals/investor/pages/TaxDocuments'));
+const InvestorSettings = lazy(() => import('@portals/investor/pages/InvestorSettings'));
+const InvestorWallet = lazy(() => import('@portals/investor/pages/InvestorWallet'));
+const PaymentMethods = lazy(() => import('@portals/investor/pages/PaymentMethods'));
 
 // New Pages
 const ProductionProjects = lazy(() => import('./pages/production/ProductionProjects'));
@@ -174,20 +174,20 @@ const SearchPage = lazy(() => import('./pages/SearchPage'));
 const SettingsProfile = lazy(() => import('./pages/settings/SettingsProfile'));
 const NotificationSettings = lazy(() => import('./pages/settings/NotificationSettings'));
 const PrivacySettings = lazy(() => import('./pages/settings/PrivacySettings'));
-const InvestorPortfolio = lazy(() => import('./pages/investor/InvestorPortfolio'));
-const InvestorActivity = lazy(() => import('./pages/investor/InvestorActivity'));
-const InvestorAnalytics = lazy(() => import('./pages/investor/InvestorAnalytics'));
-const InvestorStats = lazy(() => import('./pages/investor/InvestorStats'));
-const InvestorSaved = lazy(() => import('./pages/investor/InvestorSaved'));
-const InvestorWatchlist = lazy(() => import('./pages/investor/InvestorWatchlist'));
-const InvestorDeals = lazy(() => import('./pages/investor/InvestorDeals'));
-const InvestorPerformance = lazy(() => import('./pages/investor/InvestorPerformance'));
-const InvestorDiscover = lazy(() => import('./pages/investor/InvestorDiscover'));
-const InvestorReports = lazy(() => import('./pages/investor/InvestorReports'));
-const InvestorNetwork = lazy(() => import('./pages/investor/InvestorNetwork'));
-const InvestorCoInvestors = lazy(() => import('./pages/investor/InvestorCoInvestors'));
-const InvestorProductionCompanies = lazy(() => import('./pages/investor/InvestorProductionCompanies'));
-const InvestorCreators = lazy(() => import('./pages/investor/InvestorCreators'));
+const InvestorPortfolio = lazy(() => import('@portals/investor/pages/InvestorPortfolio'));
+const InvestorActivity = lazy(() => import('@portals/investor/pages/InvestorActivity'));
+const InvestorAnalytics = lazy(() => import('@portals/investor/pages/InvestorAnalytics'));
+const InvestorStats = lazy(() => import('@portals/investor/pages/InvestorStats'));
+const InvestorSaved = lazy(() => import('@portals/investor/pages/InvestorSaved'));
+const InvestorWatchlist = lazy(() => import('@portals/investor/pages/InvestorWatchlist'));
+const InvestorDeals = lazy(() => import('@portals/investor/pages/InvestorDeals'));
+const InvestorPerformance = lazy(() => import('@portals/investor/pages/InvestorPerformance'));
+const InvestorDiscover = lazy(() => import('@portals/investor/pages/InvestorDiscover'));
+const InvestorReports = lazy(() => import('@portals/investor/pages/InvestorReports'));
+const InvestorNetwork = lazy(() => import('@portals/investor/pages/InvestorNetwork'));
+const InvestorCoInvestors = lazy(() => import('@portals/investor/pages/InvestorCoInvestors'));
+const InvestorProductionCompanies = lazy(() => import('@portals/investor/pages/InvestorProductionCompanies'));
+const InvestorCreators = lazy(() => import('@portals/investor/pages/InvestorCreators'));
 const Transactions = lazy(() => import('./pages/Admin/Transactions'));
 const SystemSettings = lazy(() => import('./pages/Admin/SystemSettings'));
 

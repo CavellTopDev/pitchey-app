@@ -7,7 +7,7 @@ import {
   Building, ArrowRight,
   RefreshCw
 } from 'lucide-react';
-import { API_URL } from '../../config';
+import { API_URL } from '@/config';
 
 interface Deal {
   id: string;

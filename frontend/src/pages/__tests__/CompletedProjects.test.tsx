@@ -94,7 +94,7 @@ const mockProjects = [
 
 let CompletedProjects: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../investor/CompletedProjects')
+  const mod = await import('@portals/investor/pages/CompletedProjects')
   CompletedProjects = mod.default
 })
 

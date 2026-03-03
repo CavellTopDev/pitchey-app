@@ -107,7 +107,7 @@ const mockAnalyticsResponse = (overrides: Record<string, any> = {}) => ({
 
 let InvestorAnalytics: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../investor/InvestorAnalytics')
+  const mod = await import('@portals/investor/pages/InvestorAnalytics')
   InvestorAnalytics = mod.default
 })
 

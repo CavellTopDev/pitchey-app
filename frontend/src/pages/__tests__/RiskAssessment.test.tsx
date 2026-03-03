@@ -49,7 +49,7 @@ const mockRiskResponse = (overrides: Record<string, any> = {}) => ({
 
 let RiskAssessment: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../investor/RiskAssessment')
+  const mod = await import('@portals/investor/pages/RiskAssessment')
   RiskAssessment = mod.default
 })
 

@@ -78,7 +78,7 @@ vi.mock('../../utils/defensive', () => ({
 
 let InvestorActivity: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../investor/InvestorActivity')
+  const mod = await import('@portals/investor/pages/InvestorActivity')
   InvestorActivity = mod.default
 })
 

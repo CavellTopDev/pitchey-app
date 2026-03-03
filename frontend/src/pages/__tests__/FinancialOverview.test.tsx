@@ -92,7 +92,7 @@ const mockTransactions = [
 
 let FinancialOverview: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../investor/FinancialOverview')
+  const mod = await import('@portals/investor/pages/FinancialOverview')
   FinancialOverview = mod.default
 })
 

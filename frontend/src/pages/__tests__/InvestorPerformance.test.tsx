@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '../../test/utils'
-import InvestorPerformance from '../investor/InvestorPerformance'
+import InvestorPerformance from '@portals/investor/pages/InvestorPerformance'
 
 const mockGetPerformance = vi.fn()
 const mockGetROISummary = vi.fn()

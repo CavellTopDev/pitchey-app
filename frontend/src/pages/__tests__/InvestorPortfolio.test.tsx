@@ -59,7 +59,7 @@ const mockHistoryData = (investments: any[] = []) => ({
 
 let InvestorPortfolio: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../investor/InvestorPortfolio')
+  const mod = await import('@portals/investor/pages/InvestorPortfolio')
   InvestorPortfolio = mod.default
 })
 

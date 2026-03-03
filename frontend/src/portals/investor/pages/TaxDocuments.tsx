@@ -6,7 +6,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@shared/components/ui/card';
 import { Button } from '@shared/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { investorApi } from '@features/deals/services/investor.service';
 
 const TaxDocuments = () => {

@@ -6,9 +6,9 @@ import {
   ArrowRight, Star, Award, Building, Clock,
   ThumbsUp, ThumbsDown, Share2, Bookmark
 } from 'lucide-react';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { config } from '../../config';
-import { apiClient } from '../../lib/api-client';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
+import { config } from '@/config';
+import { apiClient } from '@/lib/api-client';
 
 interface ActivityItem {
   id: string;

@@ -70,7 +70,7 @@ vi.mock('@/components/ErrorBoundary/PortalErrorBoundary', () => ({
 
 let InvestorStats: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../investor/InvestorStats')
+  const mod = await import('@portals/investor/pages/InvestorStats')
   InvestorStats = mod.default
 })
 

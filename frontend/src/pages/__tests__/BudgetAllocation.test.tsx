@@ -45,7 +45,7 @@ const mockAllocationsResponse = (overrides: Record<string, any> = {}) => ({
 
 let BudgetAllocation: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../investor/BudgetAllocation')
+  const mod = await import('@portals/investor/pages/BudgetAllocation')
   BudgetAllocation = mod.default
 })
 

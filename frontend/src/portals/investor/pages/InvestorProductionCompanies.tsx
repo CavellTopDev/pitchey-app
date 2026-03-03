@@ -5,7 +5,7 @@ import {
   DollarSign, Star, BarChart3, Play, ChevronRight,
   Briefcase, Clock, CheckCircle, AlertCircle
 } from 'lucide-react';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { investorApi } from '@features/deals/services/investor.service';
 
 interface ProductionCompany {

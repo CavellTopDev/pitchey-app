@@ -115,7 +115,7 @@ const mockPerfResponse = {
 
 let ROIAnalysis: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../investor/ROIAnalysis')
+  const mod = await import('@portals/investor/pages/ROIAnalysis')
   ROIAnalysis = mod.default
 })
 

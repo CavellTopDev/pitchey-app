@@ -6,7 +6,7 @@ import {
   ChevronRight, UserPlus, Check, Clock,
   Video, Edit3, Camera, Zap, Target
 } from 'lucide-react';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { investorApi } from '@features/deals/services/investor.service';
 
 interface Creator {

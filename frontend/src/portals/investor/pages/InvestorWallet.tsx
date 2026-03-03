@@ -10,7 +10,7 @@ import { Button } from '@shared/components/ui/button';
 import { Badge } from '@shared/components/ui/badge';
 import { Switch } from '@shared/components/ui/switch';
 import { Alert, AlertDescription } from '@shared/components/ui/alert';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { toast } from 'react-hot-toast';
 import { investorApi } from '@features/deals/services/investor.service';
 

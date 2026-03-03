@@ -52,7 +52,7 @@ vi.mock('@/components/ErrorBoundary/PortalErrorBoundary', () => ({
 
 let InvestorWatchlist: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../investor/InvestorWatchlist')
+  const mod = await import('@portals/investor/pages/InvestorWatchlist')
   InvestorWatchlist = mod.default
 })
 

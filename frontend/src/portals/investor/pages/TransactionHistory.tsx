@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { 
   History, Download, Filter, Search, ArrowUpRight,
   ArrowDownLeft, Calendar, DollarSign, RefreshCw, ChevronLeft, ChevronRight
