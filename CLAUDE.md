@@ -144,8 +144,8 @@ Detailed context split by domain to keep LLM context focused:
 | `user_storage_usage` view for quick lookups | `src/db/migrations/041_email_logs_and_file_storage.sql` | DONE |
 
 ### Current Numbers
-- 607 API routes, 135 pages, 186 components, 28 services, 4 stores
-- 165 test files, 3140 tests (82% page coverage)
+- 607 API routes, 135 pages, 165 components, 26 services, 4 stores
+- 166 test files, 3109 tests (82% page coverage)
 - 114 backend service files, 56 handlers, 66 migrations
 - TypeScript: zero errors (CI-enforced)
 - 3 portals (Creator, Investor, Production) + Admin shell
