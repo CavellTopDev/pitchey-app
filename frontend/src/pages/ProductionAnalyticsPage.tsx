@@ -3,10 +3,10 @@ import {
   BarChart3, Activity, TrendingUp, DollarSign,
   Film, Award, Briefcase, Clock, Target
 } from 'lucide-react';
-import ProductionAnalytics from './production/ProductionAnalytics';
-import ProductionActivity from './production/ProductionActivity';
-import ProductionStats from './production/ProductionStats';
-import ProductionRevenue from './production/ProductionRevenue';
+import ProductionAnalytics from '@portals/production/pages/ProductionAnalytics';
+import ProductionActivity from '@portals/production/pages/ProductionActivity';
+import ProductionStats from '@portals/production/pages/ProductionStats';
+import ProductionRevenue from '@portals/production/pages/ProductionRevenue';
 
 export default function ProductionAnalyticsPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'stats' | 'revenue'>('overview');

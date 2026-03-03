@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import React from 'react'
-import ProductionCollaborations from '../production/ProductionCollaborations'
+import ProductionCollaborations from '@portals/production/pages/ProductionCollaborations'
 
 // Mock config
 vi.mock('../../config', () => ({

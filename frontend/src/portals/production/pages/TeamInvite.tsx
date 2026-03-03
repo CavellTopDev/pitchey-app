@@ -5,10 +5,10 @@ import {
   ArrowLeft, Copy, RefreshCw, Trash2, Eye, AlertCircle,
   Users, Calendar, Shield
 } from 'lucide-react';
-import DashboardHeader from '../../components/DashboardHeader';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { TeamService } from '../../services/team.service';
-import { useCurrentTeam } from '../../hooks/useCurrentTeam';
+import DashboardHeader from '@/components/DashboardHeader';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
+import { TeamService } from '@/services/team.service';
+import { useCurrentTeam } from '@/hooks/useCurrentTeam';
 
 interface PendingInvitation {
   id: string;

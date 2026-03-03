@@ -53,7 +53,7 @@ vi.mock('react-hot-toast', () => ({
 
 let Component: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../production/settings/ProductionSettingsSecurity')
+  const mod = await import('@portals/production/pages/ProductionSettingsSecurity')
   Component = mod.default
 })
 

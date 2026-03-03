@@ -90,7 +90,7 @@ const ProductionAnalyticsPage = lazy(() => import('./pages/ProductionAnalyticsPa
 // Production Pages
 // ProductionPitchCreate removed - production companies cannot create pitches
 const ProductionPitchDetail = lazy(() => import('./pages/ProductionPitchDetail'));
-const ProductionPitchView = lazy(() => import('./pages/production/ProductionPitchView'));
+const ProductionPitchView = lazy(() => import('@portals/production/pages/ProductionPitchView'));
 
 // Common Pages
 const Profile = lazy(() => import('./pages/Profile'));
@@ -142,33 +142,33 @@ const InvestorWallet = lazy(() => import('@portals/investor/pages/InvestorWallet
 const PaymentMethods = lazy(() => import('@portals/investor/pages/PaymentMethods'));
 
 // New Pages
-const ProductionProjects = lazy(() => import('./pages/production/ProductionProjects'));
-const ProductionProjectsDevelopment = lazy(() => import('./pages/production/ProductionProjectsDevelopment'));
-const ProductionProjectsActive = lazy(() => import('./pages/production/ProductionProjectsActive'));
-const ProductionProjectsPost = lazy(() => import('./pages/production/ProductionProjectsPost'));
-const ProductionProjectsCompleted = lazy(() => import('./pages/production/ProductionProjectsCompleted'));
-const ProductionPipeline = lazy(() => import('./pages/production/ProductionPipeline'));
-const ProductionSubmissions = lazy(() => import('./pages/production/ProductionSubmissions'));
-const ProductionSubmissionsNew = lazy(() => import('./pages/production/ProductionSubmissionsNew'));
-const ProductionSubmissionsReview = lazy(() => import('./pages/production/ProductionSubmissionsReview'));
-const ProductionSubmissionsShortlisted = lazy(() => import('./pages/production/ProductionSubmissionsShortlisted'));
-const ProductionSubmissionsAccepted = lazy(() => import('./pages/production/ProductionSubmissionsAccepted'));
-const ProductionSubmissionsRejected = lazy(() => import('./pages/production/ProductionSubmissionsRejected'));
-const ProductionSubmissionsArchive = lazy(() => import('./pages/production/ProductionSubmissionsArchive'));
-const ProductionAnalytics = lazy(() => import('./pages/production/ProductionAnalytics'));
-const ProductionActivity = lazy(() => import('./pages/production/ProductionActivity'));
-const ProductionStats = lazy(() => import('./pages/production/ProductionStats'));
+const ProductionProjects = lazy(() => import('@portals/production/pages/ProductionProjects'));
+const ProductionProjectsDevelopment = lazy(() => import('@portals/production/pages/ProductionProjectsDevelopment'));
+const ProductionProjectsActive = lazy(() => import('@portals/production/pages/ProductionProjectsActive'));
+const ProductionProjectsPost = lazy(() => import('@portals/production/pages/ProductionProjectsPost'));
+const ProductionProjectsCompleted = lazy(() => import('@portals/production/pages/ProductionProjectsCompleted'));
+const ProductionPipeline = lazy(() => import('@portals/production/pages/ProductionPipeline'));
+const ProductionSubmissions = lazy(() => import('@portals/production/pages/ProductionSubmissions'));
+const ProductionSubmissionsNew = lazy(() => import('@portals/production/pages/ProductionSubmissionsNew'));
+const ProductionSubmissionsReview = lazy(() => import('@portals/production/pages/ProductionSubmissionsReview'));
+const ProductionSubmissionsShortlisted = lazy(() => import('@portals/production/pages/ProductionSubmissionsShortlisted'));
+const ProductionSubmissionsAccepted = lazy(() => import('@portals/production/pages/ProductionSubmissionsAccepted'));
+const ProductionSubmissionsRejected = lazy(() => import('@portals/production/pages/ProductionSubmissionsRejected'));
+const ProductionSubmissionsArchive = lazy(() => import('@portals/production/pages/ProductionSubmissionsArchive'));
+const ProductionAnalytics = lazy(() => import('@portals/production/pages/ProductionAnalytics'));
+const ProductionActivity = lazy(() => import('@portals/production/pages/ProductionActivity'));
+const ProductionStats = lazy(() => import('@portals/production/pages/ProductionStats'));
 const TeamManagement = lazy(() => import('./pages/TeamManagement'));
 const TeamMembers = lazy(() => import('./pages/team/TeamMembers'));
 const TeamInvite = lazy(() => import('./pages/team/TeamInvite'));
-const TeamRoles = lazy(() => import('./pages/production/TeamRoles'));
-const ProductionCollaborations = lazy(() => import('./pages/production/ProductionCollaborations'));
-const ProductionRevenue = lazy(() => import('./pages/production/ProductionRevenue'));
-const ProductionSaved = lazy(() => import('./pages/production/ProductionSaved'));
-const ProductionSettingsProfile = lazy(() => import('./pages/production/settings/ProductionSettingsProfile'));
-const ProductionSettingsNotifications = lazy(() => import('./pages/production/settings/ProductionSettingsNotifications'));
-const ProductionSettingsBilling = lazy(() => import('./pages/production/settings/ProductionSettingsBilling'));
-const ProductionSettingsSecurity = lazy(() => import('./pages/production/settings/ProductionSettingsSecurity'));
+const TeamRoles = lazy(() => import('@portals/production/pages/TeamRoles'));
+const ProductionCollaborations = lazy(() => import('@portals/production/pages/ProductionCollaborations'));
+const ProductionRevenue = lazy(() => import('@portals/production/pages/ProductionRevenue'));
+const ProductionSaved = lazy(() => import('@portals/production/pages/ProductionSaved'));
+const ProductionSettingsProfile = lazy(() => import('@portals/production/pages/ProductionSettingsProfile'));
+const ProductionSettingsNotifications = lazy(() => import('@portals/production/pages/ProductionSettingsNotifications'));
+const ProductionSettingsBilling = lazy(() => import('@portals/production/pages/ProductionSettingsBilling'));
+const ProductionSettingsSecurity = lazy(() => import('@portals/production/pages/ProductionSettingsSecurity'));
 const AdvancedSearch = lazy(() => import('./pages/AdvancedSearch'));
 const SearchPage = lazy(() => import('./pages/SearchPage'));
 const SettingsProfile = lazy(() => import('./pages/settings/SettingsProfile'));

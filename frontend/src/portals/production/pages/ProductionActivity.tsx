@@ -5,8 +5,8 @@ import {
   RefreshCw, CheckCircle, AlertCircle, TrendingUp,
   User, DollarSign,
 } from 'lucide-react';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { API_URL } from '../../config';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
+import { API_URL } from '@/config';
 
 interface ActivityItem {
   id: string;

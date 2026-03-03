@@ -6,9 +6,9 @@ import {
   Plus, Edit3, Trash2, Save, X, Building2,
   FileText, Star, Crown, Zap
 } from 'lucide-react';
-import DashboardHeader from '../../../components/DashboardHeader';
-import { useBetterAuthStore } from '../../../store/betterAuthStore';
-import { getDashboardRoute } from '../../../utils/navigation';
+import DashboardHeader from '@/components/DashboardHeader';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
+import { getDashboardRoute } from '@/utils/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@shared/components/ui/card';
 import { Badge } from '@shared/components/ui/badge';
 import { toast } from 'react-hot-toast';

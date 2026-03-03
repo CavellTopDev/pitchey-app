@@ -71,7 +71,7 @@ const mockAnalyticsData = {
 let Component: React.ComponentType
 
 beforeAll(async () => {
-  const mod = await import('../production/ProductionStats')
+  const mod = await import('@portals/production/pages/ProductionStats')
   Component = mod.default
 })
 

@@ -73,7 +73,7 @@ vi.stubGlobal('fetch', mockFetch)
 let Component: React.ComponentType
 
 beforeAll(async () => {
-  const mod = await import('../production/ProductionActivity')
+  const mod = await import('@portals/production/pages/ProductionActivity')
   Component = mod.default
 })
 

@@ -8,7 +8,7 @@ import {
 import DashboardHeader from '../components/DashboardHeader';
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import CreatorCollaborations from '@portals/creator/pages/CreatorCollaborations';
-import ProductionCollaborations from './production/ProductionCollaborations';
+import ProductionCollaborations from '@portals/production/pages/ProductionCollaborations';
 
 interface TeamMember {
   id: string;

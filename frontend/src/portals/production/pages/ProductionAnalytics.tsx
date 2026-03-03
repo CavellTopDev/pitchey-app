@@ -5,8 +5,8 @@ import {
   Eye, Heart, Clock, CheckCircle, AlertTriangle, PlayCircle,
   Zap, Star, Download, Filter, RefreshCw
 } from 'lucide-react';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { config } from '../../config';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
+import { config } from '@/config';
 import { RevenueChart } from '@features/analytics/components/charts/RevenueChart';
 import { ROIChart } from '@features/analytics/components/charts/ROIChart';
 

@@ -5,9 +5,9 @@ import {
   Users, Calendar, AlertCircle, Save, X, Smartphone,
   Volume2, VolumeX, Clock, Star, Zap
 } from 'lucide-react';
-import DashboardHeader from '../../../components/DashboardHeader';
-import { useBetterAuthStore } from '../../../store/betterAuthStore';
-import { getDashboardRoute } from '../../../utils/navigation';
+import DashboardHeader from '@/components/DashboardHeader';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
+import { getDashboardRoute } from '@/utils/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@shared/components/ui/card';
 import { toast } from 'react-hot-toast';
 import { NotificationsService } from '@features/notifications/services/notifications.service';

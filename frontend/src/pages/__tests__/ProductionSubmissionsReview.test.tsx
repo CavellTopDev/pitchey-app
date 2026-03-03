@@ -57,7 +57,7 @@ let Component: React.ComponentType
 
 beforeEach(async () => {
   vi.clearAllMocks()
-  const mod = await import('../production/ProductionSubmissionsReview')
+  const mod = await import('@portals/production/pages/ProductionSubmissionsReview')
   Component = mod.default
 })
 

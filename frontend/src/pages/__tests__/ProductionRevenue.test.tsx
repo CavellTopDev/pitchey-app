@@ -41,7 +41,7 @@ const mockRevenueResponse = {
 let Component: React.ComponentType
 
 beforeAll(async () => {
-  const mod = await import('../production/ProductionRevenue')
+  const mod = await import('@portals/production/pages/ProductionRevenue')
   Component = mod.default
 })
 

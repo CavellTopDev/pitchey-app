@@ -5,10 +5,10 @@ import {
   CheckCircle, XCircle, Eye, EyeOff, Lock, Unlock,
   Settings, UserCheck, AlertCircle, Crown, Star, Info
 } from 'lucide-react';
-import DashboardHeader from '../../components/DashboardHeader';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { TeamService } from '../../services/team.service';
-import { useCurrentTeam } from '../../hooks/useCurrentTeam';
+import DashboardHeader from '@/components/DashboardHeader';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
+import { TeamService } from '@/services/team.service';
+import { useCurrentTeam } from '@/hooks/useCurrentTeam';
 
 interface Permission {
   id: string;

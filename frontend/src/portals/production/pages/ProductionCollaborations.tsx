@@ -5,9 +5,9 @@ import {
   CheckCircle, Clock, XCircle, AlertCircle, Eye, Edit2,
   Handshake, Building, Award, TrendingUp, DollarSign
 } from 'lucide-react';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { config } from '../../config';
-import { CollaborationService } from '../../services/collaboration.service';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
+import { config } from '@/config';
+import { CollaborationService } from '@/services/collaboration.service';
 
 interface Collaboration {
   id: string;

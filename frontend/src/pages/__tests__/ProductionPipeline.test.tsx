@@ -61,7 +61,7 @@ const mockProjects = [
 let Component: React.ComponentType
 
 beforeAll(async () => {
-  const mod = await import('../production/ProductionPipeline')
+  const mod = await import('@portals/production/pages/ProductionPipeline')
   Component = mod.default
 })
 

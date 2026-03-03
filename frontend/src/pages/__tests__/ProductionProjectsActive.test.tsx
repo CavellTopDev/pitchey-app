@@ -14,7 +14,7 @@ vi.mock('../../config', () => ({
 
 let Component: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../production/ProductionProjectsActive')
+  const mod = await import('@portals/production/pages/ProductionProjectsActive')
   Component = mod.default
 })
 
