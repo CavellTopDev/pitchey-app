@@ -10,8 +10,7 @@ import LoadingSpinner from '@shared/components/feedback/LoadingSpinner';
 // Import safe context provider (without legacy AuthProvider)
 import { AppContextProviderSafe } from '@shared/contexts/AppContextProviderSafe';
 import { configService } from './services/config.service';
-import { config, API_URL } from './config';
-import { AuthService } from './services/auth.service';
+import { API_URL } from './config';
 // Import enhanced route components
 import { AllCreatorRoutes, AllInvestorRoutes, AllProductionRoutes } from './components/routing/AllEnhancedRoutes';
 // Import new Portal Layout
@@ -30,8 +29,6 @@ if (import.meta.env.DEV) {
 
 // Immediately needed components (not lazy loaded)
 import Layout from './components/Layout';
-import { NotificationInitializer } from '@features/notifications/components/NotificationInitializer';
-// TestNotifications and TestSentry components removed
 
 // Lazy load Homepage with prefetch
 const Homepage = lazy(() => 
@@ -65,7 +62,6 @@ const PublicPitchView = lazy(() => import('./pages/PublicPitchView'));
 // Creator Pages
 const CreatePitch = lazy(() => import('./pages/CreatePitch'));
 const ManagePitches = lazy(() => import('./pages/ManagePitches'));
-const Analytics = lazy(() => import('./pages/Analytics'));
 const Messages = lazy(() => import('./pages/Messages'));
 const Calendar = lazy(() => import('./pages/Calendar'));
 const PitchDetail = lazy(() => import('./pages/PitchDetail'));
@@ -85,7 +81,6 @@ const CreatorTeamRoles = lazy(() => import('@portals/creator/pages/CreatorTeamRo
 const CreatorCollaborations = lazy(() => import('@portals/creator/pages/CreatorCollaborations'));
 const CreatorAnalyticsPage = lazy(() => import('./pages/CreatorAnalyticsPage'));
 const ProductionAnalyticsPage = lazy(() => import('./pages/ProductionAnalyticsPage'));
-// TeamManagementPage removed — consolidated into TeamManagement
 
 // Production Pages
 // ProductionPitchCreate removed - production companies cannot create pitches
