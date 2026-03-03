@@ -8,7 +8,7 @@ import React from 'react'
 const mockGetUsers = vi.fn()
 const mockUpdateUser = vi.fn()
 
-vi.mock('../../services/admin.service', () => ({
+vi.mock('@/portals/admin/services/admin.service', () => ({
   adminService: {
     getUsers: (...args: any[]) => mockGetUsers(...args),
     updateUser: (...args: any[]) => mockUpdateUser(...args),

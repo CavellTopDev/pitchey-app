@@ -32,7 +32,7 @@ vi.mock('../../store/betterAuthStore', () => ({
   useBetterAuthStore: () => mockAuthState,
 }))
 
-vi.mock('../../services/production.service', () => ({
+vi.mock('@/portals/production/services/production.service', () => ({
   ProductionService: {
     getDashboard: (...args: any[]) => mockGetDashboard(...args),
     getAnalytics: (...args: any[]) => mockGetAnalytics(...args),

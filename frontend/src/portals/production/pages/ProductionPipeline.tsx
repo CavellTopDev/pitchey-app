@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { GitBranch, ArrowRight, Clock, TrendingUp, DollarSign, Calendar, Users, Filter, BarChart3, CheckCircle, AlertCircle } from 'lucide-react';
-import { ProductionService } from '@/services/production.service';
+import { ProductionService } from '../services/production.service';
 
 interface PipelineProject {
   id: string;

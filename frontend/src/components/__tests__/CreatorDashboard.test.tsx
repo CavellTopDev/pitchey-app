@@ -69,7 +69,7 @@ vi.mock('@shared/contexts/WebSocketContext', () => ({
   useWebSocket: () => mockWebSocket,
 }))
 
-vi.mock('../../hooks/useSentryPortal', () => ({
+vi.mock('@/shared/hooks/useSentryPortal', () => ({
   useSentryPortal: () => ({
     reportError: mockReportError,
     trackEvent: mockTrackEvent,

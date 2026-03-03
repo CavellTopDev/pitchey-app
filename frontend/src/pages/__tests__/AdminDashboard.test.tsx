@@ -22,14 +22,14 @@ vi.mock('react-router-dom', async () => {
   }
 })
 
-vi.mock('../../services/admin.service', () => ({
+vi.mock('@/portals/admin/services/admin.service', () => ({
   adminService: {
     getDashboardStats: (...args: any[]) => mockGetDashboardStats(...args),
     getRecentActivity: (...args: any[]) => mockGetRecentActivity(...args),
   },
 }))
 
-vi.mock('../../hooks/useSentryPortal', () => ({
+vi.mock('@/shared/hooks/useSentryPortal', () => ({
   useSentryPortal: () => ({
     reportError: mockReportError,
     trackEvent: mockTrackEvent,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { adminService } from '@/services/admin.service';
+import { adminService } from '../services/admin.service';
 
 interface SystemSettings {
   maintenance: {

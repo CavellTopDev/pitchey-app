@@ -1,5 +1,5 @@
 // Production Service - Dashboard and production company-specific operations
-import { apiClient } from '../lib/api-client';
+import { apiClient } from '@/lib/api-client';
 import type { Pitch, User } from '@shared/types/api';
 
 const isDev = import.meta.env.MODE === 'development';

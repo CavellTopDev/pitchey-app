@@ -14,8 +14,8 @@ import FormatDisplay from '@/components/FormatDisplay';
 import { getCreditCost } from '@config/subscription-plans';
 import { ScheduleMeetingModal } from '@/components/UIActions/ScheduleMeetingModal';
 import { toast } from 'react-hot-toast';
-import { ProductionService } from '@/services/production.service';
-import type { ProductionNoteResponse, ProductionTeamMember } from '@/services/production.service';
+import { ProductionService } from '../services/production.service';
+import type { ProductionNoteResponse, ProductionTeamMember } from '../services/production.service';
 
 interface Pitch {
   id: string;

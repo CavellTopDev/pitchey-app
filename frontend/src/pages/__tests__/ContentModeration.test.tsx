@@ -10,7 +10,7 @@ const mockApprovePitch = vi.fn()
 const mockRejectPitch = vi.fn()
 const mockFlagPitch = vi.fn()
 
-vi.mock('../../services/admin.service', () => ({
+vi.mock('@/portals/admin/services/admin.service', () => ({
   adminService: {
     getPitches: (...args: any[]) => mockGetPitches(...args),
     approvePitch: (...args: any[]) => mockApprovePitch(...args),

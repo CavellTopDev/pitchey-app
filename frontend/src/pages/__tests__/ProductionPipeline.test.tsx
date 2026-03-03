@@ -18,7 +18,7 @@ vi.mock('react-router-dom', async () => {
 
 const mockGetProjects = vi.fn()
 
-vi.mock('../../services/production.service', () => ({
+vi.mock('@/portals/production/services/production.service', () => ({
   ProductionService: {
     getProjects: (...args: any[]) => mockGetProjects(...args),
   },

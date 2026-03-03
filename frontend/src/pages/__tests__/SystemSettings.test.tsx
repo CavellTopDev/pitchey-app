@@ -8,7 +8,7 @@ import React from 'react'
 const mockGetSystemSettings = vi.fn()
 const mockUpdateSystemSettings = vi.fn()
 
-vi.mock('../../services/admin.service', () => ({
+vi.mock('@/portals/admin/services/admin.service', () => ({
   adminService: {
     getSystemSettings: (...args: any[]) => mockGetSystemSettings(...args),
     updateSystemSettings: (...args: any[]) => mockUpdateSystemSettings(...args),

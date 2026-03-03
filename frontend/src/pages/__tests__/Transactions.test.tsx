@@ -8,7 +8,7 @@ import React from 'react'
 const mockGetTransactions = vi.fn()
 const mockProcessRefund = vi.fn()
 
-vi.mock('../../services/admin.service', () => ({
+vi.mock('@/portals/admin/services/admin.service', () => ({
   adminService: {
     getTransactions: (...args: any[]) => mockGetTransactions(...args),
     processRefund: (...args: any[]) => mockProcessRefund(...args),

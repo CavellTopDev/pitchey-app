@@ -8,7 +8,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@shared/components/ui/card';
 import { Button } from '@shared/components/ui/button';
 import { Skeleton } from '@shared/components/ui/skeleton';
-import { ProductionService } from '@/services/production.service';
+import { ProductionService } from '../services/production.service';
 
 // Loading skeleton component for stats cards
 function StatsCardSkeleton() {

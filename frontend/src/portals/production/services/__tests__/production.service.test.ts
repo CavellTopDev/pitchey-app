@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock api-client BEFORE importing the service
-vi.mock('../../lib/api-client', () => ({
+vi.mock('@/lib/api-client', () => ({
   apiClient: {
     get: vi.fn(),
     post: vi.fn(),
@@ -10,7 +10,7 @@ vi.mock('../../lib/api-client', () => ({
   },
 }))
 
-import { apiClient } from '../../lib/api-client'
+import { apiClient } from '@/lib/api-client'
 import { ProductionService } from '../production.service'
 
 const mockApiClient = apiClient as {

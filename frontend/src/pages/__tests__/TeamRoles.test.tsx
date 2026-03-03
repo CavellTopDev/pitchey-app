@@ -39,7 +39,7 @@ vi.mock('../../services/team.service', () => ({
   },
 }))
 
-vi.mock('../../hooks/useCurrentTeam', () => ({
+vi.mock('@/shared/hooks/useCurrentTeam', () => ({
   useCurrentTeam: () => ({
     teamId: 'team-123',
     team: { id: 'team-123', name: 'Test Team' },

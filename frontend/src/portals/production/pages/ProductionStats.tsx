@@ -7,7 +7,7 @@ import {
   RefreshCw, Download, Share, Filter, Info
 } from 'lucide-react';
 import { useBetterAuthStore } from '@/store/betterAuthStore';
-import { ProductionService } from '@/services/production.service';
+import { ProductionService } from '../services/production.service';
 import { RevenueChart } from '@features/analytics/components/charts/RevenueChart';
 import { ProjectStatusChart } from '@features/analytics/components/charts/ProjectStatusChart';
 

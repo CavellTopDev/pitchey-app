@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Film, AlertCircle, TrendingUp, DollarSign, Users, MoreVertical, Eye, Edit, Trash2 } from 'lucide-react';
-import { ProductionService, type ProductionProject as ApiProject } from '@/services/production.service';
+import { ProductionService, type ProductionProject as ApiProject } from '../services/production.service';
 
 interface Project {
   id: string;
