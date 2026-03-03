@@ -1,8 +1,8 @@
 import React from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { PortalLayout } from '@shared/components/layout/PortalLayout';
-import { isProfileComplete } from '../../utils/profileCompleteness';
+import { isProfileComplete } from '@/utils/profileCompleteness';
 
 interface ProfileGuardProps {
   userType: 'creator' | 'investor' | 'production';
