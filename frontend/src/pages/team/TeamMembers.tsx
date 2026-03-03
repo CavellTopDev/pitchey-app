@@ -9,7 +9,7 @@ import {
 import DashboardHeader from '../../components/DashboardHeader';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { TeamService } from '../../services/team.service';
-import { useCurrentTeam } from '../../hooks/useCurrentTeam';
+import { useCurrentTeam } from '@/shared/hooks/useCurrentTeam';
 import { Permission } from '@features/auth/hooks/usePermissions';
 
 interface TeamMember {

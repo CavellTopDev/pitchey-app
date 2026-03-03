@@ -25,7 +25,7 @@ import NDAManagementPanel from '@features/ndas/components/NDAManagementPanel';
 import FormatDisplay from '../components/FormatDisplay';
 import { EnhancedProductionAnalytics } from '@features/analytics/components/Analytics/EnhancedProductionAnalytics';
 import { withPortalErrorBoundary } from '../components/ErrorBoundary/PortalErrorBoundary';
-import { useSentryPortal } from '../hooks/useSentryPortal';
+import { useSentryPortal } from '@/shared/hooks/useSentryPortal';
 import { useWebSocket } from '@shared/contexts/WebSocketContext';
 import {
   safeArray,

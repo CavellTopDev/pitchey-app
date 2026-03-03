@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { TeamService, Team } from '../services/team.service';
+import { TeamService, Team } from '@/services/team.service';
 
 const TEAM_ID_KEY = 'pitchey:currentTeamId';
 

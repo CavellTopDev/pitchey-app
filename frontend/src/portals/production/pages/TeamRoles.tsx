@@ -8,7 +8,7 @@ import {
 import DashboardHeader from '@/components/DashboardHeader';
 import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { TeamService } from '@/services/team.service';
-import { useCurrentTeam } from '@/hooks/useCurrentTeam';
+import { useCurrentTeam } from '@/shared/hooks/useCurrentTeam';
 
 interface Permission {
   id: string;

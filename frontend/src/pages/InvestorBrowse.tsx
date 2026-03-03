@@ -5,7 +5,7 @@ import { pitchAPI } from '../lib/api';
 import { API_URL } from '../config';
 import { configService } from '../services/config.service';
 import FormatDisplay from '../components/FormatDisplay';
-import { useDebounce } from '../hooks/useDebounce';
+import { useDebounce } from '@/shared/hooks/useDebounce';
 
 interface Pitch {
   id: number;

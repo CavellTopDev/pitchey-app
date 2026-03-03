@@ -7,7 +7,7 @@ import LoadingSpinner from '@shared/components/feedback/LoadingSpinner';
 import { pitchService } from '@features/pitches/services/pitch.service';
 import { uploadService } from '@features/uploads/services/upload.service';
 import { getGenresSync, getFormatsSync, FALLBACK_GENRES } from '@config/pitchConstants';
-import { useFormValidation } from '../hooks/useFormValidation';
+import { useFormValidation } from '@/shared/hooks/useFormValidation';
 import { usePitchUploadManager } from '@features/pitches/hooks/usePitchUploadManager';
 import { PitchFormSchema, type PitchFormData, getCharacterCountInfo } from '../schemas/pitch.schema';
 import { a11y } from '../utils/accessibility';

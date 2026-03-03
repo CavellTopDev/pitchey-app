@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import { DollarSign, LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
 import BackButton from '../components/BackButton';
-import { useLoadingState } from '../hooks/useLoadingState';
+import { useLoadingState } from '@/shared/hooks/useLoadingState';
 import { clearAuthenticationState } from '../utils/auth';
 
 export default function InvestorLogin() {

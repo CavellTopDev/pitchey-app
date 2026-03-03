@@ -7,8 +7,8 @@ import { PitchCardSkeleton } from '@shared/components/feedback/Skeleton';
 import EmptyState from '../components/EmptyState';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import Pagination from '../components/Pagination';
-import { useDebounce } from '../hooks/useDebounce';
-import { useResponsive } from '../hooks/useResponsive';
+import { useDebounce } from '@/shared/hooks/useDebounce';
+import { useResponsive } from '@/shared/hooks/useResponsive';
 import { configService } from '../services/config.service';
 
 import FormatDisplay from '../components/FormatDisplay';

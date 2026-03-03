@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useMemo } from 'react';
 import * as Sentry from '@sentry/react';
-import { useBetterAuthStore } from '../store/betterAuthStore';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 
 export type PortalType = 'creator' | 'investor' | 'production' | 'admin';
 

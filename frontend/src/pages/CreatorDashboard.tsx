@@ -12,7 +12,7 @@ import FundingOverview from '@features/deals/components/Investment/FundingOvervi
 import { EnhancedCreatorAnalytics } from '@features/analytics/components/Analytics/EnhancedCreatorAnalytics';
 // import { NotificationWidget } from '../components/Dashboard/NotificationWidget';
 import { withPortalErrorBoundary } from '../components/ErrorBoundary/PortalErrorBoundary';
-import { useSentryPortal } from '../hooks/useSentryPortal';
+import { useSentryPortal } from '@/shared/hooks/useSentryPortal';
 import { useWebSocket } from '@shared/contexts/WebSocketContext';
 import {
   validateCreatorStats,

@@ -41,7 +41,7 @@ import {
   isValidDate
 } from '@shared/utils/defensive';
 import { useWebSocket } from '@shared/contexts/WebSocketContext';
-import { useSentryPortal } from '../hooks/useSentryPortal';
+import { useSentryPortal } from '@/shared/hooks/useSentryPortal';
 import { withPortalErrorBoundary } from '../components/ErrorBoundary/PortalErrorBoundary';
 
 interface PortfolioSummary {
