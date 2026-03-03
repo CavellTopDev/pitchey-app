@@ -44,7 +44,7 @@ vi.mock('@/components/ErrorBoundary/PortalErrorBoundary', () => ({
 // Dynamic import after mocks
 let AdminDashboard: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../Admin/AdminDashboard')
+  const mod = await import('@portals/admin/pages/AdminDashboard')
   AdminDashboard = mod.default
 })
 

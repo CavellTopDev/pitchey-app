@@ -18,7 +18,7 @@ vi.mock('../../services/admin.service', () => ({
 // Dynamic import after mocks
 let Transactions: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../Admin/Transactions')
+  const mod = await import('@portals/admin/pages/Transactions')
   Transactions = mod.default
 })
 

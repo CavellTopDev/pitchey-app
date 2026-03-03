@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { adminService } from '../../services/admin.service';
-import { withPortalErrorBoundary } from '../../components/ErrorBoundary/PortalErrorBoundary';
-import { useSentryPortal } from '../../hooks/useSentryPortal';
+import { adminService } from '@/services/admin.service';
+import { withPortalErrorBoundary } from '@/components/ErrorBoundary/PortalErrorBoundary';
+import { useSentryPortal } from '@/hooks/useSentryPortal';
 // import * as Sentry from '@sentry/react';
 
 interface DashboardStats {

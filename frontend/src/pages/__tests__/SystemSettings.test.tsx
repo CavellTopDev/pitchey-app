@@ -18,7 +18,7 @@ vi.mock('../../services/admin.service', () => ({
 // Dynamic import after mocks
 let SystemSettings: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../Admin/SystemSettings')
+  const mod = await import('@portals/admin/pages/SystemSettings')
   SystemSettings = mod.default
 })
 

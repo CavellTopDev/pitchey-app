@@ -22,7 +22,7 @@ vi.mock('../../services/admin.service', () => ({
 // Dynamic import after mocks
 let ContentModeration: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../Admin/ContentModeration')
+  const mod = await import('@portals/admin/pages/ContentModeration')
   ContentModeration = mod.default
 })
 

@@ -117,9 +117,9 @@ const Terms = lazy(() => import('./pages/Terms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 
 // Admin Pages
-const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'));
-const UserManagement = lazy(() => import('./pages/Admin/UserManagement'));
-const ContentModeration = lazy(() => import('./pages/Admin/ContentModeration'));
+const AdminDashboard = lazy(() => import('@portals/admin/pages/AdminDashboard'));
+const UserManagement = lazy(() => import('@portals/admin/pages/UserManagement'));
+const ContentModeration = lazy(() => import('@portals/admin/pages/ContentModeration'));
 
 // Coming Soon Page for unimplemented routes
 const ComingSoon = lazy(() => import('./pages/ComingSoon'));
@@ -188,8 +188,8 @@ const InvestorNetwork = lazy(() => import('@portals/investor/pages/InvestorNetwo
 const InvestorCoInvestors = lazy(() => import('@portals/investor/pages/InvestorCoInvestors'));
 const InvestorProductionCompanies = lazy(() => import('@portals/investor/pages/InvestorProductionCompanies'));
 const InvestorCreators = lazy(() => import('@portals/investor/pages/InvestorCreators'));
-const Transactions = lazy(() => import('./pages/Admin/Transactions'));
-const SystemSettings = lazy(() => import('./pages/Admin/SystemSettings'));
+const Transactions = lazy(() => import('@portals/admin/pages/Transactions'));
+const SystemSettings = lazy(() => import('@portals/admin/pages/SystemSettings'));
 
 // Test Pages
 const TestNavigation = lazy(() => import('./pages/TestNavigation'));

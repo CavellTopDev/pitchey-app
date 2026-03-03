@@ -18,7 +18,7 @@ vi.mock('../../services/admin.service', () => ({
 // Dynamic import after mocks
 let UserManagement: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../Admin/UserManagement')
+  const mod = await import('@portals/admin/pages/UserManagement')
   UserManagement = mod.default
 })
 

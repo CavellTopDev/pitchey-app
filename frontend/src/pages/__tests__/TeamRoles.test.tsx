@@ -50,7 +50,7 @@ vi.mock('../../hooks/useCurrentTeam', () => ({
 
 let Component: React.ComponentType
 beforeAll(async () => {
-  const mod = await import('../production/TeamRoles')
+  const mod = await import('@portals/production/pages/TeamRoles')
   Component = mod.default
 })
 
