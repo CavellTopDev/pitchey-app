@@ -6,7 +6,7 @@ import {
   TrendingUp, AlertTriangle, Users, Building2, UserCheck, Wallet,
   CreditCard, Settings, Shield, Receipt, Calculator, FileCheck, Store, ExternalLink
 } from 'lucide-react';
-import { INVESTOR_ROUTES } from '../../config/navigation.routes';
+import { INVESTOR_ROUTES } from '@/config/navigation.routes';
 
 interface NavigationItem {
   label: string;

@@ -6,7 +6,7 @@ import {
   Calendar, MessageSquare, Eye, Upload, Target, Star, Store, ExternalLink,
   Scale, FileSignature, Library, FilePlus, GitCompare
 } from 'lucide-react';
-import { CREATOR_ROUTES } from '../../config/navigation.routes';
+import { CREATOR_ROUTES } from '@/config/navigation.routes';
 
 interface NavigationItem {
   label: string;

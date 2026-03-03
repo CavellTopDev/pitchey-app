@@ -7,7 +7,7 @@ import {
   Users, Settings, Clock, AlertCircle, FileCheck, Store, ExternalLink,
   Library, FilePlus, FileSignature, GitCompare
 } from 'lucide-react';
-import { PRODUCTION_ROUTES } from '../../config/navigation.routes';
+import { PRODUCTION_ROUTES } from '@/config/navigation.routes';
 
 interface NavigationItem {
   label: string;
