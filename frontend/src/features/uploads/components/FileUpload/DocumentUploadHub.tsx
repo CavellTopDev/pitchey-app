@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import MultipleFileUpload, { EnhancedMediaFile } from './MultipleFileUpload';
+// eslint-disable-next-line import/no-restricted-paths -- TODO: Phase 5 extract shared NDA upload component
 import NDAUploadSection, { NDADocument } from '@features/ndas/components/NDAUploadSection';
 import { enhancedUploadService, EnhancedUploadOptions, EnhancedUploadResult, BatchUploadProgress } from '../../services/enhanced-upload.service';
 import { useBetterAuthStore } from '@/store/betterAuthStore';

@@ -4,6 +4,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
+// eslint-disable-next-line import/no-restricted-paths -- TODO: Phase 5 extract shared upload service
 import { uploadService, UploadResult, UploadProgress } from '@features/uploads/services/upload.service';
 
 export interface PendingUpload {

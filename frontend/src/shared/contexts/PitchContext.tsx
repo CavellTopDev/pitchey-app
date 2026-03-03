@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+// eslint-disable-next-line import/no-restricted-paths -- TODO: Phase 5 move pitch context into feature
 import { pitchService, type Pitch } from '@features/pitches/services/pitch.service';
 
 interface PitchContextType {

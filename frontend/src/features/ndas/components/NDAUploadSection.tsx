@@ -13,6 +13,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useToast } from '@shared/components/feedback/ToastProvider';
+// eslint-disable-next-line import/no-restricted-paths -- TODO: Phase 5 extract shared upload service
 import { uploadService } from '@features/uploads/services/upload.service';
 import { NDAService, type NDATemplate } from '../services/nda.service';
 
