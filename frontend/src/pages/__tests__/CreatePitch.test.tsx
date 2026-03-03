@@ -185,7 +185,7 @@ vi.mock('../../constants/messages', () => ({
 }))
 
 // ─── CharacterManagement ─────────────────────────────────────────────
-vi.mock('../../components/CharacterManagement', () => ({
+vi.mock('@features/pitches/components/CharacterManagement', () => ({
   CharacterManagement: ({ characters }: any) => (
     <div data-testid="character-management">Characters: {characters?.length || 0}</div>
   ),

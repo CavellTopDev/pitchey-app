@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, getMockAuthStore } from '../../test/utils'
 import userEvent from '@testing-library/user-event'
 import CreatePitch from '../../pages/CreatePitch'
-import { pitchService } from '../../services/pitch.service'
+import { pitchService } from '@features/pitches/services/pitch.service'
 import { a11y } from '../../utils/accessibility'
 
 // Mock dependencies
@@ -205,7 +205,7 @@ vi.mock('@features/pitches/utils/characterUtils', () => ({
 }))
 
 // Mock CharacterManagement component
-vi.mock('../../components/CharacterManagement', () => ({
+vi.mock('@features/pitches/components/CharacterManagement', () => ({
   CharacterManagement: vi.fn(({ characters, onChange: _onChange }) => (
     <div data-testid="character-management">
       <h3>Character Management</h3>

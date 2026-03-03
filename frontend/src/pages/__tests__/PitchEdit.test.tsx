@@ -42,7 +42,7 @@ vi.mock('@config/pitchConstants', () => ({
 }))
 
 // ─── CharacterManagement component ──────────────────────────────────
-vi.mock('../../components/CharacterManagement', () => ({
+vi.mock('@features/pitches/components/CharacterManagement', () => ({
   CharacterManagement: ({ characters, onChange }: any) => (
     <div data-testid="character-management">
       <span>Characters: {characters?.length || 0}</span>

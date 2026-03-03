@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useBetterAuthStore } from '../store/betterAuthStore';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 
 /**
  * Permission constants mirroring backend RBAC service (src/services/rbac.service.ts)

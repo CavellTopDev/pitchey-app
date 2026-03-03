@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useLocation, Navigate } from 'react-router-dom';
-import { useBetterAuthStore } from '../store/betterAuthStore';
-import { validatePortalAccess } from '../utils/auth';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
+import { validatePortalAccess } from '@/utils/auth';
 
 interface PortalGuardProps {
   children: React.ReactNode;

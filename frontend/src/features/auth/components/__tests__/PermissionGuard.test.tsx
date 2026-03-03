@@ -34,7 +34,7 @@ const mockAuthState = {
   refreshSession: vi.fn(),
 };
 
-vi.mock('../../store/betterAuthStore', () => ({
+vi.mock('@/store/betterAuthStore', () => ({
   useBetterAuthStore: () => mockAuthState,
 }));
 

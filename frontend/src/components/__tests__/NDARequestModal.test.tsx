@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, getMockAuthStore } from '../../test/utils'
 import userEvent from '@testing-library/user-event'
-import NDAModal from '../NDAModal'
-import { ndaService } from '../../services/nda.service'
+import NDAModal from '@features/ndas/components/NDAModal'
+import { ndaService } from '@features/ndas/services/nda.service'
 
 // Mock the NDA service
 vi.mock('@features/ndas/services/nda.service', () => {

@@ -17,8 +17,8 @@ import { AllCreatorRoutes, AllInvestorRoutes, AllProductionRoutes } from './comp
 // Import new Portal Layout
 import { PortalLayout } from '@shared/components/layout/PortalLayout';
 import { ProfileGuard } from './components/guards/CreatorProfileGuard';
-import { PermissionRoute } from './components/PermissionGuard';
-import { Permission } from './hooks/usePermissions';
+import { PermissionRoute } from '@features/auth/components/PermissionGuard';
+import { Permission } from '@features/auth/hooks/usePermissions';
 
 // Log environment on app load (dev only)
 if (import.meta.env.DEV) {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { usePermissions, type Permission } from '../hooks/usePermissions';
-import { useBetterAuthStore } from '../store/betterAuthStore';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 
 interface PermissionGuardProps {
   /** Single permission required to render children */
