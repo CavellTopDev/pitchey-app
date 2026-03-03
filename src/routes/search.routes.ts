@@ -489,32 +489,3 @@ export async function handleFiltersMetadata(request: Request): Promise<Response>
   }
 }
 
-// Export search results
-export async function handleExportResults(request: Request, userId: number): Promise<Response> {
-  try {
-    const body = await request.json();
-    const { searchType, filters, format = 'csv' } = body;
-
-    if (!searchType || !filters) {
-      return errorResponse('Search type and filters are required', 400);
-    }
-
-    if (!['csv', 'json', 'excel'].includes(format)) {
-      return errorResponse('Invalid export format. Use csv, json, or excel', 400);
-    }
-
-    // For now, return a simple message. In a real implementation,
-    // you would generate the actual file and return it
-    return successResponse({
-      success: true,
-      message: 'Export functionality not yet implemented',
-      downloadUrl: null // Would contain the download URL in real implementation
-    });
-
-  } catch (error) {
-    console.error('Error exporting results:', error);
-    return errorResponse('Export failed', 500, { 
-      details: error instanceof Error ? error.message : 'Unknown error' 
-    });
-  }
-}

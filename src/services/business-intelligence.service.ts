@@ -511,8 +511,6 @@ export class BusinessIntelligenceService {
 
     if (format === "csv") {
       return this.convertToCSV(data);
-    } else if (format === "excel") {
-      return this.convertToExcel(data);
     }
 
     return data;
@@ -979,8 +977,4 @@ export class BusinessIntelligenceService {
     return rows.join("\n");
   }
 
-  private convertToExcel(data: any[]): any {
-    // Would integrate with Excel generation library
-    return { message: "Excel export not implemented in demo" };
-  }
 }

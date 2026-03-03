@@ -1963,6 +1963,15 @@ class RouteRegistry {
       return changePasswordHandler(request, this.env, ctx);
     });
 
+    this.register('POST', '/api/auth/forgot-password', async (request) => {
+      const ctx: ExecutionContext = {
+        waitUntil: (promise: Promise<any>) => { /* no-op */ },
+        passThroughOnException: () => { /* no-op */ },
+        props: {} as any
+      };
+      return requestPasswordResetHandler(request, this.env, ctx);
+    });
+
     this.register('POST', '/api/auth/request-reset', async (request) => {
       // Create a minimal execution context for the handler
       const ctx: ExecutionContext = {
@@ -2178,8 +2187,6 @@ class RouteRegistry {
     this.register('POST', '/api/legal/validate', this.handleLegalDocumentValidation.bind(this));
     this.register('GET', '/api/legal/jurisdictions', this.handleLegalJurisdictions.bind(this));
     this.register('GET', '/api/legal/documents', this.handleLegalDocumentsList.bind(this));
-    this.register('POST', '/api/legal/customize', this.handleLegalDocumentCustomization.bind(this));
-
     // Legal Document Comparison & Versions
     this.register('GET', '/api/legal/documents/versions', this.handleLegalDocumentVersions.bind(this));
     this.register('POST', '/api/legal/documents/compare', this.handleLegalDocumentCompare.bind(this));
@@ -14669,29 +14676,6 @@ Signatures: [To be completed upon signing]
     }
   }
 
-  private async handleLegalDocumentCustomization(request: Request): Promise<Response> {
-    try {
-      if (!this.legalDocumentHandler) {
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'Legal document service not initialized'
-        }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-      // This would be implemented as an additional method in LegalDocumentHandler
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Document customization not yet implemented'
-      }), {
-        status: 501,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    } catch (error) {
-      return errorHandler(error, request);
-    }
-  }
 
   private async handleLegalDocumentVersions(request: Request): Promise<Response> {
     const origin = request.headers.get('Origin');

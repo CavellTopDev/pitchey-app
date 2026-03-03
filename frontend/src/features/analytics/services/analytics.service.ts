@@ -119,14 +119,6 @@ export interface Activity {
   metadata?: any;
 }
 
-export interface ExportOptions {
-  format: 'csv' | 'pdf' | 'excel';
-  dateRange: TimeRange;
-  metrics: string[];
-  groupBy?: 'day' | 'week' | 'month';
-  includeCharts?: boolean;
-}
-
 export interface ComparisonData {
   current: any;
   previous: any;
@@ -431,25 +423,6 @@ export class AnalyticsService {
       entityId: null,
       metadata: { page, ...metadata }
     });
-  }
-
-  // Export analytics data
-  static async exportAnalytics(options: ExportOptions): Promise<Blob> {
-    const response = await fetch(
-      `${API_BASE_URL}/api/analytics/export`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(options),
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error('Failed to export analytics');
-    }
-
-    return response.blob();
   }
 
   // Get comparison data
