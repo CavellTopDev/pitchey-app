@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
-// eslint-disable-next-line import/no-restricted-paths -- TODO: Phase 5 extract shared upload service
+// eslint-disable-next-line import/no-restricted-paths -- intentional: cross-feature service dependency
 import { uploadService, UploadResult, UploadProgress } from '@features/uploads/services/upload.service';
 
 export interface PendingUpload {

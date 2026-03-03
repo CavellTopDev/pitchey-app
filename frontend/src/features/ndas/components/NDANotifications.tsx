@@ -16,9 +16,9 @@ import {
 import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { ndaService, type NDA } from '../services/nda.service';
 import { useToast } from '@shared/components/feedback/ToastProvider';
-// eslint-disable-next-line import/no-restricted-paths -- TODO: Phase 5 extract shared notification hook
+// eslint-disable-next-line import/no-restricted-paths -- intentional: cross-feature hook dependency
 import { useWebSocket } from '@features/notifications/hooks/useWebSocket';
-// eslint-disable-next-line import/no-restricted-paths -- TODO: Phase 5 extract shared notification service
+// eslint-disable-next-line import/no-restricted-paths -- intentional: cross-feature service dependency
 import { notificationService } from '@features/notifications/services/notification.service';
 
 interface NDANotificationItem {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { TrendingUp, Clock, Star, Award, Search, Filter, Eye, Heart, User } from 'lucide-react';
 import LoadingSpinner from '@shared/components/feedback/LoadingSpinner';
-// eslint-disable-next-line import/no-restricted-paths -- TODO: Phase 5 extract shared pitch API
+// eslint-disable-next-line import/no-restricted-paths -- intentional: cross-feature service dependency
 import { PitchService } from '@features/pitches/services/pitch.service';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';

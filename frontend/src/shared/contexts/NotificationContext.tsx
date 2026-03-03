@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-// eslint-disable-next-line import/no-restricted-paths -- TODO: Phase 5 move notification context into feature
+// eslint-disable-next-line import/no-restricted-paths -- intentional: context integrates feature service
 import { notificationService } from '@features/notifications/services/notification.service';
 // WebSocket removed - was causing circular dependency and reload issues
 // import { useWebSocket } from './WebSocketContext';

@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode, useMemo } from 'react';
-// eslint-disable-next-line import/no-restricted-paths -- TODO: Phase 5 move WebSocket context into feature
+// eslint-disable-next-line import/no-restricted-paths -- intentional: context integrates feature service
 import { useWebSocketAdvanced } from '@features/notifications/hooks/useWebSocketAdvanced';
 import type { WebSocketMessage, ConnectionStatus, MessageQueueStatus, ConnectionQuality } from '@shared/types/websocket';
 import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { config } from '@/config';
-// eslint-disable-next-line import/no-restricted-paths -- TODO: Phase 5 move WebSocket context into feature
+// eslint-disable-next-line import/no-restricted-paths -- intentional: context integrates feature service
 import { presenceFallbackService } from '@features/notifications/services/presence-fallback.service';
-// eslint-disable-next-line import/no-restricted-paths -- TODO: Phase 5 move WebSocket context into feature
+// eslint-disable-next-line import/no-restricted-paths -- intentional: context integrates feature service
 import { pollingService } from '@features/notifications/services/polling.service';
 import { BRAND } from '@config/brand';
 
