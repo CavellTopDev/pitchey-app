@@ -14663,7 +14663,15 @@ Signatures: [To be completed upon signing]
           headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' }
         });
       }
-      return await this.legalDocumentHandler.listDocuments(request);
+      // Authenticate and inject x-user-id header for the handler
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authorized) return authResult.response!;
+      const authRequest = new Request(request.url, {
+        method: request.method,
+        headers: new Headers(request.headers),
+      });
+      authRequest.headers.set('x-user-id', String(authResult.user!.id));
+      return await this.legalDocumentHandler.listDocuments(authRequest);
     } catch (error: any) {
       // Handle missing tables gracefully
       if (error.message?.includes('generated_documents') || error.message?.includes('relation')) {
