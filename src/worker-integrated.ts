@@ -4862,13 +4862,13 @@ pitchey_analytics_datapoints_per_minute 1250
           user_id, title, logline, genre, format,
           format_category, format_subtype, custom_format,
           budget_range, target_audience, short_synopsis, long_synopsis,
-          status, created_at, updated_at, require_nda,
+          status, visibility, created_at, updated_at, require_nda,
           tone_and_style, comps, story_breakdown,
           why_now, production_location, development_stage,
           video_url, video_password, video_platform,
           themes, world_description, characters
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'draft', NOW(), NOW(), $13,
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'draft', 'private', NOW(), NOW(), $13,
           $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25
         ) RETURNING *
       `, [
@@ -7612,32 +7612,35 @@ pitchey_analytics_datapoints_per_minute 1250
 
       switch (tab) {
         case 'trending':
-          // Trending: Content weighted by engagement (views + likes + NDAs) within 30 days
+          // Trending: Content weighted by engagement within 90 days of publishing
           whereClause = `
             WHERE p.status = 'published'
-            AND p.created_at >= NOW() - INTERVAL '30 days'
+            AND p.visibility IN ('public', 'investors_only')
+            AND COALESCE(p.published_at, p.created_at) >= NOW() - INTERVAL '90 days'
           `;
           orderClause = `ORDER BY
             (SELECT COUNT(*) FROM ndas n WHERE n.pitch_id = p.id) DESC,
             LENGTH(COALESCE(p.description, '')) DESC,
             CASE WHEN p.updated_at >= NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END DESC,
             p.updated_at DESC,
-            p.created_at DESC`;
+            COALESCE(p.published_at, p.created_at) DESC`;
           break;
 
         case 'new':
-          // New: Pure chronological, only last 7 days — distinct from trending
+          // New: Recently published pitches (last 30 days)
           whereClause = `
             WHERE p.status = 'published'
-            AND p.created_at >= NOW() - INTERVAL '7 days'
+            AND p.visibility IN ('public', 'investors_only')
+            AND COALESCE(p.published_at, p.created_at) >= NOW() - INTERVAL '30 days'
           `;
-          orderClause = `ORDER BY p.created_at DESC`;
+          orderClause = `ORDER BY COALESCE(p.published_at, p.created_at) DESC`;
           break;
 
         case 'popular':
           // Popular: All-time best content based on NDA count and description richness
           whereClause = `
             WHERE p.status = 'published'
+            AND p.visibility IN ('public', 'investors_only')
           `;
           orderClause = `ORDER BY
             (SELECT COUNT(*) FROM ndas n WHERE n.pitch_id = p.id) DESC,
@@ -7649,7 +7652,8 @@ pitchey_analytics_datapoints_per_minute 1250
           // Fallback to trending
           whereClause = `
             WHERE p.status = 'published'
-            AND p.created_at >= NOW() - INTERVAL '30 days'
+            AND p.visibility IN ('public', 'investors_only')
+            AND COALESCE(p.published_at, p.created_at) >= NOW() - INTERVAL '90 days'
           `;
           orderClause = `ORDER BY p.updated_at DESC, p.id DESC`;
           break;

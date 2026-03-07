@@ -217,9 +217,9 @@ export async function pitchPublishHandler(request: Request, env: Env): Promise<R
 
     const [pitch] = await sql`
       UPDATE pitches
-      SET status = 'published', published_at = NOW(), updated_at = NOW()
+      SET status = 'published', visibility = 'public', published_at = NOW(), updated_at = NOW()
       WHERE id = ${pitchId} AND user_id = ${userId}
-      RETURNING id, title, status, published_at
+      RETURNING id, title, status, visibility, published_at
     `;
 
     if (!pitch) {
