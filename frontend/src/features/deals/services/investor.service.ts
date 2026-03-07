@@ -30,6 +30,7 @@ export interface ROIMetric {
   avg_roi: number;
   count: number;
   total_profit: number;
+  total_invested: number;
 }
 
 export interface ROISummary {
@@ -101,9 +102,7 @@ export const investorApi = {
   
   exportTransactions: async () => {
     const response = await fetch(`${API_BASE_URL}/api/investor/transactions/export`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('pitchey:authToken') ?? localStorage.getItem('authToken') ?? ''}`
-      }
+      credentials: 'include'
     });
     if (!response.ok) throw new Error('Failed to export transactions');
     return response.blob();
@@ -563,12 +562,9 @@ export class InvestorService {
 
   // Download investment report
   static async downloadReport(investmentId: number, format: 'pdf' | 'excel'): Promise<Blob> {
-    const token = localStorage.getItem('pitchey:authToken') ?? localStorage.getItem('authToken') ?? '';
     const response = await fetch(
       `${API_BASE_URL}/api/investor/investments/${investmentId}/report?format=${format}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include'
       }
     );
 

@@ -1,14 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
-  CheckCircle, Trophy, Film, Calendar, DollarSign,
-  Star, TrendingUp, Award, Download, Search,
-  Filter, BarChart3, Users, Globe, Clock,
-  Play, FileText, ExternalLink, ChevronRight
+  CheckCircle, Trophy, DollarSign,
+  TrendingUp, Download, Search,
+  BarChart3, FileText, ChevronRight
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@shared/components/ui/card';
 import { Button } from '@shared/components/ui/button';
-import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { investorApi } from '@features/deals/services/investor.service';
 
 interface CompletedProject {
@@ -24,7 +21,6 @@ interface CompletedProject {
   status?: string;
   created_at?: string;
   updated_at?: string;
-  // For backward compatibility
   title?: string;
   company?: string;
   genre?: string;
@@ -32,29 +28,13 @@ interface CompletedProject {
   investmentAmount?: number;
   finalReturn?: number;
   roi?: number;
-  duration?: string;
-  distributionStatus?: 'released' | 'in-distribution' | 'pending-release';
-  revenue?: {
-    boxOffice?: number;
-    streaming?: number;
-    international?: number;
-    merchandising?: number;
-    total: number;
-  };
-  awards?: string[];
-  rating?: number;
-  synopsis?: string;
-  marketPerformance?: 'exceeded' | 'met' | 'below' | 'pending';
 }
 
 const CompletedProjects = () => {
-  const navigate = useNavigate();
-  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState<CompletedProject[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'released' | 'in-distribution' | 'pending-release'>('all');
-  const [sortBy, setSortBy] = useState<'recent' | 'roi' | 'revenue'>('recent');
+  const [sortBy, setSortBy] = useState<'recent' | 'roi' | 'returns'>('recent');
 
   useEffect(() => {
     loadCompletedProjects();
@@ -88,20 +68,7 @@ const CompletedProjects = () => {
             completionDate: project.completion_date || project.updated_at,
             investmentAmount: project.investment_amount || 0,
             finalReturn: project.final_return || 0,
-            roi: project.roi_percentage || 0,
-            duration: project.status === 'completed' ? '18 months' : '12 months',
-            distributionStatus: project.status === 'completed' ? 'released' : 'pending-release',
-            revenue: {
-              boxOffice: Math.floor((project.final_return || 0) * 0.6),
-              streaming: Math.floor((project.final_return || 0) * 0.2),
-              international: Math.floor((project.final_return || 0) * 0.15),
-              merchandising: Math.floor((project.final_return || 0) * 0.05),
-              total: project.final_return || 0
-            },
-            awards: project.roi_percentage >= 100 ? ['Outstanding Performance Award'] : [],
-            rating: Math.min(10, 6 + (project.roi_percentage || 0) / 50),
-            synopsis: `${project.pitch_title} - A compelling ${(project.pitch_genre || 'drama').toLowerCase()} production.`,
-            marketPerformance: project.roi_percentage >= 75 ? 'exceeded' : project.roi_percentage >= 25 ? 'met' : project.roi_percentage >= 0 ? 'below' : 'pending'
+            roi: project.roi_percentage || 0
           };
         });
         
@@ -129,45 +96,18 @@ const CompletedProjects = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'released':
+      case 'completed':
         return 'text-green-600 bg-green-100';
-      case 'in-distribution':
+      case 'active':
         return 'text-blue-600 bg-blue-100';
-      case 'pending-release':
-        return 'text-yellow-600 bg-yellow-100';
       default:
         return 'text-gray-600 bg-gray-100';
     }
   };
 
-  const getPerformanceColor = (performance: string) => {
-    switch (performance) {
-      case 'exceeded':
-        return 'text-green-600';
-      case 'met':
-        return 'text-blue-600';
-      case 'below':
-        return 'text-red-600';
-      case 'pending':
-        return 'text-gray-600';
-      default:
-        return 'text-gray-600';
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login/investor');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
-
   const filteredProjects = projects
     .filter(project => {
-      if (filterStatus !== 'all' && project.distributionStatus !== filterStatus) return false;
-      if (searchQuery && 
+      if (searchQuery &&
           !(project.title || project.pitch_title || '').toLowerCase().includes(searchQuery.toLowerCase()) &&
           !(project.company || project.company_name || '').toLowerCase().includes(searchQuery.toLowerCase()) &&
           !(project.genre || project.pitch_genre || '').toLowerCase().includes(searchQuery.toLowerCase())) return false;
@@ -177,8 +117,8 @@ const CompletedProjects = () => {
       switch (sortBy) {
         case 'roi':
           return (b.roi || b.roi_percentage || 0) - (a.roi || a.roi_percentage || 0);
-        case 'revenue':
-          return (b.revenue?.total || b.final_return || 0) - (a.revenue?.total || a.final_return || 0);
+        case 'returns':
+          return (b.finalReturn || b.final_return || 0) - (a.finalReturn || a.final_return || 0);
         case 'recent':
         default:
           const aDate = new Date(a.completionDate || a.completion_date || a.updated_at || '').getTime();
@@ -291,23 +231,13 @@ const CompletedProjects = () => {
                 </div>
               </div>
               <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as any)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="all">All Status</option>
-                <option value="released">Released</option>
-                <option value="in-distribution">In Distribution</option>
-                <option value="pending-release">Pending Release</option>
-              </select>
-              <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
               >
                 <option value="recent">Most Recent</option>
                 <option value="roi">Highest ROI</option>
-                <option value="revenue">Highest Revenue</option>
+                <option value="returns">Highest Returns</option>
               </select>
             </div>
           </CardContent>
@@ -326,53 +256,25 @@ const CompletedProjects = () => {
                         <h3 className="text-xl font-bold text-gray-900">{project.title}</h3>
                         <p className="text-sm text-gray-600">{project.company} • {project.genre}</p>
                       </div>
-                      <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(project.distributionStatus || 'pending-release')}`}>
-                        {(project.distributionStatus || 'pending-release').replace('-', ' ')}
+                      <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(project.status || 'completed')}`}>
+                        {project.status || 'completed'}
                       </span>
                     </div>
-                    
-                    <p className="text-gray-700 mb-4">{project.synopsis}</p>
-                    
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                       <div>
                         <p className="text-xs text-gray-500">Completion Date</p>
                         <p className="text-sm font-medium">{new Date(project.completionDate || '').toLocaleDateString()}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Duration</p>
-                        <p className="text-sm font-medium">{project.duration || 'N/A'}</p>
+                        <p className="text-xs text-gray-500">Genre</p>
+                        <p className="text-sm font-medium">{project.genre}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Market Performance</p>
-                        <p className={`text-sm font-medium ${getPerformanceColor(project.marketPerformance || 'pending')}`}>
-                          {project.marketPerformance || 'pending'}
-                        </p>
+                        <p className="text-xs text-gray-500">Status</p>
+                        <p className="text-sm font-medium capitalize">{project.status || 'completed'}</p>
                       </div>
-                      {(project.rating || 0) > 0 && (
-                        <div>
-                          <p className="text-xs text-gray-500">Rating</p>
-                          <div className="flex items-center">
-                            <Star className="h-4 w-4 text-yellow-500 mr-1" />
-                            <span className="text-sm font-medium">{project.rating || 0}/10</span>
-                          </div>
-                        </div>
-                      )}
                     </div>
-
-                    {/* Awards */}
-                    {(project.awards || []).length > 0 && (
-                      <div className="mb-4">
-                        <p className="text-xs text-gray-500 mb-2">Awards & Recognition</p>
-                        <div className="flex flex-wrap gap-2">
-                          {(project.awards || []).map((award, idx) => (
-                            <span key={idx} className="inline-flex items-center px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">
-                              <Award className="h-3 w-3 mr-1" />
-                              {award}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   {/* Financial Performance */}
@@ -396,42 +298,6 @@ const CompletedProjects = () => {
                           </span>
                         </div>
                       </div>
-
-                      {(project.revenue?.total || 0) > 0 && (
-                        <div className="mt-4 pt-4 border-t">
-                          <p className="text-sm font-semibold text-gray-900 mb-2">Revenue Breakdown</p>
-                          <div className="space-y-2 text-xs">
-                            {project.revenue?.boxOffice && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Box Office</span>
-                                <span>{formatCurrency(project.revenue.boxOffice)}</span>
-                              </div>
-                            )}
-                            {project.revenue?.streaming && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Streaming</span>
-                                <span>{formatCurrency(project.revenue.streaming)}</span>
-                              </div>
-                            )}
-                            {project.revenue?.international && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">International</span>
-                                <span>{formatCurrency(project.revenue.international)}</span>
-                              </div>
-                            )}
-                            {project.revenue?.merchandising && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Merchandising</span>
-                                <span>{formatCurrency(project.revenue.merchandising)}</span>
-                              </div>
-                            )}
-                            <div className="flex justify-between font-semibold pt-2 border-t">
-                              <span>Total Revenue</span>
-                              <span>{formatCurrency(project.revenue?.total || 0)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
 
                       <div className="mt-4 flex gap-2">
                         <Button size="sm" variant="outline" className="flex-1">

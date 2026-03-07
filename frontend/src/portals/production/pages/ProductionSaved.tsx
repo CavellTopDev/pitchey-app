@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Star, Search, Calendar,
+  Search, Calendar,
   MoreVertical, Eye, MessageSquare,
   Bookmark, BookmarkCheck, Film,
   AlertCircle, RefreshCw, X
@@ -106,7 +106,7 @@ export default function ProductionSaved() {
           status,
           thumbnail: titleImage || '',
           views: viewCount,
-          rating: likeCount > 0 ? Math.min(5, Math.round((likeCount / Math.max(viewCount, 1)) * 50) / 10) : 0,
+          rating: 0,
           hasNDA: false,
           notes: sp.notes
         };
@@ -301,17 +301,13 @@ export default function ProductionSaved() {
                         {pitch.format}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                      <span className="text-sm font-semibold">{pitch.rating}</span>
+                    <div className="flex items-center gap-1 text-sm text-gray-600">
+                      <Eye className="w-4 h-4" />
+                      <span>{pitch.views.toLocaleString()}</span>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
-                    <span className="flex items-center gap-1">
-                      <Eye className="w-4 h-4" />
-                      {pitch.views.toLocaleString()}
-                    </span>
                     <span className="flex items-center gap-1">
                       <Calendar className="w-4 h-4" />
                       Saved {new Date(pitch.savedDate).toLocaleDateString()}

@@ -163,7 +163,6 @@ describe('CompletedProjects', () => {
     )
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Search projects...')).toBeInTheDocument()
-      expect(screen.getByText('All Status')).toBeInTheDocument()
       expect(screen.getByText('Most Recent')).toBeInTheDocument()
     })
   })

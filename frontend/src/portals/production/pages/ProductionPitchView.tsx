@@ -10,6 +10,7 @@ import {
   Truck, Home, Globe, Mic, Edit3, Package
 } from 'lucide-react';
 import { pitchAPI } from '@/lib/api';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import FormatDisplay from '@/components/FormatDisplay';
 import { getCreditCost } from '@config/subscription-plans';
 import { ScheduleMeetingModal } from '@/components/UIActions/ScheduleMeetingModal';
@@ -78,6 +79,7 @@ interface TeamMember {
 const ProductionPitchView: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { isAuthenticated, user: authUser } = useBetterAuthStore();
   const [pitch, setPitch] = useState<Pitch | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -135,10 +137,7 @@ const ProductionPitchView: React.FC = () => {
         response = await pitchAPI.getPublicById(parseInt(id!));
         
         // If user is authenticated and has proper access, try to get enhanced data
-        const userType = localStorage.getItem('userType');
-        const token = localStorage.getItem('authToken');
-        
-        if (token && userType === 'production' && response.hasSignedNDA) {
+        if (isAuthenticated && authUser?.userType === 'production' && response.hasSignedNDA) {
           // User has signed NDA, try to get full authenticated data
           try {
             const fullResponse = await pitchAPI.getById(parseInt(id!));
@@ -553,7 +552,8 @@ const ProductionPitchView: React.FC = () => {
 
             {activeTab === 'production' && feasibility && (
               <div className="bg-white rounded-xl shadow-lg p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Production Feasibility Assessment</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-1">Production Feasibility Assessment</h2>
+                <p className="text-sm text-gray-500 mb-6">Estimated scores based on pitch metadata</p>
                 
                 {/* Overall Score */}
                 <div className="mb-8 p-6 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg">

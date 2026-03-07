@@ -314,8 +314,8 @@ const ROIAnalysis = () => {
             <ResponsiveContainer width="100%" height={400}>
               <BarChart data={categoryMetrics.map(cat => ({
                 category: cat.category,
-                invested: cat.total_profit / (1 + cat.avg_roi / 100), // Calculate invested from profit and ROI
-                returned: cat.total_profit
+                invested: cat.total_invested,
+                returned: cat.total_invested + cat.total_profit
               }))}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="category" />
@@ -365,8 +365,8 @@ const ROIAnalysis = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {categoryMetrics.map((metric, index) => {
-                    const invested = metric.total_profit / (1 + metric.avg_roi / 100);
-                    const profit = metric.total_profit - invested;
+                    const invested = metric.total_invested;
+                    const profit = metric.total_profit;
                     const isProfit = profit > 0;
                     return (
                       <tr key={index} className="hover:bg-gray-50">

@@ -10905,7 +10905,8 @@ pitchey_analytics_datapoints_per_minute 1250
           COALESCE(p.genre, 'Unknown') as category,
           COALESCE(AVG(i.roi_percentage), 0) as avg_roi,
           COUNT(*) as count,
-          COALESCE(SUM(i.current_value), 0) - COALESCE(SUM(i.amount), 0) as total_profit
+          COALESCE(SUM(i.current_value), 0) - COALESCE(SUM(i.amount), 0) as total_profit,
+          COALESCE(SUM(i.amount), 0) as total_invested
         FROM investments i
         LEFT JOIN pitches p ON i.pitch_id = p.id
         WHERE i.investor_id = $1
@@ -10914,7 +10915,8 @@ pitchey_analytics_datapoints_per_minute 1250
 
       return builder.success({ categories: (categories || []).map((c: any) => ({
         category: c.category, avg_roi: parseFloat(parseFloat(String(c.avg_roi || '0')).toFixed(2)),
-        count: parseInt(String(c.count || '0'), 10), total_profit: parseFloat(String(c.total_profit || '0'))
+        count: parseInt(String(c.count || '0'), 10), total_profit: parseFloat(String(c.total_profit || '0')),
+        total_invested: parseFloat(String(c.total_invested || '0'))
       }))});
     } catch (error) {
       return builder.success({ categories: [] });

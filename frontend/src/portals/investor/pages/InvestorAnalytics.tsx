@@ -17,7 +17,6 @@ import {
   Tooltip, Legend
 } from 'recharts';
 import { InvestorNavigation } from '@/components/InvestorNavigation';
-import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { InvestorService } from '@features/deals/services/investor.service';
 import { AlertCircle } from 'lucide-react';
 
@@ -57,7 +56,6 @@ interface CreatorInsight {
 }
 
 export default function InvestorAnalytics() {
-  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState('3m');
@@ -143,9 +141,9 @@ export default function InvestorAnalytics() {
         sector: genre.genre || 'Unknown',
         growth: genre.avgROI || 0,
         opportunities: genre.investments || 0,
-        riskLevel: genre.avgROI > 25 ? 'high' as const : genre.avgROI > 15 ? 'medium' as const : 'low' as const,
-        recommendation: genre.avgROI > 25 ? 'Strong Buy - High potential' :
-                        genre.avgROI > 15 ? 'Buy - Good returns' :
+        riskLevel: genre.avgROI < 0 ? 'high' as const : genre.avgROI <= 15 ? 'medium' as const : 'low' as const,
+        recommendation: genre.avgROI > 15 ? 'Strong Buy - High potential' :
+                        genre.avgROI > 0 ? 'Buy - Good returns' :
                         'Hold - Stable sector'
       }));
       setMarketTrends(transformedTrends);
@@ -176,14 +174,14 @@ export default function InvestorAnalytics() {
       const transformedInsights: CreatorInsight[] = (analyticsData.topPerformers || []).map((inv: any) => {
         const roi = inv.amount > 0 ? ((inv.currentValue - inv.amount) / inv.amount) : 0;
         // Compute risk score deterministically based on ROI volatility (0-5 scale)
-        const riskScore = Math.min(5, Math.max(1, Math.abs(roi) > 0.5 ? 4 : Math.abs(roi) > 0.2 ? 3 : 2));
+        const riskScore = roi < 0 ? 4 : roi <= 0.15 ? 3 : roi <= 0.30 ? 2 : 1;
         return {
           name: inv.pitchTitle || 'Unknown Project',
           genre: inv.genre || 'Unknown',
           performance: roi * 100,
           riskScore,
           potentialROI: inv.amount > 0 ? (inv.currentValue / inv.amount) * 100 : 100,
-          recommendationLevel: Math.min(5, Math.max(1, Math.ceil(roi * 10) || 3))
+          recommendationLevel: roi > 0.30 ? 5 : roi > 0.15 ? 4 : roi > 0 ? 3 : roi > -0.15 ? 2 : 1
         };
       });
       setCreatorInsights(transformedInsights);
