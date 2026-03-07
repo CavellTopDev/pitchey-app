@@ -50,7 +50,7 @@ export default function BrowseTopRated() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated, user } = useBetterAuthStore();
   const toast = useToast();
-  const userType = localStorage.getItem('userType');
+  const userType = user?.userType;
   
   const [pitches, setPitches] = useState<Pitch[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,13 +99,10 @@ export default function BrowseTopRated() {
   const fetchRatingStats = useCallback(async () => {
     try {
       setStatsLoading(true);
-      const token = localStorage.getItem('authToken');
-      
+
       const response = await fetch(`${getApiUrl()}/api/browse/top-rated/stats`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        }
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
       });
       
       if (response.ok) {
@@ -148,8 +145,6 @@ export default function BrowseTopRated() {
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
-
       const params = new URLSearchParams({
         sort: sortBy === 'rating' ? 'rating' :
               sortBy === 'views' ? 'views' :
@@ -168,10 +163,8 @@ export default function BrowseTopRated() {
       }
 
       const response = await fetch(`${getApiUrl()}/api/browse/top-rated?${params.toString()}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         signal: controller.signal
       });
 

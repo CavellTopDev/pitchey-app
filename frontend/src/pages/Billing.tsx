@@ -24,8 +24,7 @@ import { getSubscriptionTier } from '../config/subscription-plans';
 export default function Billing() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { logout } = useBetterAuthStore();
-  const [user, setUser] = useState<any>(null);
+  const { user, logout } = useBetterAuthStore();
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,19 +36,13 @@ export default function Billing() {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
 
-  const userType = localStorage.getItem('userType') as 'creator' | 'investor' | 'production';
+  const userType = (user?.userType || 'creator') as 'creator' | 'investor' | 'production';
 
   useEffect(() => {
     // Set active tab from URL params
     const tab = searchParams.get('tab');
     if (tab && ['overview', 'subscription', 'credits', 'history', 'invoices', 'payment-methods'].includes(tab)) {
       setActiveTab(tab);
-    }
-    
-    // Get user data
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      setUser(JSON.parse(userData));
     }
 
     fetchBillingData();

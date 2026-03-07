@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { 
-  TrendingUp, DollarSign, Film, Users, BarChart3, PieChart, 
-  Activity, Calendar, Target, Award, ArrowUp, ArrowDown,
-  Eye, Heart, Clock, CheckCircle, AlertTriangle, PlayCircle,
-  Zap, Star, Download, Filter, RefreshCw
+import {
+  TrendingUp, DollarSign, Film, BarChart3,
+  Target, ArrowUp, ArrowDown,
+  Eye, AlertTriangle, CheckCircle,
+  RefreshCw
 } from 'lucide-react';
-import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { config } from '@/config';
 import { RevenueChart } from '@features/analytics/components/charts/RevenueChart';
 import { ROIChart } from '@features/analytics/components/charts/ROIChart';
@@ -43,13 +42,10 @@ interface ResourceUtilization {
   totalProjects: number;
   activeProjects: number;
   completedProjects: number;
-  teamUtilization: number;
-  equipmentUsage: number;
-  studioTime: number;
+  completionRate: number;
 }
 
 export default function ProductionAnalytics() {
-    const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -69,60 +65,103 @@ export default function ProductionAnalytics() {
   const loadAnalyticsData = async () => {
     try {
       setError(null);
-    const response = await fetch(`${config.API_URL}/api/production/analytics`, {
-      method: 'GET',
-      credentials: 'include' // Send cookies for Better Auth session
-    });
+      const response = await fetch(`${config.API_URL}/api/production/analytics?timeframe=${timeRange}`, {
+        method: 'GET',
+        credentials: 'include'
+      });
 
       if (!response.ok) {
         throw new Error(`Analytics API error: ${response.status}`);
       }
 
-      const data = await response.json();
-      
-      // Transform API data into component state
+      const result = await response.json();
+      const apiData = result.data || {};
+      const pm = apiData.productionMetrics || {};
+      const sm = apiData.successMetrics || {};
+
+      const totalRevenue = parseFloat(sm.total_revenue) || 0;
+      const activeProjects = parseInt(pm.active_projects) || 0;
+      const completedProjects = parseInt(pm.completed_projects) || 0;
+      const totalProjects = parseInt(pm.total_projects) || 0;
+      const avgBudget = parseFloat(pm.avg_budget) || 0;
+
       setMetrics([
         {
           title: 'Total Revenue',
-          value: `$${(data.totalRevenue || 0).toLocaleString()}`,
-          change: data.revenueChange || 0,
-          changeType: (data.revenueChange || 0) >= 0 ? 'increase' : 'decrease',
+          value: `$${totalRevenue.toLocaleString()}`,
+          change: 0,
+          changeType: totalRevenue > 0 ? 'increase' : 'neutral',
           icon: DollarSign,
           color: 'text-green-600'
         },
         {
           title: 'Active Projects',
-          value: data.activeProjects || 0,
-          change: data.projectsChange || 0,
-          changeType: (data.projectsChange || 0) >= 0 ? 'increase' : 'decrease',
+          value: activeProjects,
+          change: 0,
+          changeType: activeProjects > 0 ? 'increase' : 'neutral',
           icon: Film,
           color: 'text-blue-600'
         },
         {
-          title: 'Team Utilization',
-          value: `${data.teamUtilization || 0}%`,
-          change: data.utilizationChange || 0,
-          changeType: (data.utilizationChange || 0) >= 0 ? 'increase' : 'decrease',
-          icon: Users,
+          title: 'Completed Projects',
+          value: completedProjects,
+          change: 0,
+          changeType: completedProjects > 0 ? 'increase' : 'neutral',
+          icon: CheckCircle,
           color: 'text-purple-600'
         },
         {
-          title: 'Avg ROI',
-          value: `${data.avgROI || 0}%`,
-          change: data.roiChange || 0,
-          changeType: (data.roiChange || 0) >= 0 ? 'increase' : 'decrease',
+          title: 'Avg Budget',
+          value: `$${avgBudget.toLocaleString()}`,
+          change: 0,
+          changeType: avgBudget > 0 ? 'increase' : 'neutral',
           icon: TrendingUp,
           color: 'text-orange-600'
         }
       ]);
 
-      setProjectPerformance(data.projects || []);
-      setFinancialData(data.financial || null);
-      setResourceUtilization(data.resources || null);
-      
+      // Map monthly trends → revenue chart data
+      const monthlyRevenue = (apiData.monthlyTrends || []).map((t: { month: string; revenue: number; costs: number }) => ({
+        month: t.month,
+        revenue: parseFloat(String(t.revenue)) || 0,
+        budget: parseFloat(String(t.costs)) || 0
+      }));
+
+      setFinancialData({
+        totalRevenue,
+        totalBudget: parseFloat(pm.total_budget) || 0,
+        avgROI: 0,
+        profitableProjects: 0,
+        monthlyRevenue
+      });
+
+      // Map project performance
+      const projects = (apiData.projectPerformance || []).map((p: { id: string; title: string; genre: string; roi: number; revenue: number; budget: number; status: string; views: number }) => ({
+        id: p.id,
+        title: p.title,
+        genre: p.genre || 'Other',
+        roi: parseFloat(String(p.roi)) || 0,
+        revenue: parseFloat(String(p.revenue)) || 0,
+        budget: parseFloat(String(p.budget)) || 0,
+        status: p.status || 'development',
+        views: parseInt(String(p.views)) || 0,
+        engagement: 0
+      }));
+      setProjectPerformance(projects);
+
+      // Resource utilization from production metrics
+      const completionRate = parseFloat(pm.avg_completion_rate) || 0;
+      setResourceUtilization({
+        totalProjects,
+        activeProjects,
+        completedProjects,
+        completionRate: Math.round(completionRate)
+      });
+
     } catch (err) {
-      console.error('Failed to load analytics data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load analytics data');
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to load analytics data:', e);
+      setError(e.message);
       setMetrics([]);
       setProjectPerformance([]);
       setFinancialData(null);
@@ -325,7 +364,13 @@ export default function ProductionAnalytics() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {projectPerformance.map((project) => (
+                {projectPerformance.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-8 text-center text-sm text-gray-500">
+                      No production projects yet. Create projects to see performance data.
+                    </td>
+                  </tr>
+                ) : projectPerformance.map((project) => (
                   <tr key={project.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -384,15 +429,15 @@ export default function ProductionAnalytics() {
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <Activity className="w-8 h-8 text-blue-600" />
+                  <Film className="w-8 h-8 text-blue-600" />
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">
-                      Team Utilization
+                      Active Projects
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
-                      {resourceUtilization != null ? `${resourceUtilization.teamUtilization}%` : 'N/A'}
+                      {resourceUtilization != null ? resourceUtilization.activeProjects : 'N/A'}
                     </dd>
                   </dl>
                 </div>
@@ -404,15 +449,15 @@ export default function ProductionAnalytics() {
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <Clock className="w-8 h-8 text-green-600" />
+                  <CheckCircle className="w-8 h-8 text-green-600" />
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">
-                      Studio Time Usage
+                      Completed Projects
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
-                      {resourceUtilization != null ? `${resourceUtilization.studioTime}%` : 'N/A'}
+                      {resourceUtilization != null ? resourceUtilization.completedProjects : 'N/A'}
                     </dd>
                   </dl>
                 </div>
@@ -424,15 +469,15 @@ export default function ProductionAnalytics() {
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <Award className="w-8 h-8 text-purple-600" />
+                  <TrendingUp className="w-8 h-8 text-purple-600" />
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">
-                      Equipment Usage
+                      Completion Rate
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
-                      {resourceUtilization != null ? `${resourceUtilization.equipmentUsage}%` : 'N/A'}
+                      {resourceUtilization != null ? `${resourceUtilization.completionRate}%` : 'N/A'}
                     </dd>
                   </dl>
                 </div>

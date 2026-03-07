@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { adminService } from '../services/admin.service';
 import { withPortalErrorBoundary } from '@/components/ErrorBoundary/PortalErrorBoundary';
 import { useSentryPortal } from '@/shared/hooks/useSentryPortal';
-// import * as Sentry from '@sentry/react';
 
 interface DashboardStats {
   totalUsers: number;

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useBetterAuthStore } from '@/store/betterAuthStore';
-import { 
+import {
   History, Download, Filter, Search, ArrowUpRight,
   ArrowDownLeft, Calendar, DollarSign, RefreshCw, ChevronLeft, ChevronRight
 } from 'lucide-react';
@@ -29,7 +28,6 @@ interface TransactionStats {
 
 const TransactionHistory = () => {
   const navigate = useNavigate();
-  const { user, logout } = useBetterAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [stats, setStats] = useState<TransactionStats | null>(null);

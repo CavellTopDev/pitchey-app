@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/react'
+import { useBetterAuthStore } from '../store/betterAuthStore'
 
 // Performance monitoring configuration
 const REPLAY_SAMPLE_RATE = import.meta.env.PROD ? 0.1 : 0.5 // 10% in production
@@ -162,7 +163,7 @@ export function initSentry() {
   })
 
   // Set initial user context
-  const user = getUserFromStorage()
+  const user = getUserFromStore()
   if (user) {
     Sentry.setUser({
       id: user.id,
@@ -321,14 +322,9 @@ export function trackWebVitals() {
   }
 }
 
-// Helper to get user from storage
-function getUserFromStorage(): any {
-  try {
-    const userStr = localStorage.getItem('user')
-    return userStr ? JSON.parse(userStr) : null
-  } catch {
-    return null
-  }
+// Helper to get user from auth store
+function getUserFromStore() {
+  return useBetterAuthStore.getState().user ?? null
 }
 
 // Resource timing monitoring

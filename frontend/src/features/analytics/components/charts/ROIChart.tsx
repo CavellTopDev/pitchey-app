@@ -18,16 +18,15 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-// Default demo data
-const defaultData = [
-  { project: 'Last Symphony', roi: 165, revenue: 850000 },
-  { project: 'Midnight Heist', roi: 234, revenue: 1200000 },
-  { project: 'Silent Echo', roi: 89, revenue: 450000 },
-  { project: 'Urban Dreams', roi: 198, revenue: 980000 },
-  { project: 'Dark Waters', roi: 145, revenue: 720000 },
-];
+export const ROIChart: React.FC<ROIChartProps> = ({ data = [], className = "" }) => {
+  if (data.length === 0) {
+    return (
+      <div className={`flex items-center justify-center min-h-[200px] w-full text-gray-400 text-sm ${className}`}>
+        No project ROI data available
+      </div>
+    );
+  }
 
-export const ROIChart: React.FC<ROIChartProps> = ({ data = defaultData, className = "" }) => {
   return (
     <ChartContainer config={chartConfig} className={`min-h-[200px] w-full ${className}`}>
       <BarChart accessibilityLayer data={data} layout="horizontal">

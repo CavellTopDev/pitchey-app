@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { socialService } from '../services/social.service';
 
 interface FollowButtonProps {
@@ -22,6 +23,7 @@ const FollowButton: React.FC<FollowButtonProps> = ({
   const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
+  const { isAuthenticated } = useBetterAuthStore();
   const navigate = useNavigate();
 
   const checkFollowStatus = useCallback(async () => {
@@ -33,8 +35,7 @@ const FollowButton: React.FC<FollowButtonProps> = ({
     setChecking(true);
 
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token) {
+      if (!isAuthenticated) {
         setChecking(false);
         return;
       }
@@ -62,15 +63,14 @@ const FollowButton: React.FC<FollowButtonProps> = ({
     } finally {
       setChecking(false);
     }
-  }, [creatorId, pitchId]);
+  }, [creatorId, pitchId, isAuthenticated]);
 
   useEffect(() => {
     checkFollowStatus();
   }, [checkFollowStatus]);
 
   const handleFollow = useCallback(async () => {
-    const token = localStorage.getItem('authToken');
-    if (!token) {
+    if (!isAuthenticated) {
       navigate('/login');
       return;
     }
@@ -103,7 +103,7 @@ const FollowButton: React.FC<FollowButtonProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [isFollowing, pitchId, creatorId, onFollowChange, navigate]);
+  }, [isFollowing, pitchId, creatorId, onFollowChange, navigate, isAuthenticated]);
 
   const getButtonClasses = useCallback(() => {
     const baseClasses = 'font-medium rounded-lg transition-colors duration-200 flex items-center justify-center';
@@ -159,8 +159,8 @@ const FollowButton: React.FC<FollowButtonProps> = ({
     );
   }, [loading, checking, isFollowing]);
 
-  // Don't render if we're still checking and no token
-  if (checking && !localStorage.getItem('authToken')) {
+  // Don't render if we're still checking and not authenticated
+  if (checking && !isAuthenticated) {
     return null;
   }
   

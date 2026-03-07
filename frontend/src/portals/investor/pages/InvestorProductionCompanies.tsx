@@ -5,7 +5,6 @@ import {
   DollarSign, Star, BarChart3, Play, ChevronRight,
   Briefcase, Clock, CheckCircle, AlertCircle
 } from 'lucide-react';
-import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { investorApi } from '@features/deals/services/investor.service';
 
 interface ProductionCompany {
@@ -47,7 +46,6 @@ interface ProductionCompany {
 }
 
 export default function InvestorProductionCompanies() {
-    const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'major' | 'independent' | 'boutique' | 'streaming'>('all');

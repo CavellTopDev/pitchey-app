@@ -62,7 +62,6 @@ export default function SavedFilters({
   const loadSavedFilters = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
     const response = await fetch(`${API_URL}/api/filters/saved`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
@@ -87,8 +86,7 @@ export default function SavedFilters({
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
-      
+
       const payload = {
         name: filterName,
         description: filterDescription,
@@ -132,8 +130,6 @@ export default function SavedFilters({
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
-      
     const response = await fetch(`${API_URL}/api/filters/saved/${filterId}`, {
       method: 'DELETE',
       credentials: 'include' // Send cookies for Better Auth session
@@ -172,8 +168,6 @@ export default function SavedFilters({
   const toggleDefault = async (filter: SavedFilter) => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
-      
     const response = await fetch(`${API_URL}/api/filters/saved/${filter.id}/default`, {
       method: 'PUT',
       credentials: 'include' // Send cookies for Better Auth session

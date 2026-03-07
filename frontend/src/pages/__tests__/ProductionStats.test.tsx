@@ -59,13 +59,30 @@ const mockDashboardData = {
 }
 
 const mockAnalyticsData = {
-  dealConversionRate: 18,
-  avgProductionTime: '6 months',
-  successRate: 85,
-  overallScore: 8,
-  performanceLevel: 'Excellent',
-  topPerformer: 'Midnight Sun',
-  improvementArea: 'Marketing',
+  productionMetrics: {
+    total_projects: 12,
+    active_projects: 5,
+    completed_projects: 3,
+    total_budget: 8000000,
+    avg_budget: 666667,
+    avg_completion_rate: 25,
+    total_spent: 6800000,
+  },
+  successMetrics: {
+    total_revenue: 2500000,
+    total_investors: 5,
+  },
+  monthlyTrends: [
+    { month: 'Jan', projects_created: 2, views: 10, revenue: 200000, costs: 150000 },
+    { month: 'Feb', projects_created: 1, views: 15, revenue: 300000, costs: 200000 },
+  ],
+  timelineAdherence: [
+    { stage: 'Development', projects: 3, budget: 500000, on_time_percentage: 100 },
+    { stage: 'Production', projects: 5, budget: 2000000, on_time_percentage: 100 },
+    { stage: 'Distribution', projects: 3, budget: 1000000, on_time_percentage: 100 },
+  ],
+  projectPerformance: [],
+  timeframe: '30d',
 }
 
 let Component: React.ComponentType
@@ -158,7 +175,7 @@ describe('ProductionStats', () => {
 
   // ─── KPI Summary ─────────────────────────────────────────────────
 
-  it('renders KPI summary section labels when analytics data is present', async () => {
+  it('renders recent trends section with analytics data', async () => {
     mockGetDashboard.mockResolvedValue(mockDashboardData)
     mockGetAnalytics.mockResolvedValue(mockAnalyticsData)
 
@@ -169,11 +186,13 @@ describe('ProductionStats', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('Overall Score')).toBeInTheDocument()
+      expect(screen.getByText('Recent Trends')).toBeInTheDocument()
     })
-    expect(screen.getByText('Performance Level')).toBeInTheDocument()
-    expect(screen.getByText('Top Performer')).toBeInTheDocument()
-    expect(screen.getByText('Focus Area')).toBeInTheDocument()
+    expect(screen.getByText('Deal Conversion')).toBeInTheDocument()
+    expect(screen.getByText('Success Rate')).toBeInTheDocument()
+    // Completion rate derived from productionMetrics.avg_completion_rate = 25
+    // Appears in both Deal Conversion and Success Rate
+    expect(screen.getAllByText('25%').length).toBeGreaterThanOrEqual(1)
   })
 
   // ─── Charts ──────────────────────────────────────────────────────
@@ -194,29 +213,9 @@ describe('ProductionStats', () => {
     expect(screen.getByTestId('project-status-chart')).toBeInTheDocument()
   })
 
-  // ─── Recent Trends ───────────────────────────────────────────────
-
-  it('renders recent trends section', async () => {
-    mockGetDashboard.mockResolvedValue(mockDashboardData)
-    mockGetAnalytics.mockResolvedValue(mockAnalyticsData)
-
-    render(
-      <MemoryRouter>
-        <Component />
-      </MemoryRouter>
-    )
-
-    await waitFor(() => {
-      expect(screen.getByText('Recent Trends')).toBeInTheDocument()
-    })
-    expect(screen.getByText('Deal Conversion')).toBeInTheDocument()
-    expect(screen.getByText('Avg Production Time')).toBeInTheDocument()
-    expect(screen.getByText('Success Rate')).toBeInTheDocument()
-  })
-
   // ─── Empty / Error State ───────────────────────────────────────────
 
-  it('renders without KPI section when analytics is null', async () => {
+  it('renders dash values when analytics returns null', async () => {
     mockGetDashboard.mockResolvedValue(null)
     mockGetAnalytics.mockResolvedValue(null)
 
@@ -229,8 +228,9 @@ describe('ProductionStats', () => {
     await waitFor(() => {
       expect(screen.getByText('Production Overview')).toBeInTheDocument()
     })
-    // KPI section should not render when analyticsData is null
-    expect(screen.queryByText('Overall Score')).not.toBeInTheDocument()
+    // Recent Trends labels still render, but values show '—'
+    expect(screen.getByText('Deal Conversion')).toBeInTheDocument()
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(2)
   })
 
   it('renders without quick stats when dashboard returns no stats', async () => {

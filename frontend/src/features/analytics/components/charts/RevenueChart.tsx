@@ -22,17 +22,15 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-// Default demo data
-const defaultData = [
-  { month: 'Jan', revenue: 180000, budget: 120000 },
-  { month: 'Feb', revenue: 220000, budget: 140000 },
-  { month: 'Mar', revenue: 190000, budget: 110000 },
-  { month: 'Apr', revenue: 270000, budget: 160000 },
-  { month: 'May', revenue: 240000, budget: 130000 },
-  { month: 'Jun', revenue: 310000, budget: 180000 },
-];
+export const RevenueChart: React.FC<RevenueChartProps> = ({ data = [], className = "" }) => {
+  if (data.length === 0) {
+    return (
+      <div className={`flex items-center justify-center min-h-[200px] w-full text-gray-400 text-sm ${className}`}>
+        No revenue data available
+      </div>
+    );
+  }
 
-export const RevenueChart: React.FC<RevenueChartProps> = ({ data = defaultData, className = "" }) => {
   return (
     <ChartContainer config={chartConfig} className={`min-h-[200px] w-full ${className}`}>
       <BarChart accessibilityLayer data={data}>

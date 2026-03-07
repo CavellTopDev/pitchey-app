@@ -13,18 +13,6 @@ const api = axios.create({
   withCredentials: true, // Enable cookies for all requests
 });
 
-// Add auth token to requests
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
 // Handle auth errors
 api.interceptors.response.use(
   (response) => response,
@@ -37,12 +25,6 @@ api.interceptors.response.use(
                            url.includes('/api/trending') ||
                            url.includes('/api/search');
     
-    // DISABLED: This was causing redirect loops with Better Auth
-    // Better Auth handles authentication via cookies, not this interceptor
-    // if (error.response?.status === 401 && !isPublicEndpoint) {
-    //   localStorage.removeItem('authToken');
-    //   window.location.href = '/login';
-    // }
     return Promise.reject(error);
   }
 );
@@ -264,7 +246,6 @@ export const authAPI = {
       '/auth/register',
       data
     );
-    localStorage.setItem('authToken', response.data.session.token);
     return response.data;
   },
 
@@ -273,7 +254,6 @@ export const authAPI = {
       '/auth/login',
       { email, password }
     );
-    localStorage.setItem('authToken', response.data.session.token);
     return response.data;
   },
 
@@ -282,14 +262,6 @@ export const authAPI = {
       '/api/auth/creator/login',
       { email, password }
     );
-    // API returns data nested in data.data
-    if (response.data.data?.token) {
-      localStorage.setItem('authToken', response.data.data.token);
-    }
-    if (response.data.data?.user) {
-      localStorage.setItem('user', JSON.stringify(response.data.data.user));
-      localStorage.setItem('userType', response.data.data.user.userType);
-    }
     return { data: { user: response.data.data?.user } };
   },
 
@@ -298,14 +270,6 @@ export const authAPI = {
       '/api/auth/investor/login',
       { email, password }
     );
-    // API returns data nested in data.data
-    if (response.data.data?.token) {
-      localStorage.setItem('authToken', response.data.data.token);
-    }
-    if (response.data.data?.user) {
-      localStorage.setItem('user', JSON.stringify(response.data.data.user));
-      localStorage.setItem('userType', response.data.data.user.userType);
-    }
     return { data: { user: response.data.data?.user } };
   },
 
@@ -314,14 +278,6 @@ export const authAPI = {
       '/api/auth/production/login',
       { email, password }
     );
-    // API returns data nested in data.data
-    if (response.data.data?.token) {
-      localStorage.setItem('authToken', response.data.data.token);
-    }
-    if (response.data.data?.user) {
-      localStorage.setItem('user', JSON.stringify(response.data.data.user));
-      localStorage.setItem('userType', response.data.data.user.userType);
-    }
     return { data: { user: response.data.data?.user } };
   },
 
@@ -334,16 +290,7 @@ export const authAPI = {
       console.warn('Backend logout failed, proceeding with local cleanup:', error);
     }
     
-    // Clear all authentication data
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
-    localStorage.removeItem('userType');
-    
-    // Clear any other cached data
-    localStorage.removeItem('pitchey_websocket_disabled');
-    localStorage.removeItem('pitchey_websocket_loop_detected');
-    
-    // Clear session storage as well
+    // Clear session storage
     sessionStorage.clear();
   },
 

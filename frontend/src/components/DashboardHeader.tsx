@@ -59,7 +59,6 @@ export default function DashboardHeader({
   // Debug logging
 
   // Use enhanced navigation for better dropdown experience
-  // FORCE enhanced navigation to always render for testing
   if (useEnhancedNav) {
     return (
       <>

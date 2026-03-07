@@ -27,17 +27,15 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-// Default demo data
-const defaultData = [
-  { month: 'Jan', investments: 50000, returns: 45000, portfolio: 450000 },
-  { month: 'Feb', investments: 75000, returns: 62000, portfolio: 487000 },
-  { month: 'Mar', investments: 45000, returns: 58000, portfolio: 500000 },
-  { month: 'Apr', investments: 90000, returns: 78000, portfolio: 568000 },
-  { month: 'May', investments: 65000, returns: 85000, portfolio: 618000 },
-  { month: 'Jun', investments: 120000, returns: 95000, portfolio: 643000 },
-];
+export const PortfolioChart: React.FC<PortfolioChartProps> = ({ data = [], className = "" }) => {
+  if (data.length === 0) {
+    return (
+      <div className={`flex items-center justify-center min-h-[200px] w-full text-gray-400 text-sm ${className}`}>
+        No portfolio data available
+      </div>
+    );
+  }
 
-export const PortfolioChart: React.FC<PortfolioChartProps> = ({ data = defaultData, className = "" }) => {
   return (
     <ChartContainer config={chartConfig} className={`min-h-[200px] w-full ${className}`}>
       <AreaChart accessibilityLayer data={data}>

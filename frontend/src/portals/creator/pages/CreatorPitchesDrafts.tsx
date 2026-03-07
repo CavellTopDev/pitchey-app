@@ -5,7 +5,6 @@ import {
   Plus, Search, Filter, Calendar, Eye, Copy,
   MoreVertical, Tag, Globe, Lock, CheckCircle
 } from 'lucide-react';
-import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { PitchService, type Pitch } from '@features/pitches/services/pitch.service';
 
 interface DraftPitch {
@@ -97,7 +96,6 @@ interface DraftFilters {
 
 export default function CreatorPitchesDrafts() {
   const navigate = useNavigate();
-  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [drafts, setDrafts] = useState<DraftPitch[]>([]);
   const [filteredDrafts, setFilteredDrafts] = useState<DraftPitch[]>([]);

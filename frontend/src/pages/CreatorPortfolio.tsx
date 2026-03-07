@@ -64,42 +64,17 @@ const CreatorPortfolio: React.FC = () => {
   const navigate = useNavigate();
 
 
-  // Get effective creator ID
-  const getCreatorId = () => {
-    if (creatorId) return creatorId;
-    
-    // Try to get user ID from localStorage
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      try {
-        const user = JSON.parse(userData);
-        return user.id || '1001';
-      } catch (e) {
-      }
-    }
-    return '1001'; // Default fallback
-  };
-
-  const effectiveCreatorId = getCreatorId();
+  // Get effective creator ID from route params or auth store
+  const effectiveCreatorId = creatorId || user?.id?.toString() || null;
 
   // Check if this is the user's own profile
   const isOwnProfile = () => {
-    try {
-      const userData = localStorage.getItem('user');
-      if (userData) {
-        const user = JSON.parse(userData);
-        return user.id?.toString() === effectiveCreatorId?.toString();
-      }
-    } catch (e) {
-    }
-    return false;
+    if (!user?.id || !effectiveCreatorId) return false;
+    return user.id.toString() === effectiveCreatorId.toString();
   };
 
-  useEffect(() => {
-    fetchPortfolio();
-  }, [effectiveCreatorId]);
-
   const fetchPortfolio = async () => {
+    if (!effectiveCreatorId) return;
     setLoading(true);
     setError(null);
 
@@ -181,6 +156,35 @@ const CreatorPortfolio: React.FC = () => {
     navigate('/creator/dashboard');
   };
 
+  useEffect(() => {
+    if (effectiveCreatorId) {
+      fetchPortfolio();
+    }
+  }, [effectiveCreatorId]);
+
+  // If no creator ID available (no route param and no authenticated user), show error
+  if (!effectiveCreatorId) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(to bottom right, #f3e7ff, #ffffff, #ffe0f7)', padding: '20px' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <div className="mb-6">
+            <button
+              onClick={handleBackToDashboard}
+              className="inline-flex items-center px-4 py-2 bg-white text-gray-700 rounded-lg shadow-md hover:shadow-lg hover:bg-gray-50 transition-all duration-200 border border-gray-200"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Dashboard
+            </button>
+          </div>
+          <ErrorState
+            error="Please log in to view your portfolio"
+            onRetry={() => navigate('/login/creator')}
+            onGoBack={() => navigate(-1)}
+          />
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return <LoadingState />;

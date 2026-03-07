@@ -7,6 +7,7 @@ import AchievementsSection from '../components/portfolio/AchievementsSection';
 import WorksGrid from '../components/portfolio/WorksGrid';
 import LoadingState from '../components/portfolio/LoadingState';
 import ErrorState from '../components/portfolio/ErrorState';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 
 interface UserProfile {
   id: string;
@@ -67,67 +68,31 @@ interface PortfolioData {
 
 const UserPortfolio: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
+  const { user: authUser } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [portfolio, setPortfolio] = useState<PortfolioData | null>(null);
   const navigate = useNavigate();
 
-  // Get effective user ID
-  const getEffectiveUserId = () => {
-    if (userId) return userId;
-    
-    // Try to get user ID from localStorage
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      try {
-        const user = JSON.parse(userData);
-        return user.id || '1001';
-      } catch (e) {
-        console.error('Error parsing user data:', e);
-      }
-    }
-    return '1001'; // Default fallback
-  };
-
-  const effectiveUserId = getEffectiveUserId();
+  // Get effective user ID from route params or auth store
+  const effectiveUserId = userId || authUser?.id?.toString() || null;
 
   // Check if this is the user's own profile
   const isOwnProfile = () => {
-    try {
-      const userData = localStorage.getItem('user');
-      if (userData) {
-        const user = JSON.parse(userData);
-        return user.id?.toString() === effectiveUserId?.toString();
-      }
-    } catch (e) {
-      console.error('Error checking profile ownership:', e);
-    }
-    return false;
+    if (!authUser?.id || !effectiveUserId) return false;
+    return authUser.id.toString() === effectiveUserId.toString();
   };
 
-  // Get user type from localStorage or portfolio data
+  // Get user type from portfolio data or auth store
   const getUserType = (): string => {
     if (portfolio?.profile?.userType) {
       return portfolio.profile.userType;
     }
-    
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      try {
-        const user = JSON.parse(userData);
-        return user.userType || user.type || 'creator';
-      } catch (e) {
-        console.error('Error getting user type:', e);
-      }
-    }
-    return 'creator';
+    return authUser?.userType || 'creator';
   };
 
-  useEffect(() => {
-    fetchPortfolio();
-  }, [effectiveUserId]);
-
   const fetchPortfolio = async () => {
+    if (!effectiveUserId) return;
     setLoading(true);
     setError(null);
 
@@ -200,6 +165,36 @@ const UserPortfolio: React.FC = () => {
         navigate('/creator/dashboard');
     }
   };
+
+  useEffect(() => {
+    if (effectiveUserId) {
+      fetchPortfolio();
+    }
+  }, [effectiveUserId]);
+
+  // If no user ID available (no route param and no authenticated user), show error
+  if (!effectiveUserId) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(to bottom right, #f3e7ff, #ffffff, #ffe0f7)', padding: '20px' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <div className="mb-6">
+            <button
+              onClick={() => navigate(-1)}
+              className="inline-flex items-center px-4 py-2 bg-white text-gray-700 rounded-lg shadow-md hover:shadow-lg hover:bg-gray-50 transition-all duration-200 border border-gray-200"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Go Back
+            </button>
+          </div>
+          <ErrorState
+            error="Please log in to view your portfolio"
+            onRetry={() => navigate('/portals')}
+            onGoBack={() => navigate(-1)}
+          />
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return <LoadingState />;

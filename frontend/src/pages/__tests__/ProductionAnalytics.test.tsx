@@ -44,55 +44,52 @@ vi.mock('@features/analytics/components/charts/ROIChart', () => ({
 }))
 
 const mockApiResponse = {
-  totalRevenue: 2500000,
-  revenueChange: 12,
-  activeProjects: 8,
-  projectsChange: 5,
-  teamUtilization: 85,
-  utilizationChange: 3,
-  avgROI: 145,
-  roiChange: -2,
-  projects: [
-    {
-      id: '1',
-      title: 'Midnight Sun',
-      genre: 'Drama',
-      roi: 180,
-      revenue: 1500000,
-      budget: 800000,
-      status: 'completed',
-      views: 25000,
-      engagement: 82,
+  success: true,
+  data: {
+    productionMetrics: {
+      total_projects: 10,
+      active_projects: 8,
+      completed_projects: 2,
+      total_budget: 1550000,
+      avg_budget: 155000,
+      avg_completion_rate: 20,
+      total_spent: 1317500,
     },
-    {
-      id: '2',
-      title: 'Deep Waters',
-      genre: 'Thriller',
-      roi: 120,
-      revenue: 900000,
-      budget: 750000,
-      status: 'production',
-      views: 15000,
-      engagement: 75,
+    successMetrics: {
+      total_revenue: 2500000,
+      total_investors: 5,
     },
-  ],
-  financial: {
-    totalRevenue: 2500000,
-    totalBudget: 1550000,
-    avgROI: 145,
-    profitableProjects: 6,
-    monthlyRevenue: [
-      { month: 'Jan', revenue: 200000, budget: 150000 },
-      { month: 'Feb', revenue: 250000, budget: 180000 },
+    monthlyTrends: [
+      { month: 'Jan', revenue: 200000, costs: 150000 },
+      { month: 'Feb', revenue: 250000, costs: 180000 },
     ],
-  },
-  resources: {
-    totalProjects: 10,
-    activeProjects: 8,
-    completedProjects: 2,
-    teamUtilization: 85,
-    equipmentUsage: 72,
-    studioTime: 68,
+    projectPerformance: [
+      {
+        id: '1',
+        title: 'Midnight Sun',
+        genre: 'Drama',
+        roi: 180,
+        revenue: 1500000,
+        budget: 800000,
+        status: 'completed',
+        views: 25000,
+      },
+      {
+        id: '2',
+        title: 'Deep Waters',
+        genre: 'Thriller',
+        roi: 120,
+        revenue: 900000,
+        budget: 750000,
+        status: 'production',
+        views: 15000,
+      },
+    ],
+    genrePerformance: [],
+    timelineAdherence: [],
+    crewUtilization: [],
+    recentActivity: [],
+    timeframe: '30d',
   },
 }
 
@@ -165,9 +162,9 @@ describe('ProductionAnalytics', () => {
     await waitFor(() => {
       expect(screen.getByText('Total Revenue')).toBeInTheDocument()
     })
-    expect(screen.getByText('Active Projects')).toBeInTheDocument()
-    expect(screen.getAllByText('Team Utilization').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText('Avg ROI')).toBeInTheDocument()
+    expect(screen.getAllByText('Active Projects').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Completed Projects').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('Avg Budget')).toBeInTheDocument()
   })
 
   it('renders project performance table', async () => {
@@ -220,12 +217,11 @@ describe('ProductionAnalytics', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('Studio Time Usage')).toBeInTheDocument()
+      expect(screen.getAllByText('Active Projects').length).toBeGreaterThanOrEqual(1)
     })
-    expect(screen.getByText('Equipment Usage')).toBeInTheDocument()
-    expect(screen.getAllByText('85%').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText('68%')).toBeInTheDocument()
-    expect(screen.getByText('72%')).toBeInTheDocument()
+    expect(screen.getAllByText('Completed Projects').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('Completion Rate')).toBeInTheDocument()
+    expect(screen.getByText('20%')).toBeInTheDocument()
   })
 
   // ─── Error State ──────────────────────────────────────────────────

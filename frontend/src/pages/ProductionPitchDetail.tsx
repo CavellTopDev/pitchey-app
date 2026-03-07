@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { 
-  ArrowLeft, Eye, Heart, Shield, Users, Film, 
-  Calendar, DollarSign, Download, Play, Share2,
-  Edit, BarChart3, FileText, BookOpen, Video,
-  Clock, CheckCircle, X, Maximize2, Star, TrendingUp
+import {
+  ArrowLeft, Eye, Heart, Shield, Users,
+  Download, Play, Share2,
+  Edit, BarChart3, Video,
+  CheckCircle, X, TrendingUp
 } from 'lucide-react';
-import { useBetterAuthStore } from '../store/betterAuthStore';
 import PitchMediaGallery from '../components/PitchMediaGallery';
 import { API_URL } from '../config';
 import FormatDisplay from '../components/FormatDisplay';
@@ -63,7 +62,6 @@ interface PitchDetails {
 export default function ProductionPitchDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useBetterAuthStore();
   const [pitch, setPitch] = useState<PitchDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'media' | 'analytics' | 'engagement'>('overview');
@@ -594,51 +592,10 @@ export default function ProductionPitchDetail() {
           <div className="space-y-6">
             <div className="bg-white rounded-xl shadow-sm p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <Shield className="w-4 h-4 text-green-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-gray-900">
-                      <span className="font-medium">Netflix Studios</span> signed an NDA
-                    </p>
-                    <p className="text-sm text-gray-600">2 hours ago</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-red-100 rounded-lg">
-                    <Heart className="w-4 h-4 text-red-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-gray-900">
-                      <span className="font-medium">Warner Bros</span> liked your pitch
-                    </p>
-                    <p className="text-sm text-gray-600">5 hours ago</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <Users className="w-4 h-4 text-purple-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-gray-900">
-                      <span className="font-medium">A24 Films</span> started following
-                    </p>
-                    <p className="text-sm text-gray-600">1 day ago</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Eye className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-gray-900">
-                      <span className="font-medium">Silver Screen Ventures</span> viewed your pitch
-                    </p>
-                    <p className="text-sm text-gray-600">2 days ago</p>
-                  </div>
-                </div>
+              <div className="text-center py-8 text-gray-500">
+                <Eye className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                <p>No recent activity to display.</p>
+                <p className="text-sm mt-1">Views, likes, and NDA activity will appear here.</p>
               </div>
             </div>
           </div>
@@ -660,32 +617,14 @@ export default function ProductionPitchDetail() {
             </button>
             
             <div className="bg-black rounded-lg overflow-hidden">
-              {/* For demo purposes, showing a placeholder video message */}
-              <div className="aspect-video bg-gray-900 flex items-center justify-center">
-                <div className="text-center text-white p-8">
-                  <Play className="w-16 h-16 mx-auto mb-4 text-purple-400" />
-                  <h3 className="text-xl font-semibold mb-2">Video Player</h3>
-                  <p className="text-gray-400 mb-4">
-                    In production, your trailer would play here.
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Video URL: {selectedVideo}
-                  </p>
-                </div>
-              </div>
-              {/* Actual video element (uncomment when you have real video files) */}
-              {/* <video 
-                controls 
-                autoPlay 
+              <video
+                controls
+                autoPlay
                 className="w-full max-h-[80vh]"
                 src={selectedVideo}
-                onError={(e) => {
-                  console.error('Video playback error:', e);
-                  alert('Unable to play video. Please check the file format.');
-                }}
               >
                 Your browser does not support the video tag.
-              </video> */}
+              </video>
             </div>
           </div>
         </div>

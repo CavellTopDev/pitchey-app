@@ -132,6 +132,34 @@ export default function InvestorStats() {
           description: 'Opportunities reviewed this period'
         }
       ]);
+
+      // Populate chart data from API if available
+      if (Array.isArray(data.portfolioHistory)) {
+        setPortfolioPerformanceData(data.portfolioHistory);
+      }
+      if (Array.isArray(data.investmentsByStage)) {
+        const fills = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
+        setInvestmentsByStageData(data.investmentsByStage.map((s: any, i: number) => ({
+          name: s.name || s.stage,
+          value: s.value || s.count || 0,
+          fill: fills[i % fills.length]
+        })));
+      }
+      if (Array.isArray(data.sectorAllocation)) {
+        const fills = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', 'hsl(var(--chart-6))'];
+        setSectorAllocationData(data.sectorAllocation.map((s: any, i: number) => ({
+          name: s.name || s.sector,
+          value: s.value || s.percentage || 0,
+          fill: fills[i % fills.length]
+        })));
+      }
+      if (Array.isArray(data.dealFlow?.quarterly || data.quarterlyDeals)) {
+        setMonthlyDealsData((data.dealFlow?.quarterly || data.quarterlyDeals).map((q: any) => ({
+          quarter: q.quarter,
+          reviewed: q.reviewed || 0,
+          closed: q.closed || 0
+        })));
+      }
     } catch (error) {
       console.error('Failed to load stats:', error);
       setMetrics({
@@ -156,45 +184,11 @@ export default function InvestorStats() {
     loadStats();
   }, [loadStats]);
 
-  // Chart data
-  const portfolioPerformanceData = [
-    { month: 'Jan', portfolioValue: 5200, totalInvested: 4800 },
-    { month: 'Feb', portfolioValue: 5480, totalInvested: 5000 },
-    { month: 'Mar', portfolioValue: 5750, totalInvested: 5200 },
-    { month: 'Apr', portfolioValue: 6100, totalInvested: 5400 },
-    { month: 'May', portfolioValue: 6350, totalInvested: 5600 },
-    { month: 'Jun', portfolioValue: 6800, totalInvested: 5800 },
-    { month: 'Jul', portfolioValue: 7200, totalInvested: 6000 },
-    { month: 'Aug', portfolioValue: 7650, totalInvested: 6100 },
-    { month: 'Sep', portfolioValue: 8100, totalInvested: 6150 },
-    { month: 'Oct', portfolioValue: 8400, totalInvested: 6180 },
-    { month: 'Nov', portfolioValue: 8600, totalInvested: 6190 },
-    { month: 'Dec', portfolioValue: 8750, totalInvested: 6200 }
-  ];
-
-  const investmentsByStageData = [
-    { name: 'Seed', value: 4, fill: 'hsl(var(--chart-1))' },
-    { name: 'Series A', value: 5, fill: 'hsl(var(--chart-2))' },
-    { name: 'Series B', value: 2, fill: 'hsl(var(--chart-3))' },
-    { name: 'Series C', value: 1, fill: 'hsl(var(--chart-4))' },
-    { name: 'Growth', value: 0, fill: 'hsl(var(--chart-5))' }
-  ];
-
-  const sectorAllocationData = [
-    { name: 'Film Production', value: 35, fill: 'hsl(var(--chart-1))' },
-    { name: 'Streaming/Digital', value: 28, fill: 'hsl(var(--chart-2))' },
-    { name: 'Animation/VFX', value: 15, fill: 'hsl(var(--chart-3))' },
-    { name: 'Gaming', value: 12, fill: 'hsl(var(--chart-4))' },
-    { name: 'Music/Audio', value: 7, fill: 'hsl(var(--chart-5))' },
-    { name: 'Other', value: 3, fill: 'hsl(var(--chart-6))' }
-  ];
-
-  const monthlyDealsData = [
-    { quarter: 'Q1 2024', reviewed: 45, closed: 3 },
-    { quarter: 'Q2 2024', reviewed: 38, closed: 2 },
-    { quarter: 'Q3 2024', reviewed: 42, closed: 4 },
-    { quarter: 'Q4 2024', reviewed: 31, closed: 3 }
-  ];
+  // Chart data — populated from API, empty by default
+  const [portfolioPerformanceData, setPortfolioPerformanceData] = useState<{ month: string; portfolioValue: number; totalInvested: number }[]>([]);
+  const [investmentsByStageData, setInvestmentsByStageData] = useState<{ name: string; value: number; fill: string }[]>([]);
+  const [sectorAllocationData, setSectorAllocationData] = useState<{ name: string; value: number; fill: string }[]>([]);
+  const [monthlyDealsData, setMonthlyDealsData] = useState<{ quarter: string; reviewed: number; closed: number }[]>([]);
 
   // Chart configurations
   const portfolioConfig = {
@@ -439,10 +433,10 @@ export default function InvestorStats() {
                 <div>
                   <div className="flex justify-between mb-2">
                     <span className="text-sm text-gray-600">Portfolio Utilization</span>
-                    <span className="font-semibold text-gray-900">85%</span>
+                    <span className="font-semibold text-gray-900">{metrics && metrics.totalInvested > 0 ? `${Math.round((metrics.totalInvested / Math.max(metrics.portfolioValue, metrics.totalInvested)) * 100)}%` : '0%'}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-blue-600 h-2 rounded-full transition-all duration-300" style={{ width: '85%' }} />
+                    <div className="bg-blue-600 h-2 rounded-full transition-all duration-300" style={{ width: metrics && metrics.totalInvested > 0 ? `${Math.round((metrics.totalInvested / Math.max(metrics.portfolioValue, metrics.totalInvested)) * 100)}%` : '0%' }} />
                   </div>
                 </div>
               </div>
@@ -462,29 +456,21 @@ export default function InvestorStats() {
               <BarChart3 className="w-5 h-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <ChartContainer config={portfolioConfig} className="h-[300px]">
-                <LineChart data={portfolioPerformanceData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line 
-                    type="monotone" 
-                    dataKey="portfolioValue" 
-                    stroke="var(--color-portfolioValue)" 
-                    strokeWidth={2}
-                    dot={{ fill: "var(--color-portfolioValue)" }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="totalInvested" 
-                    stroke="var(--color-totalInvested)" 
-                    strokeWidth={2}
-                    dot={{ fill: "var(--color-totalInvested)" }}
-                  />
-                  <ChartLegend content={<ChartLegendContent />} />
-                </LineChart>
-              </ChartContainer>
+              {portfolioPerformanceData.length > 0 ? (
+                <ChartContainer config={portfolioConfig} className="h-[300px]">
+                  <LineChart data={portfolioPerformanceData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Line type="monotone" dataKey="portfolioValue" stroke="var(--color-portfolioValue)" strokeWidth={2} dot={{ fill: "var(--color-portfolioValue)" }} />
+                    <Line type="monotone" dataKey="totalInvested" stroke="var(--color-totalInvested)" strokeWidth={2} dot={{ fill: "var(--color-totalInvested)" }} />
+                    <ChartLegend content={<ChartLegendContent />} />
+                  </LineChart>
+                </ChartContainer>
+              ) : (
+                <div className="h-[300px] flex items-center justify-center text-gray-500">No portfolio history data available</div>
+              )}
             </CardContent>
           </Card>
 
@@ -498,15 +484,19 @@ export default function InvestorStats() {
               <PieChart className="w-5 h-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <ChartContainer config={stageConfig} className="h-[300px]">
-                <BarChart data={investmentsByStageData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="value" fill="hsl(var(--chart-1))" />
-                </BarChart>
-              </ChartContainer>
+              {investmentsByStageData.length > 0 ? (
+                <ChartContainer config={stageConfig} className="h-[300px]">
+                  <BarChart data={investmentsByStageData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="value" fill="hsl(var(--chart-1))" />
+                  </BarChart>
+                </ChartContainer>
+              ) : (
+                <div className="h-[300px] flex items-center justify-center text-gray-500">No stage distribution data available</div>
+              )}
             </CardContent>
           </Card>
 
@@ -520,17 +510,21 @@ export default function InvestorStats() {
               <PieChart className="w-5 h-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <ChartContainer config={sectorConfig} className="h-[300px]">
-                <RechartsPieChart>
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Pie data={sectorAllocationData} dataKey="value" nameKey="name" innerRadius={60}>
-                    {sectorAllocationData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <ChartLegend content={<ChartLegendContent />} />
-                </RechartsPieChart>
-              </ChartContainer>
+              {sectorAllocationData.length > 0 ? (
+                <ChartContainer config={sectorConfig} className="h-[300px]">
+                  <RechartsPieChart>
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Pie data={sectorAllocationData} dataKey="value" nameKey="name" innerRadius={60}>
+                      {sectorAllocationData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <ChartLegend content={<ChartLegendContent />} />
+                  </RechartsPieChart>
+                </ChartContainer>
+              ) : (
+                <div className="h-[300px] flex items-center justify-center text-gray-500">No sector allocation data available</div>
+              )}
             </CardContent>
           </Card>
 
@@ -544,17 +538,21 @@ export default function InvestorStats() {
               <BarChart3 className="w-5 h-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <ChartContainer config={dealsConfig} className="h-[300px]">
-                <BarChart data={monthlyDealsData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="quarter" />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="reviewed" fill="var(--color-reviewed)" />
-                  <Bar dataKey="closed" fill="var(--color-closed)" />
-                  <ChartLegend content={<ChartLegendContent />} />
-                </BarChart>
-              </ChartContainer>
+              {monthlyDealsData.length > 0 ? (
+                <ChartContainer config={dealsConfig} className="h-[300px]">
+                  <BarChart data={monthlyDealsData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="quarter" />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="reviewed" fill="var(--color-reviewed)" />
+                    <Bar dataKey="closed" fill="var(--color-closed)" />
+                    <ChartLegend content={<ChartLegendContent />} />
+                  </BarChart>
+                </ChartContainer>
+              ) : (
+                <div className="h-[300px] flex items-center justify-center text-gray-500">No deal flow data available</div>
+              )}
             </CardContent>
           </Card>
         </div>

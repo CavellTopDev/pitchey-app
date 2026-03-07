@@ -12,7 +12,6 @@ import {
   PieChart as RechartsPieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, ResponsiveContainer
 } from 'recharts';
-import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { investorApi } from '@features/deals/services/investor.service';
 
 interface PerformanceMetrics {
@@ -34,7 +33,6 @@ interface PortfolioAllocation {
 }
 
 export default function InvestorPerformance() {
-  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('1y');
   const [metrics, setMetrics] = useState<PerformanceMetrics | null>(null);

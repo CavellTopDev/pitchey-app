@@ -1,44 +1,25 @@
 import apiClient, { ndaAPI as newNdaAPI, authAPI, pitchAPI as newPitchAPI, savedPitchesAPI } from './api-client';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { config } from '../config';
 
 // Use same-origin in production (Pages Functions proxy), localhost in dev
 const isDev = import.meta.env.MODE === 'development';
 const API_URL = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : '');
 
-// Helper function to get auth headers (for backwards compatibility)
+// Helper function to get request headers
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('authToken') || localStorage.getItem('token');
   return {
     'Content-Type': 'application/json',
-    'Authorization': token ? `Bearer ${token}` : '',
   };
 };
 
-// Helper function to get userId from auth token
+// Helper function to get userId from auth store
 const getUserId = (): string | null => {
   try {
-    // First try to get from stored user data
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      const user = JSON.parse(userData);
-      if (user.id) {
-        return user.id.toString();
-      }
+    const user = useBetterAuthStore.getState().user;
+    if (user?.id) {
+      return user.id.toString();
     }
-
-    // Fallback to extracting from JWT token
-    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        // Handle different possible payload structures
-        const userId = payload.userId || payload.user_id || payload.id || payload.sub;
-        return userId ? userId.toString() : null;
-      } catch (jwtError) {
-        console.error('Error parsing JWT token:', jwtError);
-      }
-    }
-    
     return null;
   } catch (error) {
     console.error('Error getting user ID:', error);
@@ -257,8 +238,6 @@ export const mediaAPI = {
     if (options.applyWatermark !== undefined) formData.append('applyWatermark', options.applyWatermark.toString());
     if (options.accessLevel) formData.append('accessLevel', options.accessLevel);
 
-    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
-    
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       
@@ -294,7 +273,7 @@ export const mediaAPI = {
       xhr.ontimeout = () => reject(new Error('Upload timeout'));
       
       xhr.open('POST', `${API_URL}/api/media/upload`);
-      xhr.setRequestHeader('Authorization', token ? `Bearer ${token}` : '');
+      xhr.withCredentials = true;
       xhr.timeout = 5 * 60 * 1000; // 5 minute timeout
       xhr.send(formData);
     });

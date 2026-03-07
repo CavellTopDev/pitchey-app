@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Building2, TrendingUp, Eye, Heart, Users, Film, Plus,
-  BarChart3, FileText, Shield, Bell, Settings,
+  Building2, Eye, Heart, Users, Film, Plus,
+  BarChart3, FileText, Shield,
   Calendar, DollarSign, UserPlus,
   BookOpen, Video, Upload, UserCheck, Clock, Activity,
-  X, AlertCircle, User, Trash2, CheckCircle, LogOut, CreditCard, Coins,
+  X, AlertCircle, User, Trash2, CheckCircle,
   Bookmark, Filter, Search,
   Wifi, WifiOff, AlertTriangle, RefreshCw
 } from 'lucide-react';
@@ -34,9 +34,6 @@ import {
   safeNumber,
   safeString,
 } from '@shared/utils/defensive';
-// import DashboardHeader from '../components/DashboardHeader';
-// EnhancedProductionNav is now handled by PortalLayout
-// import * as Sentry from '@sentry/react';
 
 interface Analytics {
   totalViews: number;
@@ -314,7 +311,7 @@ function ProductionDashboard() {
       // Convert store pitches to dashboard format with defensive mapping
       const dashboardPitches = safeMap(allStorePitches, (p: any) => ({
         ...p,
-        id: safeAccess(p, 'id', Math.random()),
+        id: safeAccess(p, 'id', 0),
         title: safeString(safeAccess(p, 'title', 'Untitled Project')),
         budget: safeNumber(safeAccess(p, 'budget', 0)),
         creator: {

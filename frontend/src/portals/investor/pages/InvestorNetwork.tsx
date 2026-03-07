@@ -6,7 +6,6 @@ import {
   Calendar, MapPin, Link2, Mail, Phone,
   ChevronRight, Plus, Check, X
 } from 'lucide-react';
-import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { investorApi } from '@features/deals/services/investor.service';
 
 interface NetworkMember {
@@ -33,7 +32,6 @@ interface NetworkMember {
 }
 
 export default function InvestorNetwork() {
-    const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'investor' | 'creator' | 'production'>('all');

@@ -27,18 +27,15 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-// Default demo data
-const defaultData = [
-  { date: 'Jan 1', views: 1200, likes: 89, shares: 23 },
-  { date: 'Jan 8', views: 1450, likes: 102, shares: 31 },
-  { date: 'Jan 15', views: 1680, likes: 125, shares: 42 },
-  { date: 'Jan 22', views: 1520, likes: 110, shares: 38 },
-  { date: 'Jan 29', views: 1850, likes: 145, shares: 55 },
-  { date: 'Feb 5', views: 2100, likes: 167, shares: 68 },
-  { date: 'Feb 12', views: 2350, likes: 198, shares: 78 },
-];
+export const EngagementChart: React.FC<EngagementChartProps> = ({ data = [], className = "" }) => {
+  if (data.length === 0) {
+    return (
+      <div className={`flex items-center justify-center min-h-[200px] w-full text-gray-400 text-sm ${className}`}>
+        No engagement data available
+      </div>
+    );
+  }
 
-export const EngagementChart: React.FC<EngagementChartProps> = ({ data = defaultData, className = "" }) => {
   return (
     <ChartContainer config={chartConfig} className={`min-h-[200px] w-full ${className}`}>
       <LineChart accessibilityLayer data={data}>

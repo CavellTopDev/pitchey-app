@@ -277,29 +277,31 @@ describe('ProductionService', () => {
   })
 
   describe('getAnalytics', () => {
-    it('returns analytics data', async () => {
+    it('returns analytics data from backend', async () => {
       const analyticsData = {
-        projectPerformance: [{ project: 'Drama', budget: 100000, spent: 80000, progress: 80, onSchedule: true }],
-        genreDistribution: [],
-        dealConversionRate: 0.3,
-        avgProductionTime: 12,
-        successRate: 0.85,
+        productionMetrics: { total_projects: 5, active_projects: 3, completed_projects: 2, total_budget: 500000, avg_budget: 100000, avg_completion_rate: 40, total_spent: 425000 },
+        successMetrics: { total_revenue: 200000, total_investors: 3 },
+        monthlyTrends: [{ month: 'Jan', projects_created: 2, views: 10, revenue: 50000, costs: 35000 }],
+        timelineAdherence: [{ stage: 'Production', projects: 3, budget: 300000, on_time_percentage: 100 }],
+        projectPerformance: [{ id: '1', title: 'Drama', genre: 'Drama', status: 'active', budget: 100000, revenue: 80000, roi: -20, views: 500 }],
+        timeframe: '30d',
       }
-      mockApiClient.get.mockResolvedValue({ success: true, data: { analytics: analyticsData } })
+      mockApiClient.get.mockResolvedValue({ success: true, data: analyticsData })
 
-      const result = await ProductionService.getAnalytics('quarter')
+      const result = await ProductionService.getAnalytics('30d')
 
       const url: string = mockApiClient.get.mock.calls[0][0]
       expect(url).toContain('/api/production/analytics')
-      expect(url).toContain('period=quarter')
-      expect(result.dealConversionRate).toBe(0.3)
+      expect(url).toContain('timeframe=30d')
+      expect(result.productionMetrics?.total_projects).toBe(5)
+      expect(result.monthlyTrends).toHaveLength(1)
     })
 
-    it('returns default analytics when missing', async () => {
+    it('returns empty object when data is missing', async () => {
       mockApiClient.get.mockResolvedValue({ success: true, data: {} })
       const result = await ProductionService.getAnalytics()
-      expect(result.projectPerformance).toEqual([])
-      expect(result.dealConversionRate).toBe(0)
+      expect(result.productionMetrics).toBeUndefined()
+      expect(result.monthlyTrends).toBeUndefined()
     })
   })
 

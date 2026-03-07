@@ -153,9 +153,6 @@ export class UserService {
       throw new Error(response.error?.message || 'Failed to update profile');
     }
 
-    // Update localStorage
-    localStorage.setItem('user', JSON.stringify(response.data.user));
-
     return response.data.user;
   }
 
@@ -199,13 +196,13 @@ export class UserService {
   // Upload profile image
   static async uploadProfileImage(file: File): Promise<string> {
     const formData = new FormData();
-    formData.append('image', file);
-    formData.append('type', 'profile');
+    formData.append('file', file);
+    formData.append('folder', 'profiles');
 
     const response = await fetch(`${API_BASE_URL}/api/upload`, {
       method: 'POST',
       body: formData,
-      credentials: 'include' // Send cookies for Better Auth session
+      credentials: 'include'
     });
 
     if (!response.ok) {
@@ -213,19 +210,19 @@ export class UserService {
     }
 
     const data = await response.json();
-    return data.imageUrl;
+    return data.url;
   }
 
   // Upload cover image
   static async uploadCoverImage(file: File): Promise<string> {
     const formData = new FormData();
-    formData.append('image', file);
-    formData.append('type', 'cover');
+    formData.append('file', file);
+    formData.append('folder', 'covers');
 
     const response = await fetch(`${API_BASE_URL}/api/upload`, {
       method: 'POST',
       body: formData,
-      credentials: 'include' // Send cookies for Better Auth session
+      credentials: 'include'
     });
 
     if (!response.ok) {
@@ -233,7 +230,7 @@ export class UserService {
     }
 
     const data = await response.json();
-    return data.imageUrl;
+    return data.url;
   }
 
   // Delete account

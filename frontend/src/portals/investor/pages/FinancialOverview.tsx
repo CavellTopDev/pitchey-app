@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useBetterAuthStore } from '@/store/betterAuthStore';
-import { 
+import {
   DollarSign, TrendingUp, Wallet, PiggyBank,
   CreditCard, Coins, BarChart3, Download, RefreshCw
 } from 'lucide-react';
@@ -28,7 +27,6 @@ interface Transaction {
 
 const FinancialOverview = () => {
   const navigate = useNavigate();
-  const { user, logout } = useBetterAuthStore();
   const [financialData, setFinancialData] = useState<FinancialSummaryData | null>(null);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);

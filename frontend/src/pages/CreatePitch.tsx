@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload, X, FileText, Video, Image as ImageIcon, Shield, AlertCircle, WifiOff } from 'lucide-react';
-import { useBetterAuthStore } from '../store/betterAuthStore';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import LoadingSpinner from '@shared/components/feedback/LoadingSpinner';
 import { pitchService } from '@features/pitches/services/pitch.service';
@@ -37,7 +36,6 @@ import {
 
 export default function CreatePitch() {
   const navigate = useNavigate();
-  const { } = useBetterAuthStore();
   const { success, error } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState<'form' | 'creating' | 'uploading' | 'complete'>('form');

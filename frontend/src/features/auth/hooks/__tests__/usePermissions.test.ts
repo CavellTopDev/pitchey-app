@@ -2,27 +2,41 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { usePermissions, Permission } from '../usePermissions';
 
-// Mock betterAuthStore
-const mockBetterAuthStore = {
-  isAuthenticated: false,
-  user: null,
-  loading: false,
-  error: null,
-  login: vi.fn(),
-  logout: vi.fn(),
-  loginCreator: vi.fn(),
-  loginInvestor: vi.fn(),
-  loginProduction: vi.fn(),
-  register: vi.fn(),
-  setUser: vi.fn(),
-  updateUser: vi.fn(),
-  checkSession: vi.fn(),
-  refreshSession: vi.fn(),
-};
+// Must use vi.hoisted so these are available when vi.mock is hoisted
+const { mockBetterAuthStore, mockUseBetterAuthStore } = vi.hoisted(() => {
+  const mockBetterAuthStore = {
+    isAuthenticated: false,
+    user: null as { id: number; userType: string } | null,
+    loading: false,
+    error: null,
+    login: vi.fn(),
+    logout: vi.fn(),
+    loginCreator: vi.fn(),
+    loginInvestor: vi.fn(),
+    loginProduction: vi.fn(),
+    register: vi.fn(),
+    setUser: vi.fn(),
+    updateUser: vi.fn(),
+    checkSession: vi.fn(),
+    refreshSession: vi.fn(),
+  };
+
+  const mockUseBetterAuthStore = Object.assign(
+    () => mockBetterAuthStore,
+    { getState: () => mockBetterAuthStore }
+  );
+
+  return { mockBetterAuthStore, mockUseBetterAuthStore };
+});
 
 vi.mock('@/store/betterAuthStore', () => ({
-  useBetterAuthStore: () => mockBetterAuthStore,
+  useBetterAuthStore: mockUseBetterAuthStore,
 }));
+
+/** Helper: set mock user type for getUserRole() which reads from store */
+const setMockUserType = (userType: string) => {
+  mockBetterAuthStore.user = { id: 1, userType };
+};
 
 // Backend RBAC permission map (source of truth from src/services/rbac.service.ts)
 const BACKEND_ROLE_PERMISSIONS: Record<string, string[]> = {
@@ -62,7 +76,7 @@ describe('usePermissions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockBetterAuthStore.isAuthenticated = false;
-    (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    mockBetterAuthStore.user = null;
   });
 
   // ─── Permission Constants ───────────────────────────────────────────
@@ -132,51 +146,51 @@ describe('usePermissions', () => {
       expect(result.current.userRole).toBe('viewer');
     });
 
-    it('returns viewer when authenticated but no userType in localStorage', () => {
+    it('returns viewer when authenticated but no userType on user', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue(null);
+      mockBetterAuthStore.user = { id: 1, userType: '' };
       const { result } = renderHook(() => usePermissions());
       expect(result.current.userRole).toBe('viewer');
     });
 
     it('returns creator when userType is creator', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('creator');
+      setMockUserType('creator');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.userRole).toBe('creator');
     });
 
     it('returns investor when userType is investor', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('investor');
+      setMockUserType('investor');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.userRole).toBe('investor');
     });
 
     it('returns production when userType is production', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('production');
+      setMockUserType('production');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.userRole).toBe('production');
     });
 
     it('returns admin when userType is admin', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('admin');
+      setMockUserType('admin');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.userRole).toBe('admin');
     });
 
     it('returns viewer for unknown userType', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('unknown_role');
+      setMockUserType('unknown_role');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.userRole).toBe('viewer');
     });
 
     it('returns viewer for empty string userType', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('');
+      setMockUserType('');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.userRole).toBe('viewer');
     });
@@ -190,7 +204,7 @@ describe('usePermissions', () => {
     roles.forEach(role => {
       it(`${role} role has the same permissions as backend`, () => {
         mockBetterAuthStore.isAuthenticated = true;
-        (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue(role);
+        setMockUserType(role);
         const { result } = renderHook(() => usePermissions());
 
         const frontendPerms = [...result.current.permissions].sort();
@@ -202,14 +216,14 @@ describe('usePermissions', () => {
 
     it('admin has all 55 permissions', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('admin');
+      setMockUserType('admin');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.permissions).toHaveLength(55);
     });
 
     it('viewer has exactly 3 permissions', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('viewer');
+      setMockUserType('viewer');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.permissions).toHaveLength(3);
     });
@@ -220,49 +234,49 @@ describe('usePermissions', () => {
   describe('hasPermission', () => {
     it('creator can create pitches', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('creator');
+      setMockUserType('creator');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasPermission(Permission.PITCH_CREATE)).toBe(true);
     });
 
     it('creator cannot create investments', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('creator');
+      setMockUserType('creator');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasPermission(Permission.INVESTMENT_CREATE)).toBe(false);
     });
 
     it('investor can create investments', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('investor');
+      setMockUserType('investor');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasPermission(Permission.INVESTMENT_CREATE)).toBe(true);
     });
 
     it('investor cannot create pitches', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('investor');
+      setMockUserType('investor');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasPermission(Permission.PITCH_CREATE)).toBe(false);
     });
 
     it('viewer can view public pitches', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('viewer');
+      setMockUserType('viewer');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasPermission(Permission.PITCH_VIEW_PUBLIC)).toBe(true);
     });
 
     it('viewer cannot send messages', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('viewer');
+      setMockUserType('viewer');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasPermission(Permission.MESSAGE_SEND)).toBe(false);
     });
 
     it('admin can do anything', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('admin');
+      setMockUserType('admin');
       const { result } = renderHook(() => usePermissions());
       Object.values(Permission).forEach(perm => {
         expect(result.current.hasPermission(perm)).toBe(true);
@@ -271,63 +285,63 @@ describe('usePermissions', () => {
 
     it('production can manage crew', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('production');
+      setMockUserType('production');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasPermission(Permission.PRODUCTION_MANAGE_CREW)).toBe(true);
     });
 
     it('creator cannot manage crew', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('creator');
+      setMockUserType('creator');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasPermission(Permission.PRODUCTION_MANAGE_CREW)).toBe(false);
     });
 
     it('investor cannot manage crew', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('investor');
+      setMockUserType('investor');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasPermission(Permission.PRODUCTION_MANAGE_CREW)).toBe(false);
     });
 
     it('creator can approve NDAs (owns pitches)', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('creator');
+      setMockUserType('creator');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasPermission(Permission.NDA_APPROVE)).toBe(true);
     });
 
     it('investor cannot approve NDAs', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('investor');
+      setMockUserType('investor');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasPermission(Permission.NDA_APPROVE)).toBe(false);
     });
 
     it('investor can request NDAs', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('investor');
+      setMockUserType('investor');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasPermission(Permission.NDA_REQUEST)).toBe(true);
     });
 
     it('creator cannot request NDAs', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('creator');
+      setMockUserType('creator');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasPermission(Permission.NDA_REQUEST)).toBe(false);
     });
 
     it('accepts string permissions', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('creator');
+      setMockUserType('creator');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasPermission('pitch.create')).toBe(true);
     });
 
     it('returns false for non-existent permission string', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('admin');
+      setMockUserType('admin');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasPermission('nonexistent.permission')).toBe(false);
     });
@@ -345,7 +359,7 @@ describe('usePermissions', () => {
   describe('hasAnyPermission', () => {
     it('returns true when user has one of the listed permissions', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('creator');
+      setMockUserType('creator');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasAnyPermission([
         Permission.INVESTMENT_CREATE,
@@ -355,7 +369,7 @@ describe('usePermissions', () => {
 
     it('returns false when user has none of the listed permissions', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('viewer');
+      setMockUserType('viewer');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasAnyPermission([
         Permission.PITCH_CREATE,
@@ -365,14 +379,14 @@ describe('usePermissions', () => {
 
     it('returns false for empty array', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('admin');
+      setMockUserType('admin');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasAnyPermission([])).toBe(false);
     });
 
     it('investor has any of investment or portfolio permissions', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('investor');
+      setMockUserType('investor');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasAnyPermission([
         Permission.INVESTMENT_CREATE,
@@ -383,7 +397,7 @@ describe('usePermissions', () => {
 
     it('creator has none of the investment-specific permissions', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('creator');
+      setMockUserType('creator');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasAnyPermission([
         Permission.INVESTMENT_CREATE,
@@ -394,7 +408,7 @@ describe('usePermissions', () => {
 
     it('works with string permissions', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('creator');
+      setMockUserType('creator');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasAnyPermission(['pitch.create', 'nonexistent.perm'])).toBe(true);
     });
@@ -405,7 +419,7 @@ describe('usePermissions', () => {
   describe('hasAllPermissions', () => {
     it('returns true when user has all listed permissions', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('creator');
+      setMockUserType('creator');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasAllPermissions([
         Permission.PITCH_CREATE,
@@ -416,7 +430,7 @@ describe('usePermissions', () => {
 
     it('returns false when user is missing one permission', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('creator');
+      setMockUserType('creator');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasAllPermissions([
         Permission.PITCH_CREATE,
@@ -426,14 +440,14 @@ describe('usePermissions', () => {
 
     it('returns true for empty array', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('viewer');
+      setMockUserType('viewer');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasAllPermissions([])).toBe(true);
     });
 
     it('admin passes any combination', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('admin');
+      setMockUserType('admin');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasAllPermissions([
         Permission.PITCH_CREATE,
@@ -445,7 +459,7 @@ describe('usePermissions', () => {
 
     it('viewer fails multi-permission checks', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('viewer');
+      setMockUserType('viewer');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasAllPermissions([
         Permission.PITCH_VIEW_PUBLIC,
@@ -455,7 +469,7 @@ describe('usePermissions', () => {
 
     it('production has all production-specific permissions', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('production');
+      setMockUserType('production');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasAllPermissions([
         Permission.PRODUCTION_CREATE_PROJECT,
@@ -467,7 +481,7 @@ describe('usePermissions', () => {
 
     it('works with string permissions', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('creator');
+      setMockUserType('creator');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasAllPermissions(['pitch.create', 'pitch.publish'])).toBe(true);
     });
@@ -478,7 +492,7 @@ describe('usePermissions', () => {
   describe('role-specific permission boundaries', () => {
     it('creator cannot access admin panel', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('creator');
+      setMockUserType('creator');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasPermission(Permission.ADMIN_ACCESS)).toBe(false);
       expect(result.current.hasPermission(Permission.ADMIN_SETTINGS)).toBe(false);
@@ -486,7 +500,7 @@ describe('usePermissions', () => {
 
     it('investor cannot edit any pitches', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('investor');
+      setMockUserType('investor');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasPermission(Permission.PITCH_EDIT_OWN)).toBe(false);
       expect(result.current.hasPermission(Permission.PITCH_EDIT_ANY)).toBe(false);
@@ -494,7 +508,7 @@ describe('usePermissions', () => {
 
     it('creator cannot delete any pitches (only own)', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('creator');
+      setMockUserType('creator');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasPermission(Permission.PITCH_DELETE_OWN)).toBe(true);
       expect(result.current.hasPermission(Permission.PITCH_DELETE_ANY)).toBe(false);
@@ -504,20 +518,20 @@ describe('usePermissions', () => {
       const roles = ['creator', 'investor', 'production', 'viewer'] as const;
       roles.forEach(role => {
         mockBetterAuthStore.isAuthenticated = true;
-        (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue(role);
+        setMockUserType(role);
         const { result } = renderHook(() => usePermissions());
         expect(result.current.hasPermission(Permission.PITCH_MODERATE)).toBe(false);
       });
 
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('admin');
+      setMockUserType('admin');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasPermission(Permission.PITCH_MODERATE)).toBe(true);
     });
 
     it('only admin can view any user', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('creator');
+      setMockUserType('creator');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasPermission(Permission.USER_VIEW_ANY)).toBe(false);
       expect(result.current.hasPermission(Permission.USER_VIEW_OWN)).toBe(true);
@@ -525,22 +539,22 @@ describe('usePermissions', () => {
 
     it('investor can export financial data, creator cannot', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('investor');
+      setMockUserType('investor');
       const { result: investorResult } = renderHook(() => usePermissions());
       expect(investorResult.current.hasPermission(Permission.FINANCIAL_EXPORT)).toBe(true);
 
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('creator');
+      setMockUserType('creator');
       const { result: creatorResult } = renderHook(() => usePermissions());
       expect(creatorResult.current.hasPermission(Permission.FINANCIAL_EXPORT)).toBe(false);
     });
 
     it('production can request NDAs but creator cannot', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('production');
+      setMockUserType('production');
       const { result: prodResult } = renderHook(() => usePermissions());
       expect(prodResult.current.hasPermission(Permission.NDA_REQUEST)).toBe(true);
 
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('creator');
+      setMockUserType('creator');
       const { result: creatorResult } = renderHook(() => usePermissions());
       expect(creatorResult.current.hasPermission(Permission.NDA_REQUEST)).toBe(false);
     });
@@ -549,7 +563,7 @@ describe('usePermissions', () => {
       const nonAdminRoles = ['creator', 'investor', 'production', 'viewer'] as const;
       nonAdminRoles.forEach(role => {
         mockBetterAuthStore.isAuthenticated = true;
-        (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue(role);
+        setMockUserType(role);
         const { result } = renderHook(() => usePermissions());
         expect(result.current.hasPermission(Permission.MESSAGE_BROADCAST)).toBe(false);
       });
@@ -557,11 +571,11 @@ describe('usePermissions', () => {
 
     it('only admin can refund payments', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('admin');
+      setMockUserType('admin');
       const { result } = renderHook(() => usePermissions());
       expect(result.current.hasPermission(Permission.PAYMENT_REFUND)).toBe(true);
 
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('investor');
+      setMockUserType('investor');
       const { result: investorResult } = renderHook(() => usePermissions());
       expect(investorResult.current.hasPermission(Permission.PAYMENT_REFUND)).toBe(false);
     });
@@ -572,7 +586,7 @@ describe('usePermissions', () => {
   describe('memoization', () => {
     it('returns stable references across re-renders with same auth state', () => {
       mockBetterAuthStore.isAuthenticated = true;
-      (localStorage.getItem as ReturnType<typeof vi.fn>).mockReturnValue('creator');
+      setMockUserType('creator');
 
       const { result, rerender } = renderHook(() => usePermissions());
       const firstPermissions = result.current.permissions;

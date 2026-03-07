@@ -881,12 +881,7 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
             
             // Handle specific error types
             if (errorCode === 2001 || errorCode === 2002) { // Auth token invalid/expired
-              // Clear token but DON'T redirect - Better Auth handles this
-              localStorage.removeItem('authToken');
-              // DISABLED: This was causing redirect loops with Better Auth
-              // if (window.location.pathname !== '/login') {
-              //   window.location.href = '/login';
-              // }
+              // Better Auth handles session expiry via cookie — no redirect needed
             }
             
             // Update connection status with error info

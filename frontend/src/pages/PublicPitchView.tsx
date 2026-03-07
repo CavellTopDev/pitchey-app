@@ -234,7 +234,7 @@ export default function PublicPitchView() {
                   {/* Dashboard Link */}
                   <button
                     onClick={() => {
-                      const userType = user?.userType || localStorage.getItem('userType');
+                      const userType = user?.userType;
                       if (userType) {
                         void navigate(`/${userType}/dashboard`);
                       } else {
@@ -250,7 +250,6 @@ export default function PublicPitchView() {
                   <button
                     onClick={() => {
                       void logout();
-                      localStorage.removeItem('userType');
                       window.location.href = '/portals';
                     }}
                     className="px-4 py-2 text-sm text-gray-600 hover:text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition-colors"
@@ -801,7 +800,7 @@ export default function PublicPitchView() {
                 {isOwner && (
                   <button
                     onClick={() => {
-                      const userType = user?.userType || localStorage.getItem('userType');
+                      const userType = user?.userType;
                       if (userType) {
                         void navigate(`/${userType}/dashboard`);
                       } else {

@@ -396,14 +396,13 @@ export default function MarketplaceEnhanced() {
   const totalPages = Math.ceil(filteredPitches.length / itemsPerPage);
 
   const handlePitchClick = (pitch: Pitch) => {
-    const userType = localStorage.getItem('userType');
     if (!isAuthenticated) {
       void navigate(`/pitch/${pitch.id}`);
-    } else if (userType === 'investor') {
+    } else if (user?.userType === 'investor') {
       void navigate(`/investor/pitch/${pitch.id}`);
-    } else if (userType === 'production') {
+    } else if (user?.userType === 'production') {
       void navigate(`/production/pitch/${pitch.id}`);
-    } else if (userType === 'creator' && (pitch.creator?.id || pitch.userId) === user?.id) {
+    } else if (user?.userType === 'creator' && (pitch.creator?.id || pitch.userId) === user?.id) {
       void navigate(`/creator/pitch/${pitch.id}`);
     } else {
       void navigate(`/pitch/${pitch.id}`);
@@ -626,8 +625,7 @@ export default function MarketplaceEnhanced() {
                   {/* Dashboard button */}
                   <button
                     onClick={() => {
-                      const userType = localStorage.getItem('userType');
-                      void navigate(userType ? `/${userType}/dashboard` : '/dashboard');
+                      void navigate(user?.userType ? `/${user.userType}/dashboard` : '/dashboard');
                     }}
                     className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
                   >

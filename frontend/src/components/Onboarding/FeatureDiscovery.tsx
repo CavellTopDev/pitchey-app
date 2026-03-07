@@ -426,10 +426,8 @@ export const ContextualHelp: React.FC<ContextualHelpProps> = ({
       Object.keys(contextualFeatures).forEach(featureId => {
         if (!discoveredFeatures.includes(featureId) && 
             !pendingFeaturePrompts.includes(featureId)) {
-          // Randomly show feature spotlights (25% chance per feature)
-          if (Math.random() < 0.25) {
-            showFeatureSpotlight(featureId);
-          }
+          // Show feature spotlights for undiscovered features
+          showFeatureSpotlight(featureId);
         }
       });
     }, 3000); // Show after 3 seconds on page

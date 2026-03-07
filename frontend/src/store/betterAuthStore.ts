@@ -82,7 +82,7 @@ export const useBetterAuthStore = create<BetterAuthState>((set) => ({
 
       sessionCache.set(user); // Cache the user session
       sessionManager.updateCache(user); // Update session manager cache
-      if (user.userType) localStorage.setItem('userType', user.userType);
+
       set({ user: user as User, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({
@@ -109,7 +109,7 @@ export const useBetterAuthStore = create<BetterAuthState>((set) => ({
 
       sessionCache.set(user); // Cache the user session
       sessionManager.updateCache(user); // Update session manager cache
-      if (user.userType) localStorage.setItem('userType', user.userType);
+
       set({ user: user as User, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({
@@ -136,7 +136,7 @@ export const useBetterAuthStore = create<BetterAuthState>((set) => ({
 
       sessionCache.set(user); // Cache the user session
       sessionManager.updateCache(user); // Update session manager cache
-      if (user.userType) localStorage.setItem('userType', user.userType);
+
       set({ user: user as User, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({
@@ -171,7 +171,7 @@ export const useBetterAuthStore = create<BetterAuthState>((set) => ({
       
       sessionCache.set(user); // Cache the user session
       sessionManager.updateCache(user); // Update session manager cache
-      if (user.userType) localStorage.setItem('userType', user.userType);
+
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({
@@ -213,10 +213,6 @@ export const useBetterAuthStore = create<BetterAuthState>((set) => ({
     // Clear all caches FIRST (synchronous, immediate) to prevent stale reads
     sessionCache.clear();
     sessionManager.clearCache();
-    localStorage.removeItem('userType');
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('token');
-    localStorage.removeItem('accessToken');
     set({ user: null, isAuthenticated: false, loading: true, error: null });
 
     try {

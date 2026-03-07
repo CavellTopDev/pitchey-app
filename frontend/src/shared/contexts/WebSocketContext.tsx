@@ -199,7 +199,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   });
   
   // Track previous user type for portal switching detection
-  const previousUserType = useRef<string | null>(localStorage.getItem('userType'));
+  const previousUserType = useRef<string | null>(user?.userType ?? null);
   
   // CRITICAL: Enhanced connection control - only connect when auth is completely stable
   // This prevents the "WebSocket is closed before connection is established" error
@@ -958,7 +958,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   // Handle authentication state changes and portal switches
   useEffect(() => {
     // Check for portal type change (cross-portal authentication issue fix)
-    const currentUserType = localStorage.getItem('userType');
+    const currentUserType = user?.userType ?? null;
     
     // If user type changed, we're switching portals - disconnect WebSocket to prevent conflicts
     if (previousUserType.current && currentUserType && previousUserType.current !== currentUserType) {

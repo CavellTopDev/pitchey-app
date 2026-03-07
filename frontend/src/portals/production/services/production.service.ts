@@ -152,27 +152,53 @@ interface BudgetResponseData {
 }
 
 interface AnalyticsData {
-  projectPerformance: Array<{
-    project: string;
+  productionMetrics?: {
+    total_projects: number;
+    active_projects: number;
+    completed_projects: number;
+    total_budget: number;
+    avg_budget: number;
+    avg_completion_rate: number;
+    total_spent: number;
+  };
+  successMetrics?: {
+    total_revenue: number;
+    total_investors: number;
+  };
+  monthlyTrends?: Array<{
+    month: string;
+    projects_created: number;
+    views: number;
+    revenue: number;
+    costs: number;
+  }>;
+  timelineAdherence?: Array<{
+    stage: string;
+    projects: number;
     budget: number;
-    spent: number;
-    progress: number;
-    onSchedule: boolean;
+    on_time_percentage: number;
   }>;
-  genreDistribution: Array<{
+  projectPerformance?: Array<{
+    id: string;
+    title: string;
     genre: string;
-    count: number;
-    avgBudget: number;
-    avgROI: number;
+    status: string;
+    budget: number;
+    revenue: number;
+    roi: number;
+    views: number;
   }>;
-  dealConversionRate: number;
-  avgProductionTime: number;
-  successRate: number;
+  genrePerformance?: Array<{
+    genre: string;
+    project_count: number;
+    total_investment: number;
+    total_views: number;
+  }>;
+  timeframe?: string;
 }
 
-interface AnalyticsResponseData {
-  analytics: AnalyticsData;
-}
+// Backend returns analytics data flat under response.data (not wrapped in .analytics)
+type AnalyticsResponseData = AnalyticsData;
 
 interface DistributionChannel {
   id: number;
@@ -447,9 +473,9 @@ export class ProductionService {
   }
 
   // Get production analytics
-  static async getAnalytics(period?: 'month' | 'quarter' | 'year'): Promise<AnalyticsData> {
+  static async getAnalytics(timeframe?: string): Promise<AnalyticsData> {
     const params = new URLSearchParams();
-    if (period !== undefined) params.append('period', period);
+    if (timeframe !== undefined) params.append('timeframe', timeframe);
 
     const response = await apiClient.get<AnalyticsResponseData>(
       `/api/production/analytics?${params.toString()}`
@@ -459,13 +485,7 @@ export class ProductionService {
       throw new Error(getErrorMessage(response.error, 'Failed to fetch analytics'));
     }
 
-    return response.data?.analytics ?? {
-      projectPerformance: [],
-      genreDistribution: [],
-      dealConversionRate: 0,
-      avgProductionTime: 0,
-      successRate: 0
-    };
+    return response.data ?? {};
   }
 
   // Generate contract

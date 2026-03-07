@@ -61,14 +61,14 @@ export default function EmailAlerts({
 
   const checkEmailPreferences = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/endpoint`, {
+      const response = await fetch(`${API_URL}/api/user/notification-preferences`, {
         method: 'GET',
-        credentials: 'include' // Send cookies for Better Auth session
+        credentials: 'include'
       });
 
       if (response.ok) {
-        const data = await response.json() as { alertPreferences?: { emailAlerts?: boolean } };
-        setEmailEnabled(data.alertPreferences?.emailAlerts !== false);
+        const data = await response.json() as { data?: { preferences?: { emailEnabled?: boolean } }; alertPreferences?: { emailAlerts?: boolean } };
+        setEmailEnabled(data.data?.preferences?.emailEnabled !== false && data.alertPreferences?.emailAlerts !== false);
       }
     } catch (error) {
       console.error('Failed to check email preferences:', error);
@@ -78,14 +78,14 @@ export default function EmailAlerts({
   const loadEmailAlerts = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/api/endpoint`, {
+      const response = await fetch(`${API_URL}/api/browse/email-alerts`, {
         method: 'GET',
-        credentials: 'include' // Send cookies for Better Auth session
+        credentials: 'include'
       });
 
       if (response.ok) {
-        const data = await response.json() as { alerts?: EmailAlert[] };
-        setEmailAlerts(data.alerts ?? []);
+        const data = await response.json() as { data?: { alerts?: EmailAlert[] }; alerts?: EmailAlert[] };
+        setEmailAlerts(data.data?.alerts ?? data.alerts ?? []);
       }
     } catch (error) {
       console.error('Failed to load email alerts:', error);
@@ -107,11 +107,21 @@ export default function EmailAlerts({
 
     try {
       setLoading(true);
-    const response = await fetch(`${API_URL}/api/endpoint`, {
-      method: 'GET',
+    const url = editingAlert
+      ? `${API_URL}/api/browse/email-alerts/${editingAlert.id}`
+      : `${API_URL}/api/browse/email-alerts`;
+    const method = editingAlert ? 'PUT' : 'POST';
+
+    const response = await fetch(url, {
+      method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-      credentials: 'include' // Send cookies for Better Auth session
+      body: JSON.stringify({
+        name: alertName,
+        filters: currentFilters,
+        frequency,
+        isActive
+      }),
+      credentials: 'include'
     });
       
       if (response.ok) {
@@ -129,16 +139,16 @@ export default function EmailAlerts({
     }
   };
 
-  const deleteAlert = async (_alertId: number) => {
+  const deleteAlert = async (alertId: number) => {
     if (!confirm('Are you sure you want to delete this email alert?')) {
       return;
     }
 
     try {
       setLoading(true);
-    const response = await fetch(`${API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/browse/email-alerts/${alertId}`, {
       method: 'DELETE',
-      credentials: 'include' // Send cookies for Better Auth session
+      credentials: 'include'
     });
       
       if (response.ok) {
@@ -158,9 +168,9 @@ export default function EmailAlerts({
   const toggleAlert = async (alert: EmailAlert) => {
     try {
       setLoading(true);
-    const response = await fetch(`${API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/browse/email-alerts/${alert.id}/toggle`, {
       method: 'PUT',
-      credentials: 'include' // Send cookies for Better Auth session
+      credentials: 'include'
     });
       
       if (response.ok) {

@@ -53,8 +53,7 @@ const NDAManagement: React.FC<NDAManagementProps> = ({ userType, userId }) => {
   const fetchNDARequests = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
-      
+
       const endpoint = activeTab === 'incoming' 
         ? `/api/ndas/incoming-requests`
         : `/api/ndas/outgoing-requests`;
@@ -68,7 +67,7 @@ const NDAManagement: React.FC<NDAManagementProps> = ({ userType, userId }) => {
 
       if (response.ok) {
         const data = await response.json();
-        setRequests(data.requests || []);
+        setRequests(data.data || []);
       } else {
         setRequests([]);
       }
@@ -84,8 +83,6 @@ const NDAManagement: React.FC<NDAManagementProps> = ({ userType, userId }) => {
     if (!selectedRequest) return;
 
     try {
-      const token = localStorage.getItem('authToken');
-      
     const response = await fetch(`${API_URL}/api/ndas/${selectedRequest.requestId}/${approvalForm.approved ? 'approve' : 'reject'}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

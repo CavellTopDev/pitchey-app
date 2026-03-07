@@ -111,8 +111,6 @@ export default function Calendar() {
     e.preventDefault();
     
     try {
-      const token = localStorage.getItem('authToken');
-      
       // Validate required fields
       if (!newEvent.title.trim()) {
         alert('Please enter a title for the event');

@@ -6,7 +6,6 @@ import {
   Search, Filter, RefreshCw, Plus, MoreVertical,
   CheckCircle, XCircle, Target, Activity, Globe
 } from 'lucide-react';
-import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { InvestorService } from '@features/deals/services/investor.service';
 
 interface WatchlistItem {
@@ -50,7 +49,6 @@ interface WatchlistFilters {
 
 export default function InvestorWatchlist() {
   const navigate = useNavigate();
-  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);

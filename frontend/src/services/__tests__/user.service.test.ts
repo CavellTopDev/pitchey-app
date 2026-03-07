@@ -110,15 +110,6 @@ describe('UserService', () => {
       expect(result.name).toBe('Alice Creator')
     })
 
-    it('stores user in localStorage on update', async () => {
-      const updatedUser = { ...mockUser, name: 'New Name' }
-      mockApiClient.put.mockResolvedValue({ success: true, data: { user: updatedUser } })
-
-      await UserService.updateProfile({ name: 'New Name' })
-
-      expect(window.localStorage.setItem).toHaveBeenCalledWith('user', JSON.stringify(updatedUser))
-    })
-
     it('throws on failure', async () => {
       mockApiClient.put.mockResolvedValue({ success: false, error: { message: 'Validation failed' } })
       await expect(UserService.updateProfile({ name: '' })).rejects.toThrow('Validation failed')
@@ -292,7 +283,7 @@ describe('UserService', () => {
     it('uploads profile image via fetch', async () => {
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({ imageUrl: 'https://example.com/img.jpg' }),
+        json: () => Promise.resolve({ url: 'https://example.com/img.jpg' }),
       })
       vi.stubGlobal('fetch', mockFetch)
 
@@ -323,7 +314,7 @@ describe('UserService', () => {
     it('uploads cover image via fetch', async () => {
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({ imageUrl: 'https://example.com/cover.jpg' }),
+        json: () => Promise.resolve({ url: 'https://example.com/cover.jpg' }),
       })
       vi.stubGlobal('fetch', mockFetch)
 

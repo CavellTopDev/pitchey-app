@@ -214,6 +214,10 @@ const ALLOWLIST = new Set([
   '/api/files/check/:param',
 
   // ── Not-yet-implemented features ──
+  '/api/user/notification-preferences',
+  '/api/browse/email-alerts',
+  '/api/browse/email-alerts/:param',
+  '/api/browse/email-alerts/:param/toggle',
   '/api/notifications/push/subscriptions',
   '/api/filters/saved',
   '/api/filters/saved/:param',

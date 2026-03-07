@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import {
-  TrendingUp, TrendingDown, DollarSign, Film, Users, Eye,
-  Heart, Clock, CheckCircle, AlertCircle, Star, Award,
-  Calendar, Target, Zap, Activity, BarChart3, PieChart,
-  ArrowUp, ArrowDown, Minus, PlayCircle, StopCircle,
-  RefreshCw, Download, Share, Filter, Info
+  TrendingUp, DollarSign, Film, Eye,
+  Clock, CheckCircle, AlertCircle, Award,
+  Activity, PieChart,
+  ArrowUp, ArrowDown, Minus, PlayCircle,
+  RefreshCw
 } from 'lucide-react';
-import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { ProductionService } from '../services/production.service';
 import { RevenueChart } from '@features/analytics/components/charts/RevenueChart';
 import { ProjectStatusChart } from '@features/analytics/components/charts/ProjectStatusChart';
@@ -23,32 +22,17 @@ interface QuickStat {
   description: string;
 }
 
-interface TrendData {
-  label: string;
-  value: number;
-  change: number;
-}
-
-interface ComparisonMetric {
-  title: string;
-  current: number;
-  previous: number;
-  unit: string;
-  format: 'number' | 'currency' | 'percentage';
-}
-
 export default function ProductionStats() {
-    const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | '90d'>('30d');
-  
+
   // Stats data state
   const [quickStats, setQuickStats] = useState<QuickStat[]>([]);
-  const [trendData, setTrendData] = useState<TrendData[]>([]);
-  const [comparisonMetrics, setComparisonMetrics] = useState<ComparisonMetric[]>([]);
   const [kpiSummary, setKpiSummary] = useState<any>(null);
+  const [revenueData, setRevenueData] = useState<{ month: string; revenue: number; budget: number }[]>([]);
+  const [projectStatusData, setProjectStatusData] = useState<{ status: string; count: number }[]>([]);
 
   // Load stats data from API
   useEffect(() => {
@@ -60,10 +44,12 @@ export default function ProductionStats() {
       setError(null);
       setLoading(true);
 
+      const timeframeMap: Record<string, string> = { '24h': '7d', '7d': '7d', '30d': '30d', '90d': '90d' };
+
       // Fetch dashboard data which includes stats
       const [dashboardData, analyticsData] = await Promise.all([
         ProductionService.getDashboard().catch(() => null),
-        ProductionService.getAnalytics(timeRange === '30d' ? 'month' : timeRange === '90d' ? 'quarter' : 'month').catch(() => null)
+        ProductionService.getAnalytics(timeframeMap[timeRange] || '30d').catch(() => null)
       ]);
 
       const stats = dashboardData?.stats;
@@ -140,16 +126,39 @@ export default function ProductionStats() {
       }
 
       if (analyticsData) {
-        setKpiSummary({
-          dealConversionRate: analyticsData.dealConversionRate,
-          avgProductionTime: analyticsData.avgProductionTime,
-          successRate: analyticsData.successRate
-        });
+        // Wire monthly trends → RevenueChart
+        const trends = (analyticsData.monthlyTrends ?? []).map(t => ({
+          month: t.month,
+          revenue: parseFloat(String(t.revenue)) || 0,
+          budget: parseFloat(String(t.costs)) || 0
+        }));
+        setRevenueData(trends);
+
+        // Wire timeline adherence → ProjectStatusChart (stage → status, projects → count)
+        const statusData = (analyticsData.timelineAdherence ?? []).map(t => ({
+          status: (t.stage || 'development').toLowerCase().replace(/[- ]/g, '_'),
+          count: parseInt(String(t.projects)) || 0
+        }));
+        setProjectStatusData(statusData);
+
+        // Derive KPI summary from production metrics
+        const pm = analyticsData.productionMetrics;
+        const completionRate = pm ? Math.round(parseFloat(String(pm.avg_completion_rate)) || 0) : null;
+        setKpiSummary(pm ? {
+          overallScore: null,
+          performanceLevel: null,
+          topPerformer: null,
+          improvementArea: null,
+          dealConversionRate: completionRate,
+          avgProductionTime: null,
+          successRate: completionRate
+        } : null);
       }
 
     } catch (err) {
-      console.error('Failed to load stats data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load stats data');
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to load stats data:', e);
+      setError(e.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -159,22 +168,6 @@ export default function ProductionStats() {
   const handleRefresh = async () => {
     setRefreshing(true);
     await loadStatsData();
-  };
-
-  const formatValue = (value: number, format: 'number' | 'currency' | 'percentage') => {
-    switch (format) {
-      case 'currency':
-        return new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: 'USD',
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 0
-        }).format(value);
-      case 'percentage':
-        return `${value}%`;
-      default:
-        return value.toLocaleString();
-    }
   };
 
   const getChangeIcon = (changeType: 'increase' | 'decrease' | 'neutral') => {
@@ -260,32 +253,8 @@ export default function ProductionStats() {
                   API Connection Issue
                 </h3>
                 <div className="mt-2 text-sm text-yellow-700">
-                  <p>Unable to connect to stats API. Showing demo data. {error}</p>
+                  <p>Unable to connect to stats API. {error}</p>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* KPI Summary Card */}
-        {kpiSummary && (
-          <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg p-6 mb-8 text-white">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="text-center">
-                <div className="text-3xl font-bold">{kpiSummary.overallScore}/10</div>
-                <div className="text-blue-100 text-sm">Overall Score</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-semibold">{kpiSummary.performanceLevel}</div>
-                <div className="text-blue-100 text-sm">Performance Level</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-semibold">{kpiSummary.topPerformer}</div>
-                <div className="text-blue-100 text-sm">Top Performer</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-semibold">{kpiSummary.improvementArea}</div>
-                <div className="text-blue-100 text-sm">Focus Area</div>
               </div>
             </div>
           </div>
@@ -335,51 +304,6 @@ export default function ProductionStats() {
           })}
         </div>
 
-        {/* Comparison Metrics */}
-        <div className="bg-white shadow rounded-lg p-6 mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-medium text-gray-900">Period Comparison</h3>
-            <BarChart3 className="w-5 h-5 text-gray-400" />
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {comparisonMetrics.map((metric, index) => {
-              const change = ((metric.current - metric.previous) / metric.previous) * 100;
-              const isPositive = change > 0;
-              
-              return (
-                <div key={index} className="text-center p-4 bg-gray-50 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">{metric.title}</h4>
-                  <div className="space-y-2">
-                    <div>
-                      <span className="text-2xl font-bold text-gray-900">
-                        {formatValue(metric.current, metric.format)}
-                      </span>
-                      <span className="text-sm text-gray-500 ml-1">{metric.unit}</span>
-                    </div>
-                    <div className="flex items-center justify-center space-x-1">
-                      <span className="text-sm text-gray-500">vs</span>
-                      <span className="text-sm text-gray-700 font-medium">
-                        {formatValue(metric.previous, metric.format)}
-                      </span>
-                    </div>
-                    <div className={`flex items-center justify-center space-x-1 text-sm font-medium ${
-                      isPositive ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {isPositive ? (
-                        <ArrowUp className="w-3 h-3" />
-                      ) : (
-                        <ArrowDown className="w-3 h-3" />
-                      )}
-                      <span>{Math.abs(change).toFixed(1)}%</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
         {/* Trend Visualization */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Revenue Trend */}
@@ -389,7 +313,7 @@ export default function ProductionStats() {
               <TrendingUp className="w-5 h-5 text-gray-400" />
             </div>
             <div className="h-64">
-              <RevenueChart />
+              <RevenueChart data={revenueData} />
             </div>
           </div>
 
@@ -400,7 +324,7 @@ export default function ProductionStats() {
               <PieChart className="w-5 h-5 text-gray-400" />
             </div>
             <div className="h-64">
-              <ProjectStatusChart />
+              <ProjectStatusChart data={projectStatusData} />
             </div>
           </div>
         </div>

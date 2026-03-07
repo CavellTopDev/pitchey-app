@@ -73,36 +73,6 @@ class ApiClient {
   private maxRetries: number = 2; // Reduced to prevent excessive retries
   private retryDelay: number = 1000; // 1 second
 
-  // Namespaced localStorage helpers to avoid cross-environment token collisions
-  private nsKey(key: string): string {
-    try {
-      const host = new URL(API_URL).host;
-      return `pitchey:${host}:${key}`;
-    } catch {
-      return `pitchey:${key}`;
-    }
-  }
-  private getItem(key: string): string | null {
-    try {
-      return localStorage.getItem(this.nsKey(key)) ?? localStorage.getItem(key);
-    } catch {
-      return null;
-    }
-  }
-  private setItem(key: string, value: string): void {
-    try {
-      localStorage.setItem(this.nsKey(key), value);
-      // keep legacy key for backward compatibility
-      localStorage.setItem(key, value);
-    } catch {}
-  }
-  private removeItem(key: string): void {
-    try {
-      localStorage.removeItem(this.nsKey(key));
-      localStorage.removeItem(key);
-    } catch {}
-  }
-
   constructor(baseURL?: string) {
     // Lazy initialization to avoid temporal dead zone issues
     this.baseURL = baseURL || this.getBaseURL();
@@ -119,15 +89,6 @@ class ApiClient {
     } catch (error) {
       console.warn('Config not available during initialization, using fallback URL');
       return import.meta.env.VITE_API_URL ?? 'http://localhost:8001';
-    }
-  }
-
-  private getAuthToken(): string | null {
-    try {
-      return this.getItem('authToken');
-    } catch (error) {
-      console.warn('Failed to get auth token from localStorage:', error);
-      return null;
     }
   }
 
@@ -185,18 +146,11 @@ class ApiClient {
   ): Promise<TypedApiResponse<T>> {
     try {
       const url = `${this.baseURL}${endpoint}`;
-      const token = this.getAuthToken();
-      
+
       const headers: Record<string, string> = {
         ...this.defaultHeaders,
         ...(options.headers as Record<string, string> || {}),
       };
-
-      // CRITICAL: Better Auth uses session cookies, not JWT tokens
-      // Only add Authorization header if token exists (for backward compatibility)
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
 
       // Add CSRF token for mutation methods
       const method = options.method?.toUpperCase() || 'GET';
@@ -267,9 +221,6 @@ class ApiClient {
         // Handle 401 specifically — clear all auth state so UI stops showing "logged in"
         if (response?.status === 401) {
           try {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('user');
-            localStorage.removeItem('userType');
             sessionCache.clear();
             sessionManager.clearCache();
 
@@ -388,17 +339,9 @@ class ApiClient {
 
   // File upload with multipart/form-data
   async uploadFile<T>(endpoint: string, formData: FormData): Promise<TypedApiResponse<T>> {
-    const token = this.getAuthToken();
-    const headers: Record<string, string> = {};
-    
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
     return this.makeRequest<T>(endpoint, {
       method: 'POST',
       body: formData,
-      headers
     });
   }
 
@@ -604,20 +547,13 @@ export const authAPI = {
       };
     }
 
-    const response = await apiClient.post<AuthResponse>('/api/auth/register', data);
-    if (response.success && response.data?.token) {
-      localStorage.setItem('authToken', response.data.token);
-    }
-    return response;
+    return apiClient.post<AuthResponse>('/api/auth/register', data);
   },
 
   async logout(): Promise<TypedApiResponse<{ success: boolean }>> {
     try {
       // Call backend logout endpoint for Better Auth
       const response = await apiClient.post<{ success: boolean }>('/api/auth/sign-out');
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('user');
-      localStorage.removeItem('userType');
       return response.success ? response : { success: true, data: { success: true } };
     } catch (error) {
       return { 

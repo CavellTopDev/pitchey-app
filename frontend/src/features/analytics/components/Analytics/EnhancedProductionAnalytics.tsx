@@ -161,7 +161,7 @@ export const EnhancedProductionAnalytics: React.FC<ProductionAnalyticsProps> = (
     return {
       kpis: {
         activeProjects: Number(metrics.active_projects) || Math.round(8 * (range === '7d' ? 0.8 : 1)),
-        totalBudget: Number(metrics.total_budget) || 15000000 * multiplier,
+        totalBudget: Number(metrics.total_budget) || 0,
         avgProjectCost: Number(metrics.total_budget) / Math.max(Number(metrics.total_projects), 1) || 1875000,
         completionRate: Number(metrics.avg_completion_rate) || 87,
         partnerships: Math.round(24 * multiplier / 12),
@@ -175,7 +175,7 @@ export const EnhancedProductionAnalytics: React.FC<ProductionAnalyticsProps> = (
         costVariance: metrics.total_budget && metrics.total_spent
           ? ((Number(metrics.total_spent) - Number(metrics.total_budget)) / Number(metrics.total_budget)) * 100
           : -5.2,
-        clientSatisfaction: 4.6,
+        clientSatisfaction: Number(successData.client_satisfaction) || 0,
       },
       changes: {
         projectsChange: range === '7d' ? 15 : range === '30d' ? 33 : range === '90d' ? 45 : 60,
@@ -196,13 +196,7 @@ export const EnhancedProductionAnalytics: React.FC<ProductionAnalyticsProps> = (
               count: Number(t.projects) || 0,
               budget: 0
             }))
-          : [
-              { stage: 'Development', count: Math.round(12 * multiplier / 12), budget: 2400000 },
-              { stage: 'Pre-Production', count: Math.round(8 * multiplier / 12), budget: 3200000 },
-              { stage: 'Production', count: Math.round(5 * multiplier / 12), budget: 6500000 },
-              { stage: 'Post-Production', count: Math.round(3 * multiplier / 12), budget: 2100000 },
-              { stage: 'Distribution', count: Math.round(2 * multiplier / 12), budget: 800000 },
-            ],
+          : [],
         budgetUtilization: generateTimeSeriesData(range, 70, 95),
         partnershipGrowth: generateTimeSeriesData(range, 15, 40),
         revenueProjections: generateTimeSeriesData(range, 600000, 1000000),
@@ -212,35 +206,21 @@ export const EnhancedProductionAnalytics: React.FC<ProductionAnalyticsProps> = (
               projects: Number(g.project_count) || 0,
               budget: Number(g.total_investment) || 0
             }))
-          : [
-              { genre: 'Action', projects: 8, budget: 4200000 },
-              { genre: 'Drama', projects: 6, budget: 2800000 },
-              { genre: 'Comedy', projects: 5, budget: 2100000 },
-              { genre: 'Thriller', projects: 4, budget: 3100000 },
-              { genre: 'Sci-Fi', projects: 3, budget: 2800000 },
-              { genre: 'Documentary', projects: 4, budget: 1200000 },
-            ],
+          : [],
         monthlyMetrics: generateMonthlyMetrics(range),
-        projectTimelines: [
-          { project: 'The Last Symphony', planned: 120, actual: 115, status: 'Completed' },
-          { project: 'Digital Rebellion', planned: 90, actual: 105, status: 'In Progress' },
-          { project: 'Ocean\'s Secret', planned: 75, actual: 78, status: 'Completed' },
-          { project: 'Time Traveler\'s Dilemma', planned: 100, actual: 0, status: 'Pre-Production' },
-          { project: 'The Forgotten City', planned: 85, actual: 92, status: 'Post-Production' },
-          { project: 'Midnight Protocol', planned: 110, actual: 88, status: 'In Progress' },
-        ],
+        projectTimelines: apiData.projectTimelines?.map((t: any) => ({
+          project: t.project || t.title || 'Unknown',
+          planned: Number(t.planned) || 0,
+          actual: Number(t.actual) || 0,
+          status: t.status || 'Unknown',
+        })) || [],
         resourceAllocation: crewData.length > 0
           ? crewData.map((c: any) => ({
               resource: c.department || 'Unknown',
               allocated: Number(c.total_crew) || 0,
               utilized: Math.round((Number(c.total_crew) || 0) * (Number(c.utilization_rate) || 80) / 100)
             }))
-          : [
-              { resource: 'Directors', allocated: 12, utilized: 10 },
-              { resource: 'Producers', allocated: 10, utilized: 8 },
-              { resource: 'Editors', allocated: 8, utilized: 7 },
-              { resource: 'VFX Artists', allocated: 20, utilized: 18 },
-            ]
+          : []
       }
     };
   };
@@ -397,14 +377,18 @@ export const EnhancedProductionAnalytics: React.FC<ProductionAnalyticsProps> = (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Project Pipeline */}
         <ChartContainer title="Project Pipeline by Stage">
-          <BarChart
-            data={analyticsData.charts.projectPipeline.map(item => ({
-              category: item.stage,
-              value: item.count
-            }))}
-            title="Number of Projects"
-            height={300}
-          />
+          {analyticsData.charts.projectPipeline.length > 0 ? (
+            <BarChart
+              data={analyticsData.charts.projectPipeline.map(item => ({
+                category: item.stage,
+                value: item.count
+              }))}
+              title="Number of Projects"
+              height={300}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-gray-500">No data available</div>
+          )}
         </ChartContainer>
 
         {/* Budget Utilization */}
@@ -419,15 +403,19 @@ export const EnhancedProductionAnalytics: React.FC<ProductionAnalyticsProps> = (
 
         {/* Genre Distribution */}
         <ChartContainer title="Projects by Genre">
-          <PieChartComponent
-            data={analyticsData.charts.genreDistribution.map(item => ({
-              category: item.genre,
-              value: item.projects
-            }))}
-            title="Project Distribution"
-            type="doughnut"
-            height={300}
-          />
+          {analyticsData.charts.genreDistribution.length > 0 ? (
+            <PieChartComponent
+              data={analyticsData.charts.genreDistribution.map(item => ({
+                category: item.genre,
+                value: item.projects
+              }))}
+              title="Project Distribution"
+              type="doughnut"
+              height={300}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-gray-500">No data available</div>
+          )}
         </ChartContainer>
 
         {/* Revenue Projections */}
@@ -452,27 +440,31 @@ export const EnhancedProductionAnalytics: React.FC<ProductionAnalyticsProps> = (
 
         {/* Resource Utilization */}
         <ChartContainer title="Resource Utilization">
-          <MultiLineChart
-            datasets={[
-              {
-                label: 'Allocated',
-                data: analyticsData.charts.resourceAllocation.map(item => ({
-                  date: item.resource,
-                  value: item.allocated
-                })),
-                color: '#3B82F6'
-              },
-              {
-                label: 'Utilized',
-                data: analyticsData.charts.resourceAllocation.map(item => ({
-                  date: item.resource,
-                  value: item.utilized
-                })),
-                color: '#EF4444'
-              }
-            ]}
-            height={300}
-          />
+          {analyticsData.charts.resourceAllocation.length > 0 ? (
+            <MultiLineChart
+              datasets={[
+                {
+                  label: 'Allocated',
+                  data: analyticsData.charts.resourceAllocation.map(item => ({
+                    date: item.resource,
+                    value: item.allocated
+                  })),
+                  color: '#3B82F6'
+                },
+                {
+                  label: 'Utilized',
+                  data: analyticsData.charts.resourceAllocation.map(item => ({
+                    date: item.resource,
+                    value: item.utilized
+                  })),
+                  color: '#EF4444'
+                }
+              ]}
+              height={300}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-gray-500">No data available</div>
+          )}
         </ChartContainer>
       </div>
 
@@ -493,47 +485,51 @@ export const EnhancedProductionAnalytics: React.FC<ProductionAnalyticsProps> = (
       {/* Project Timelines */}
       <div className="bg-white rounded-xl border p-6">
         <h3 className="text-xl font-semibold text-gray-900 mb-6">Project Timeline Performance</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="text-left border-b border-gray-200">
-                <th className="pb-3 text-gray-600">Project</th>
-                <th className="pb-3 text-gray-600">Planned (Days)</th>
-                <th className="pb-3 text-gray-600">Actual (Days)</th>
-                <th className="pb-3 text-gray-600">Variance</th>
-                <th className="pb-3 text-gray-600">Status</th>
-              </tr>
-            </thead>
-            <tbody className="space-y-2">
-              {analyticsData.charts.projectTimelines.map((project, index) => (
-                <tr key={index} className="border-b border-gray-100">
-                  <td className="py-3 font-medium text-gray-900">{project.project}</td>
-                  <td className="py-3 text-gray-600">{project.planned}</td>
-                  <td className="py-3 text-gray-600">{project.actual || 'TBD'}</td>
-                  <td className={`py-3 font-medium ${
-                    project.actual === 0 ? 'text-gray-400' :
-                    project.actual <= project.planned ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {project.actual === 0 ? '-' : 
-                     project.actual <= project.planned ? 
-                     `${project.planned - project.actual} days early` : 
-                     `${project.actual - project.planned} days late`}
-                  </td>
-                  <td className="py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      project.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                      project.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
-                      project.status === 'Post-Production' ? 'bg-purple-100 text-purple-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {project.status}
-                    </span>
-                  </td>
+        {analyticsData.charts.projectTimelines.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left border-b border-gray-200">
+                  <th className="pb-3 text-gray-600">Project</th>
+                  <th className="pb-3 text-gray-600">Planned (Days)</th>
+                  <th className="pb-3 text-gray-600">Actual (Days)</th>
+                  <th className="pb-3 text-gray-600">Variance</th>
+                  <th className="pb-3 text-gray-600">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="space-y-2">
+                {analyticsData.charts.projectTimelines.map((project, index) => (
+                  <tr key={index} className="border-b border-gray-100">
+                    <td className="py-3 font-medium text-gray-900">{project.project}</td>
+                    <td className="py-3 text-gray-600">{project.planned}</td>
+                    <td className="py-3 text-gray-600">{project.actual || 'TBD'}</td>
+                    <td className={`py-3 font-medium ${
+                      project.actual === 0 ? 'text-gray-400' :
+                      project.actual <= project.planned ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {project.actual === 0 ? '-' :
+                       project.actual <= project.planned ?
+                       `${project.planned - project.actual} days early` :
+                       `${project.actual - project.planned} days late`}
+                    </td>
+                    <td className="py-3">
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        project.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                        project.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
+                        project.status === 'Post-Production' ? 'bg-purple-100 text-purple-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {project.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center text-gray-500 py-8">No data available</div>
+        )}
       </div>
 
       {/* Operational Insights */}

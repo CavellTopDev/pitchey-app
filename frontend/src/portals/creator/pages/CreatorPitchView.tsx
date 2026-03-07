@@ -7,6 +7,7 @@ import {
   FileText, Download, Lock, Unlock
 } from 'lucide-react';
 import { pitchAPI } from '@/lib/api';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import FormatDisplay from '@/components/FormatDisplay';
 
 interface Pitch {
@@ -64,6 +65,7 @@ interface NDARequest {
 const CreatorPitchView: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { isAuthenticated, user: authUser } = useBetterAuthStore();
   const [pitch, setPitch] = useState<Pitch | null>(null);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [ndaRequests, setNdaRequests] = useState<NDARequest[]>([]);
@@ -85,15 +87,13 @@ const CreatorPitchView: React.FC = () => {
       
       // For creators, try public endpoint first then authenticated
       let response;
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const token = localStorage.getItem('authToken');
-      
+
       try {
         // Try public endpoint first for better reliability
         response = await pitchAPI.getPublicById(parseInt(id!));
-        
+
         // If authenticated, try to get enhanced data
-        if (token && user.id) {
+        if (isAuthenticated) {
           try {
             const authResponse = await pitchAPI.getById(parseInt(id!));
             response = authResponse; // Use authenticated data if available
@@ -108,7 +108,7 @@ const CreatorPitchView: React.FC = () => {
       setPitch(response);
       
       // Fetch analytics if owner
-      if (user.id === response.userId || user.id === response.creator?.id) {
+      if (authUser?.id && (String(authUser.id) === String(response.userId) || String(authUser.id) === String(response.creator?.id))) {
         try {
           const analyticsData = await pitchAPI.getAnalytics(parseInt(id!));
           setAnalytics(analyticsData);
@@ -130,8 +130,7 @@ const CreatorPitchView: React.FC = () => {
   };
 
   const checkOwnership = () => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    setIsOwner(pitch?.userId === user.id);
+    setIsOwner(authUser?.id ? String(pitch?.userId) === String(authUser.id) : false);
   };
 
   const handleEdit = () => {

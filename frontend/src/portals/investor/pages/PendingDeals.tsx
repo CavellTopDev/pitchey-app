@@ -56,7 +56,7 @@ interface PendingDeal {
 
 const PendingDeals = () => {
   const navigate = useNavigate();
-  const { user, logout } = useBetterAuthStore();
+  const { logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [deals, setDeals] = useState<PendingDeal[]>([]);
   const [filteredDeals, setFilteredDeals] = useState<PendingDeal[]>([]);
@@ -107,16 +107,13 @@ const PendingDeals = () => {
             requestedAmount: deal.requested_amount || 0,
             minimumInvestment: deal.minimum_investment || 0,
             proposedTerms: {
-              equity: deal.deal_type === 'equity' ? 15 : undefined,
-              interestRate: deal.deal_type === 'debt' ? 8 : undefined,
-              duration: '3 years',
-              revenueShare: deal.deal_type === 'revenue-share' ? 25 : undefined
+              equity: deal.equity_percentage ?? undefined,
+              interestRate: deal.interest_rate ?? undefined,
+              duration: deal.duration ?? deal.term ?? undefined,
+              revenueShare: deal.revenue_share ?? undefined
             },
             submittedDate: deal.created_at,
-            documents: [
-              { name: 'Pitch Deck.pdf', type: 'pdf', uploadDate: deal.created_at },
-              { name: 'Business Plan.pdf', type: 'pdf', uploadDate: deal.created_at }
-            ],
+            documents: Array.isArray(deal.documents) ? deal.documents : [],
             lastUpdate: deal.updated_at,
             projectedROI: deal.projected_roi || 0,
             riskLevel: deal.risk_level || 'medium'
@@ -434,9 +431,13 @@ const PendingDeals = () => {
                           {deal.proposedTerms?.duration && (
                             <span>{deal.proposedTerms.duration}</span>
                           )}
+                          {!deal.proposedTerms?.equity && !deal.proposedTerms?.revenueShare && !deal.proposedTerms?.interestRate && !deal.proposedTerms?.duration && (
+                            <span className="text-gray-400">Not specified</span>
+                          )}
                         </div>
                       </div>
 
+                      {(deal.documents || []).length > 0 && (
                       <div className="mb-4">
                         <p className="text-xs text-gray-500 mb-1">Documents ({(deal.documents || []).length})</p>
                         <div className="flex gap-2">
@@ -448,6 +449,7 @@ const PendingDeals = () => {
                           ))}
                         </div>
                       </div>
+                      )}
 
                       <div className="bg-gray-50 rounded-lg p-3">
                         <p className="text-xs text-gray-500 mb-1">Latest Notes</p>

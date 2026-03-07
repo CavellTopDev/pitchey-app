@@ -16659,13 +16659,32 @@ Signatures: [To be completed upon signing]
         // Keep empty if query fails
       }
 
+      // Per-project performance (ROI, revenue, views)
+      const projectPerfQuery = `
+        SELECT pp.id::text, pp.title, COALESCE(pp.genre,'Other') as genre, pp.status,
+          COALESCE(pp.budget,0) as budget, COALESCE(SUM(i.amount),0) as revenue,
+          CASE WHEN pp.budget > 0 THEN ROUND(((COALESCE(SUM(i.amount),0) - pp.budget) / pp.budget) * 100, 1) ELSE 0 END as roi,
+          COALESCE(p.view_count,0) as views
+        FROM production_projects pp
+        LEFT JOIN investments i ON i.pitch_id = pp.related_pitch_id AND i.status = 'active'
+        LEFT JOIN pitches p ON p.id = pp.related_pitch_id
+        WHERE pp.production_company_id = $1
+        GROUP BY pp.id, pp.title, pp.genre, pp.status, pp.budget, p.view_count
+        ORDER BY revenue DESC LIMIT 10
+      `;
+      let projectPerformance: any[] = [];
+      try {
+        projectPerformance = await this.db.query(projectPerfQuery, [authCheck.user.id]) || [];
+      } catch {
+        // Keep empty if query fails
+      }
+
       // Build response in the format frontend expects
       const origin = request.headers.get('Origin');
       const { getCorsHeaders } = await import('./utils/response');
       return new Response(JSON.stringify({
         success: true,
         data: {
-          // Format expected by EnhancedProductionAnalytics transformApiResponse
           productionMetrics: {
             total_projects: parseInt(metrics.total_projects) || 0,
             active_projects: parseInt(metrics.active_projects) || 0,
@@ -16673,22 +16692,18 @@ Signatures: [To be completed upon signing]
             total_budget: parseFloat(metrics.total_budget) || 0,
             avg_budget: parseFloat(metrics.avg_budget) || 0,
             avg_completion_rate: parseFloat(metrics.avg_completion_rate) || 0,
-            total_spent: parseFloat(metrics.total_budget) * 0.85 || 0 // Estimate spent as 85% of budget
+            total_spent: parseFloat(metrics.total_budget) * 0.85 || 0
           },
           genrePerformance: genrePerformance || [],
           timelineAdherence: timelineAdherence || [],
-          crewUtilization: [
-            { department: 'Directors', total_crew: 12, utilization_rate: 83 },
-            { department: 'Producers', total_crew: 10, utilization_rate: 80 },
-            { department: 'Editors', total_crew: 8, utilization_rate: 87 },
-            { department: 'VFX Artists', total_crew: 20, utilization_rate: 90 }
-          ],
+          crewUtilization: [],
           successMetrics: {
             total_revenue: parseFloat(successMetrics.total_revenue) || 0,
             total_investors: parseInt(successMetrics.total_investors) || 0
           },
           recentActivity: recentActivity || [],
           monthlyTrends: monthlyTrends || [],
+          projectPerformance: projectPerformance || [],
           timeframe
         }
       }), {

@@ -5,7 +5,6 @@ import {
   RefreshCw, CheckCircle, AlertCircle, TrendingUp,
   User, DollarSign,
 } from 'lucide-react';
-import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { API_URL } from '@/config';
 
 interface ActivityItem {
@@ -44,7 +43,6 @@ interface ActivityFilters {
 }
 
 export default function ProductionActivity() {
-  useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -280,7 +278,7 @@ export default function ProductionActivity() {
                   API Connection Issue
                 </h3>
                 <div className="mt-2 text-sm text-yellow-700">
-                  <p>Unable to connect to activity feed API. Showing demo data. {error}</p>
+                  <p>Unable to connect to activity feed API. {error}</p>
                 </div>
               </div>
             </div>

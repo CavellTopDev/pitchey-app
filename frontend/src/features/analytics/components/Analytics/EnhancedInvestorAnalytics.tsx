@@ -112,7 +112,7 @@ export const EnhancedInvestorAnalytics: React.FC<InvestorAnalyticsProps> = ({
 
       // Backend returns { success: true, data: { analytics: {...} } }
       // Also handle variations like { success: true, analytics: {...} } or { success: true, data: {...} }
-      const analyticsData = result.data?.analytics || result.analytics || result.data;
+      const analyticsData = result.data?.analytics || result.data;
 
       if (result.success && analyticsData) {
         // Transform API response to component data structure
@@ -144,11 +144,11 @@ export const EnhancedInvestorAnalytics: React.FC<InvestorAnalyticsProps> = ({
         portfolioValue: Math.round((apiData.genrePerformance?.reduce((sum: number, g: any) => sum + (g.totalValue || 0), 0) || 2500000) * 1.28 * multiplier),
         activeDeals: Math.round(8 * (range === '7d' ? 0.8 : 1)),
         averageROI: apiData.genrePerformance?.reduce((sum: number, g: any) => sum + (g.avgROI || 0), 0) / Math.max(apiData.genrePerformance?.length || 1, 1) || 22.5,
-        successRate: 73,
+        successRate: 0,
         monthlyDeals: range === '7d' ? 1 : range === '30d' ? 3 : range === '90d' ? 9 : 36,
         ndasSigned: Math.round(45 * multiplier / 12),
-        diversificationIndex: 7.8,
-        riskScore: apiData.riskAnalysis ? (apiData.riskAnalysis.highRisk * 3 + apiData.riskAnalysis.mediumRisk * 2 + apiData.riskAnalysis.lowRisk) / 100 * 10 : 6.2,
+        diversificationIndex: 0,
+        riskScore: apiData.riskAnalysis ? (apiData.riskAnalysis.highRisk * 3 + apiData.riskAnalysis.mediumRisk * 2 + apiData.riskAnalysis.lowRisk) / 100 * 10 : 0,
       },
       changes: {
         investmentsChange: range === '7d' ? 10 : range === '30d' ? 25 : range === '90d' ? 40 : 60,
@@ -168,13 +168,7 @@ export const EnhancedInvestorAnalytics: React.FC<InvestorAnalyticsProps> = ({
           category: g.genre || 'Unknown',
           amount: g.totalValue || 0,
           count: g.investments || 0
-        })) || [
-          { category: 'Sci-Fi', amount: 850000, count: 5 },
-          { category: 'Drama', amount: 620000, count: 4 },
-          { category: 'Thriller', amount: 480000, count: 3 },
-          { category: 'Comedy', amount: 320000, count: 2 },
-          { category: 'Documentary', amount: 230000, count: 1 },
-        ],
+        })) || [],
         dealFlow: generateTimeSeriesData(range, 1, 5),
         roiTrends: generateTimeSeriesData(range, 15, 35),
         riskAssessment: apiData.riskAnalysis ? [
@@ -192,17 +186,12 @@ export const EnhancedInvestorAnalytics: React.FC<InvestorAnalyticsProps> = ({
           amount: p.amount || 0,
           roi: p.currentValue && p.amount ? Math.round((p.currentValue - p.amount) / p.amount * 100) : 0,
           status: 'Active'
-        })) || [
-          { title: 'Midnight Eclipse', amount: 250000, roi: 35, status: 'Active' },
-          { title: 'Shadow Protocol', amount: 180000, roi: 28, status: 'Active' },
-          { title: 'The Haunting', amount: 120000, roi: 45, status: 'Completed' },
-        ],
-        marketSegments: [
-          { segment: 'Feature Films', allocation: 45, performance: 24 },
-          { segment: 'Documentaries', allocation: 25, performance: 18 },
-          { segment: 'Series', allocation: 20, performance: 32 },
-          { segment: 'Short Films', allocation: 10, performance: 15 },
-        ],
+        })) || [],
+        marketSegments: apiData.marketSegments?.map((s: any) => ({
+          segment: s.segment || 'Unknown',
+          allocation: s.allocation || 0,
+          performance: s.performance || 0,
+        })) || [],
       }
     };
   };
@@ -390,14 +379,18 @@ export const EnhancedInvestorAnalytics: React.FC<InvestorAnalyticsProps> = ({
 
         {/* Investment by Category */}
         <ChartContainer title="Investments by Category">
-          <BarChart
-            data={analyticsData.charts.investmentsByCategory.map(item => ({
-              category: item.category,
-              value: item.amount
-            }))}
-            title="Investment Amount ($)"
-            height={300}
-          />
+          {analyticsData.charts.investmentsByCategory.length > 0 ? (
+            <BarChart
+              data={analyticsData.charts.investmentsByCategory.map(item => ({
+                category: item.category,
+                value: item.amount
+              }))}
+              title="Investment Amount ($)"
+              height={300}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-gray-500">No data available</div>
+          )}
         </ChartContainer>
 
         {/* Risk Assessment */}
@@ -427,27 +420,31 @@ export const EnhancedInvestorAnalytics: React.FC<InvestorAnalyticsProps> = ({
 
         {/* Market Segments Performance */}
         <ChartContainer title="Market Segment Performance">
-          <MultiLineChart
-            datasets={[
-              {
-                label: 'Allocation (%)',
-                data: analyticsData.charts.marketSegments.map(item => ({
-                  date: item.segment,
-                  value: item.allocation
-                })),
-                color: '#3B82F6'
-              },
-              {
-                label: 'Performance (%)',
-                data: analyticsData.charts.marketSegments.map(item => ({
-                  date: item.segment,
-                  value: item.performance
-                })),
-                color: '#EF4444'
-              }
-            ]}
-            height={300}
-          />
+          {analyticsData.charts.marketSegments.length > 0 ? (
+            <MultiLineChart
+              datasets={[
+                {
+                  label: 'Allocation (%)',
+                  data: analyticsData.charts.marketSegments.map(item => ({
+                    date: item.segment,
+                    value: item.allocation
+                  })),
+                  color: '#3B82F6'
+                },
+                {
+                  label: 'Performance (%)',
+                  data: analyticsData.charts.marketSegments.map(item => ({
+                    date: item.segment,
+                    value: item.performance
+                  })),
+                  color: '#EF4444'
+                }
+              ]}
+              height={300}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-gray-500">No data available</div>
+          )}
         </ChartContainer>
       </div>
 
@@ -468,37 +465,41 @@ export const EnhancedInvestorAnalytics: React.FC<InvestorAnalyticsProps> = ({
       {/* Top Investments */}
       <div className="bg-white rounded-xl border p-6">
         <h3 className="text-xl font-semibold text-gray-900 mb-6">Top Investment Opportunities</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {analyticsData.charts.topInvestments.map((investment, index) => (
-            <div key={index} className="bg-gray-50 rounded-lg p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between mb-2">
-                <h4 className="font-medium text-gray-900 truncate flex-1">{investment.title}</h4>
-                <span className={`text-xs px-2 py-1 rounded-full ml-2 ${
-                  investment.status === 'Active' 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-blue-100 text-blue-800'
-                }`}>
-                  {investment.status}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <p className="text-gray-600">Investment</p>
-                  <p className="font-semibold">${(investment.amount / 1000).toFixed(0)}k</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">ROI</p>
-                  <p className={`font-semibold ${
-                    investment.roi > 25 ? 'text-green-600' : 
-                    investment.roi > 15 ? 'text-yellow-600' : 'text-red-600'
+        {analyticsData.charts.topInvestments.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {analyticsData.charts.topInvestments.map((investment, index) => (
+              <div key={index} className="bg-gray-50 rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between mb-2">
+                  <h4 className="font-medium text-gray-900 truncate flex-1">{investment.title}</h4>
+                  <span className={`text-xs px-2 py-1 rounded-full ml-2 ${
+                    investment.status === 'Active'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-blue-100 text-blue-800'
                   }`}>
-                    {investment.roi.toFixed(1)}%
-                  </p>
+                    {investment.status}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <p className="text-gray-600">Investment</p>
+                    <p className="font-semibold">${(investment.amount / 1000).toFixed(0)}k</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">ROI</p>
+                    <p className={`font-semibold ${
+                      investment.roi > 25 ? 'text-green-600' :
+                      investment.roi > 15 ? 'text-yellow-600' : 'text-red-600'
+                    }`}>
+                      {investment.roi.toFixed(1)}%
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center text-gray-500 py-8">No data available</div>
+        )}
       </div>
 
       {/* Portfolio Insights */}

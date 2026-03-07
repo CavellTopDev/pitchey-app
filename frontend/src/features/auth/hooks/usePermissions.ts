@@ -179,10 +179,10 @@ const rolePermissions: Record<UserRole, Permission[]> = {
 };
 
 /**
- * Derive user's role from userType stored in auth state / localStorage
+ * Derive user's role from userType stored in auth state
  */
 function getUserRole(): UserRole {
-  const userType = localStorage.getItem('userType') || '';
+  const userType = useBetterAuthStore.getState().user?.userType || '';
   if (userType in rolePermissions) {
     return userType as UserRole;
   }

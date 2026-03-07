@@ -9,6 +9,7 @@ import {
   X, Loader2
 } from 'lucide-react';
 import { pitchAPI } from '@/lib/api';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { apiClient } from '@/lib/api-client';
 import { InvestorService } from '@features/deals/services/investor.service';
 import FormatDisplay from '@/components/FormatDisplay';
@@ -80,6 +81,7 @@ interface PitchInvestmentDetail {
 const InvestorPitchView: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { isAuthenticated, user: authUser } = useBetterAuthStore();
   const [pitch, setPitch] = useState<Pitch | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -122,13 +124,10 @@ const InvestorPitchView: React.FC = () => {
       setLoading(true);
 
       let response;
-      const userType = localStorage.getItem('userType');
-      const token = localStorage.getItem('authToken');
-
       try {
         response = await pitchAPI.getPublicById(parseInt(id));
 
-        if (token && userType === 'investor' && response.hasSignedNDA) {
+        if (isAuthenticated && authUser?.userType === 'investor' && response.hasSignedNDA) {
           try {
             const authResponse = await pitchAPI.getById(parseInt(id));
             response = authResponse;

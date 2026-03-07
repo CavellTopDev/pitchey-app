@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, TrendingUp, Users, Film, Calendar, MapPin, Eye, Heart, AlertCircle } from 'lucide-react';
 import { API_URL } from '../config';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 
 interface Creator {
   id: number;
@@ -52,7 +53,8 @@ const Following: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState('7d');
   const navigate = useNavigate();
-  const userType = localStorage.getItem('userType');
+  const { user } = useBetterAuthStore();
+  const userType = user?.userType;
 
   useEffect(() => {
     fetchFollowingData();

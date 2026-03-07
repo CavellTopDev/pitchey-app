@@ -6,7 +6,6 @@ import {
   ChevronRight, UserPlus, Check, Eye,
   BarChart3, PieChart, Activity, Zap
 } from 'lucide-react';
-import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { investorApi } from '@features/deals/services/investor.service';
 
 interface CoInvestor {
@@ -36,7 +35,6 @@ interface CoInvestor {
 }
 
 export default function InvestorCoInvestors() {
-    const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStyle, setFilterStyle] = useState<'all' | 'aggressive' | 'moderate' | 'conservative'>('all');

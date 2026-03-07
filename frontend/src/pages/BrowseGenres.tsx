@@ -47,7 +47,7 @@ export default function BrowseGenres() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated, user } = useBetterAuthStore();
   const toast = useToast();
-  const userType = localStorage.getItem('userType');
+  const userType = user?.userType;
   
   const [pitches, setPitches] = useState<Pitch[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,13 +91,10 @@ export default function BrowseGenres() {
   const fetchGenreStats = useCallback(async () => {
     try {
       setStatsLoading(true);
-      const token = localStorage.getItem('authToken');
-      
+
       const response = await fetch(`${getApiUrl()}/api/browse/genres`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        }
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
       });
       
       if (response.ok) {
@@ -165,8 +162,6 @@ export default function BrowseGenres() {
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
-
       const params = new URLSearchParams({
         genre: selectedGenre,
         sort: 'date',
@@ -176,10 +171,8 @@ export default function BrowseGenres() {
       });
 
       const response = await fetch(`${getApiUrl()}/api/pitches/browse/enhanced?${params.toString()}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         signal: controller.signal
       });
 

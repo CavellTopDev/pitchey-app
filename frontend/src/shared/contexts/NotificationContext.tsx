@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 // eslint-disable-next-line import/no-restricted-paths -- intentional: context integrates feature service
 import { notificationService } from '@features/notifications/services/notification.service';
-// WebSocket removed - was causing circular dependency and reload issues
-// import { useWebSocket } from './WebSocketContext';
 
 export interface Notification {
   id: string;
@@ -111,23 +109,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const clearAll = useCallback(() => {
     setNotifications([]);
   }, []);
-
-  // WebSocket notifications disabled - was causing circular dependency
-  // useEffect(() => {
-  //   if (wsNotifications && wsNotifications.length > 0) {
-  //     // Transform WebSocket notifications to context format
-  //     const formattedNotifications: Notification[] = wsNotifications.map(n => ({
-  //       id: n.id.toString(),
-  //       type: n.type as Notification['type'],
-  //       title: n.title,
-  //       message: n.message,
-  //       timestamp: n.timestamp,
-  //       read: n.read,
-  //     }));
-  //     
-  //     setNotifications(formattedNotifications);
-  //   }
-  // }, [wsNotifications]);
 
   // Initial fetch only once on mount (no aggressive polling)
   useEffect(() => {

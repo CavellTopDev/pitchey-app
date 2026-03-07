@@ -110,30 +110,22 @@ export default function Profile() {
       const response = await fetch(`${API_URL}/api/user/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-        credentials: 'include' // Send cookies for Better Auth session
+        body: JSON.stringify(editedProfile),
+        credentials: 'include'
       });
 
       if (response.ok) {
         const rawData = await response.json() as Record<string, unknown>;
-        const updatedUser = rawData['user'] as UserProfile;
+        const data = (rawData['data'] as Record<string, unknown>) ?? rawData;
+        const updatedUser = (data['user'] as UserProfile) ?? editedProfile;
         setProfile(updatedUser);
         setIsEditing(false);
-
-        // Update localStorage user data
-        localStorage.setItem('user', JSON.stringify(updatedUser));
       } else {
-        // For demo purposes, just update locally
-        setProfile(editedProfile as UserProfile);
-        setIsEditing(false);
-        localStorage.setItem('user', JSON.stringify(editedProfile));
+        const errorData = await response.json().catch(() => ({ error: { message: 'Failed to save profile' } })) as { error?: { message?: string } };
+        console.error('Failed to save profile:', errorData.error?.message);
       }
     } catch (error) {
       console.error('Failed to save profile:', error);
-      // For demo purposes, just update locally
-      setProfile(editedProfile as UserProfile);
-      setIsEditing(false);
-      localStorage.setItem('user', JSON.stringify(editedProfile));
     } finally {
       setSaving(false);
     }

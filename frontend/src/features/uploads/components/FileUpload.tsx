@@ -168,7 +168,6 @@ const FileUpload: React.FC<FileUploadProps> = ({
     ));
 
     try {
-      const token = localStorage.getItem('authToken');
       const endpoint = context === 'nda' ? '/api/upload/nda' : '/api/upload';
 
       // Regular upload for smaller files
@@ -228,9 +227,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
       // Send request
       xhr.open('POST', `${API_URL}${endpoint}`);
-      if (token !== null) {
-        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-      }
+      xhr.withCredentials = true;
       xhr.send(formData);
 
     } catch (error) {
@@ -320,7 +317,6 @@ const FileUpload: React.FC<FileUploadProps> = ({
   // Multipart upload for large files (legacy fallback)
   const _uploadMultipart = async (file: FileWithProgress) => {
     try {
-      const token = localStorage.getItem('authToken');
       const chunkSize = 10 * 1024 * 1024; // 10MB chunks
 
       // Initialize multipart upload
@@ -356,9 +352,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
           `${API_URL}/api/upload/multipart/part?key=${key}&uploadId=${uploadId}&partNumber=${i + 1}`,
           {
             method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${token ?? ''}`
-            },
+            credentials: 'include',
             body: chunk
           }
         );

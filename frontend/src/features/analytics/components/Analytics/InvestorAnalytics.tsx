@@ -31,20 +31,8 @@ export const InvestorAnalytics: React.FC<InvestorAnalyticsProps> = ({
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
 
   const performanceData = {
-    returns: [
-      { label: '1', value: 10 },
-      { label: '2', value: 15 },
-      { label: '3', value: 20 },
-      { label: '4', value: 18 },
-      { label: '5', value: 22 }
-    ],
-    investments: [
-      { label: '1', value: 50000 },
-      { label: '2', value: 75000 },
-      { label: '3', value: 100000 },
-      { label: '4', value: 90000 },
-      { label: '5', value: 110000 }
-    ]
+    returns: [] as { label: string; value: number }[],
+    investments: [] as { label: string; value: number }[]
   };
 
   return (

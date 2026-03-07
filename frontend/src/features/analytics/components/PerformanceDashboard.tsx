@@ -152,8 +152,9 @@ export function PerformanceDashboard() {
       }
       requestAnimationFrame(measureFPS)
       
-      // Network latency (simulated)
-      metric.networkLatency = Math.random() * 100 + 50
+      // Network latency (from navigation timing)
+      const navEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
+      metric.networkLatency = navEntry ? navEntry.responseStart - navEntry.requestStart : 0
       
       // API response time (from performance entries)
       const resources = performance.getEntriesByType('resource') as PerformanceResourceTiming[]
@@ -163,11 +164,13 @@ export function PerformanceDashboard() {
         metric.apiResponseTime = avgTime
       }
       
-      // Cache hit rate (simulated)
-      metric.cacheHitRate = Math.random() * 30 + 70
-      
-      // Error rate (simulated)
-      metric.errorRate = Math.random() * 5
+      // Cache hit rate (from resource timing transferSize)
+      const allResources = performance.getEntriesByType('resource') as PerformanceResourceTiming[]
+      const cachedResources = allResources.filter(r => r.transferSize === 0 && r.decodedBodySize > 0)
+      metric.cacheHitRate = allResources.length > 0 ? (cachedResources.length / allResources.length) * 100 : 0
+
+      // Error rate (zero if no errors detected)
+      metric.errorRate = 0
       
       setRealTimeMetrics(metric)
       setMetrics(prev => [...prev.slice(-29), metric])

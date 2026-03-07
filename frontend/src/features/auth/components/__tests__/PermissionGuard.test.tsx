@@ -16,40 +16,40 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-// Mock betterAuthStore
-const mockAuthState = {
-  isAuthenticated: false,
-  user: null,
-  loading: false,
-  error: null,
-  login: vi.fn(),
-  logout: vi.fn(),
-  loginCreator: vi.fn(),
-  loginInvestor: vi.fn(),
-  loginProduction: vi.fn(),
-  register: vi.fn(),
-  setUser: vi.fn(),
-  updateUser: vi.fn(),
-  checkSession: vi.fn(),
-  refreshSession: vi.fn(),
-};
+// Mock betterAuthStore — must use vi.hoisted to survive vi.mock hoisting
+const { mockAuthState, mockUseBetterAuthStore } = vi.hoisted(() => {
+  const mockAuthState = {
+    isAuthenticated: false,
+    user: null as { id: number; userType: string } | null,
+    loading: false,
+    error: null,
+    login: vi.fn(),
+    logout: vi.fn(),
+    loginCreator: vi.fn(),
+    loginInvestor: vi.fn(),
+    loginProduction: vi.fn(),
+    register: vi.fn(),
+    setUser: vi.fn(),
+    updateUser: vi.fn(),
+    checkSession: vi.fn(),
+    refreshSession: vi.fn(),
+  };
+
+  const mockUseBetterAuthStore = Object.assign(
+    () => mockAuthState,
+    { getState: () => mockAuthState }
+  );
+
+  return { mockAuthState, mockUseBetterAuthStore };
+});
 
 vi.mock('@/store/betterAuthStore', () => ({
-  useBetterAuthStore: () => mockAuthState,
+  useBetterAuthStore: mockUseBetterAuthStore,
 }));
-
-// Mock localStorage for userType
-const localStorageMock: Record<string, string> = {};
-vi.stubGlobal('localStorage', {
-  getItem: vi.fn((key: string) => localStorageMock[key] ?? null),
-  setItem: vi.fn((key: string, val: string) => { localStorageMock[key] = val; }),
-  removeItem: vi.fn((key: string) => { delete localStorageMock[key]; }),
-  clear: vi.fn(() => { Object.keys(localStorageMock).forEach(k => delete localStorageMock[k]); }),
-});
 
 function setRole(role: string, authenticated = true) {
   mockAuthState.isAuthenticated = authenticated;
-  localStorageMock['userType'] = role;
+  mockAuthState.user = { id: 1, userType: role };
 }
 
 function renderGuard(props: React.ComponentProps<typeof PermissionGuard>) {
@@ -64,7 +64,7 @@ describe('PermissionGuard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockAuthState.isAuthenticated = false;
-    Object.keys(localStorageMock).forEach(k => delete localStorageMock[k]);
+    mockAuthState.user = null;
   });
 
   // ─── Unauthenticated Users ──────────────────────────────────────────
@@ -364,7 +364,7 @@ describe('PermissionRoute', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockAuthState.isAuthenticated = false;
-    Object.keys(localStorageMock).forEach(k => delete localStorageMock[k]);
+    mockAuthState.user = null;
   });
 
   it('renders children when permission is granted', () => {

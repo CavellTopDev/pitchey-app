@@ -32,20 +32,8 @@ export const CreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
   const [_timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
 
   const performanceData = {
-    views: [
-      { label: '1', value: 100 },
-      { label: '2', value: 150 },
-      { label: '3', value: 200 },
-      { label: '4', value: 180 },
-      { label: '5', value: 220 }
-    ],
-    likes: [
-      { label: '1', value: 50 },
-      { label: '2', value: 75 },
-      { label: '3', value: 100 },
-      { label: '4', value: 90 },
-      { label: '5', value: 110 }
-    ]
+    views: [] as { label: string; value: number }[],
+    likes: [] as { label: string; value: number }[]
   };
 
   return (
@@ -96,16 +84,16 @@ export const CreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
           variant="primary"
           format="currency"
         />
-        <AnalyticCard 
+        <AnalyticCard
           title="Followers"
-          value={500}  // Replace with actual data
-          change={10}
+          value={0}
+          change={0}
           icon={<Users className="w-5 h-5 text-indigo-500" />}
           variant="secondary"
         />
-        <AnalyticCard 
+        <AnalyticCard
           title="Engagement Rate"
-          value={25.6}
+          value={0}
           icon={<TrendingUp className="w-5 h-5 text-yellow-500" />}
           variant="warning"
           format="percentage"

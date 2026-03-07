@@ -58,7 +58,7 @@ const partnerTypes = [
 ];
 
 export default function ProductionCollaborations() {
-    const { user, logout } = useBetterAuthStore();
+    const { user } = useBetterAuthStore();
   const userType = user?.userType || 'production';
   
   const [collaborations, setCollaborations] = useState<Collaboration[]>([]);

@@ -29,17 +29,17 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-// Default demo data
-const defaultData = [
-  { status: 'development', count: 3 },
-  { status: 'production', count: 2 },
-  { status: 'completed', count: 4 },
-  { status: 'released', count: 2 },
-];
-
 const COLORS = ['#eab308', '#3b82f6', '#22c55e', '#8b5cf6'];
 
-export const ProjectStatusChart: React.FC<ProjectStatusChartProps> = ({ data = defaultData, className = "" }) => {
+export const ProjectStatusChart: React.FC<ProjectStatusChartProps> = ({ data = [], className = "" }) => {
+  if (data.length === 0) {
+    return (
+      <div className={`flex items-center justify-center min-h-[200px] w-full text-gray-400 text-sm ${className}`}>
+        No project status data available
+      </div>
+    );
+  }
+
   return (
     <ChartContainer config={chartConfig} className={`min-h-[200px] w-full ${className}`}>
       <PieChart>

@@ -6,7 +6,6 @@ import {
   ArrowRight, Star, Award, Building, Clock,
   ThumbsUp, ThumbsDown, Share2, Bookmark
 } from 'lucide-react';
-import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { config } from '@/config';
 import { apiClient } from '@/lib/api-client';
 
@@ -51,7 +50,6 @@ interface ActivityFilters {
 }
 
 export default function InvestorActivity() {
-    const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);

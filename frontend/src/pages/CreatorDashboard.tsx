@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, Eye, MessageSquare, Upload, BarChart3, Calendar, Plus, Shield, CreditCard, Wifi, WifiOff, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useBetterAuthStore } from '../store/betterAuthStore';
@@ -10,7 +10,6 @@ import { getSubscriptionTier } from '../config/subscription-plans';
 import { InvestmentService } from '@features/deals/services/investment.service';
 import FundingOverview from '@features/deals/components/Investment/FundingOverview';
 import { EnhancedCreatorAnalytics } from '@features/analytics/components/Analytics/EnhancedCreatorAnalytics';
-// import { NotificationWidget } from '../components/Dashboard/NotificationWidget';
 import { withPortalErrorBoundary } from '../components/ErrorBoundary/PortalErrorBoundary';
 import { useSentryPortal } from '@/shared/hooks/useSentryPortal';
 import { useWebSocket } from '@shared/contexts/WebSocketContext';
@@ -24,9 +23,6 @@ import {
   safeExecute
 } from '@shared/utils/defensive';
 import { formatNumber } from '@shared/utils/formatters';
-// EnhancedCreatorNav is now handled by PortalLayout
-// import DashboardHeader from '../components/DashboardHeader';
-// import * as Sentry from '@sentry/react';
 
 function CreatorDashboard() {
   const navigate = useNavigate();
@@ -110,17 +106,8 @@ function CreatorDashboard() {
       return;
     }
 
-    // Load user data immediately on mount
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      try {
-        const parsedUser = JSON.parse(userData) as Record<string, unknown>;
-        setUser(parsedUser);
-      } catch (e) {
-        console.error('Failed to parse user data:', e);
-      }
-    } else if (authUser) {
-      // Fallback to auth store user if localStorage doesn't have it
+    // Load user data from auth store
+    if (authUser) {
       setUser(authUser as unknown as Record<string, unknown>);
     }
 

@@ -42,22 +42,7 @@ export class NotificationService {
   }
 
   private loadSounds() {
-    // Load notification sounds with error handling
-    // Temporarily disabled until sound files are available
-    try {
-      // Commented out until sound files are added
-      // this.sounds.message = new Audio('/sounds/message.mp3');
-      // this.sounds.mention = new Audio('/sounds/mention.mp3');
-      // this.sounds.call = new Audio('/sounds/call.mp3');
-      
-      // Set volume if sounds are loaded
-      Object.values(this.sounds).forEach(audio => {
-        if (audio) {
-          audio.volume = 0.5;
-        }
-      });
-    } catch (error) {
-    }
+    // No-op — sound files not yet available
   }
 
   async requestPermission(): Promise<NotificationPermission> {
@@ -176,14 +161,10 @@ export class NotificationService {
   }
 
   private playSound(soundType: string) {
-    try {
-      const sound = this.sounds[soundType];
-      if (sound) {
-        sound.currentTime = 0;
-        sound.play().catch(error => {
-        });
-      }
-    } catch (error) {
+    const sound = this.sounds[soundType];
+    if (sound) {
+      sound.currentTime = 0;
+      sound.play().catch(() => { /* Audio autoplay may be blocked */ });
     }
   }
 
