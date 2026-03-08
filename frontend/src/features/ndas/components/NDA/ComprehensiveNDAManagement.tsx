@@ -319,94 +319,51 @@ export default function ComprehensiveNDAManagement({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <Shield className="w-8 h-8 text-purple-600" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">NDA Management</h1>
-                <p className="text-gray-600">
-                  Manage your confidentiality agreements and access requests
-                </p>
-              </div>
-            </div>
-            
-            {/* Header Actions */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={fetchAllNDAData}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Refresh
-              </button>
-              
-              {selectedNDAs.size > 0 && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">
-                    {selectedNDAs.size} selected
-                  </span>
-                  <button
-                    onClick={() => setShowBulkActions(!showBulkActions)}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition"
-                  >
-                    <MoreHorizontal className="w-4 h-4" />
-                    Actions
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Quick Stats */}
+    <div className="bg-gray-50">
+      {/* Stats Bar + Actions */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <div className="flex items-center justify-between mb-4">
           {analytics && (
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg p-4 border border-blue-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-2xl font-bold text-blue-600">{analytics.totalRequests}</p>
-                    <p className="text-sm text-blue-700">Total Requests</p>
-                  </div>
-                  <FileText className="w-8 h-8 text-blue-500" />
-                </div>
+            <div className="flex items-center gap-6 text-sm">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-blue-500" />
+                <span className="text-gray-600">Requests:</span>
+                <span className="font-semibold text-gray-900">{analytics.totalRequests}</span>
               </div>
-              
-              <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-2xl font-bold text-green-600">{Math.round(analytics.approvalRate)}%</p>
-                    <p className="text-sm text-green-700">Approval Rate</p>
-                  </div>
-                  <TrendingUp className="w-8 h-8 text-green-500" />
-                </div>
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-green-500" />
+                <span className="text-gray-600">Approval:</span>
+                <span className="font-semibold text-gray-900">{Math.round(analytics.approvalRate)}%</span>
               </div>
-              
-              <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-4 border border-amber-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-2xl font-bold text-amber-600">{Math.round(analytics.avgResponseTime)}h</p>
-                    <p className="text-sm text-amber-700">Avg Response</p>
-                  </div>
-                  <Clock className="w-8 h-8 text-amber-500" />
-                </div>
-              </div>
-              
-              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-4 border border-purple-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-2xl font-bold text-purple-600">{signedNDAs.length}</p>
-                    <p className="text-sm text-purple-700">Active NDAs</p>
-                  </div>
-                  <Shield className="w-8 h-8 text-purple-500" />
-                </div>
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-purple-500" />
+                <span className="text-gray-600">Active:</span>
+                <span className="font-semibold text-gray-900">{signedNDAs.length}</span>
               </div>
             </div>
           )}
+          {!analytics && <div />}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={fetchAllNDAData}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Refresh
+            </button>
+            {selectedNDAs.size > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">{selectedNDAs.size} selected</span>
+                <button
+                  onClick={() => setShowBulkActions(!showBulkActions)}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition"
+                >
+                  <MoreHorizontal className="w-3.5 h-3.5" />
+                  Actions
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
