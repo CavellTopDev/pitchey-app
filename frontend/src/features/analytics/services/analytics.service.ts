@@ -311,41 +311,43 @@ export class AnalyticsService {
       if (timeRange?.end) params.append('end', timeRange.end);
       if (timeRange?.preset) params.append('preset', timeRange.preset);
 
-      const response = await apiClient.get<{ metrics: any }>(
+      const response = await apiClient.get<any>(
         `/api/analytics/dashboard?${params}`
       );
 
-      if (!response.success || !response.data?.metrics) {
+      if (!response.success || !response.data) {
         if (response.error) {
-          console.warn('Dashboard metrics not available:', response.error.message || 'No metrics data returned');
+          console.warn('Dashboard metrics not available:', response.error.message || 'No data returned');
         }
         return this.getDefaultDashboardMetrics();
       }
 
-      // Transform the API response with defensive parsing
-      const apiMetrics = safeAccess(response, 'data.metrics', {});
-      
+      // Backend returns { overview, performance, demographics, ... } directly in data
+      const apiData = response.data;
+      const overview = apiData.overview || {};
+      const perf = apiData.performance || {};
+
       return {
         overview: {
-          totalViews: safeNumber(safeAccess(apiMetrics, 'totalViews', 0)),
-          totalLikes: safeNumber(safeAccess(apiMetrics, 'totalLikes', 0)),
-          totalFollowers: safeNumber(safeAccess(apiMetrics, 'totalFollowers', 0)),
-          totalPitches: safeNumber(safeAccess(apiMetrics, 'totalPitches', 0)),
-          viewsChange: safeNumber(safeAccess(apiMetrics, 'viewsChange', 0)),
-          likesChange: safeNumber(safeAccess(apiMetrics, 'likesChange', 0)),
-          followersChange: safeNumber(safeAccess(apiMetrics, 'followersChange', 0)),
-          pitchesChange: safeNumber(safeAccess(apiMetrics, 'pitchesChange', 0)),
+          totalViews: safeNumber(overview.totalViews ?? 0),
+          totalLikes: safeNumber(overview.totalLikes ?? 0),
+          totalFollowers: safeNumber(overview.totalFollowers ?? 0),
+          totalPitches: safeNumber(overview.totalPitches ?? 0),
+          viewsChange: safeNumber(overview.viewsChange ?? 0),
+          likesChange: safeNumber(overview.likesChange ?? 0),
+          followersChange: safeNumber(overview.followersChange ?? 0),
+          pitchesChange: safeNumber(overview.pitchesChange ?? 0),
         },
         performance: {
-          topPitches: safeArray(safeAccess(apiMetrics, 'topPitches', [])),
-          recentActivity: safeArray(safeAccess(apiMetrics, 'recentActivity', [])),
-          engagementTrend: safeArray(safeAccess(apiMetrics, 'engagementTrend', [])),
+          topPitches: safeArray(perf.topPitches ?? []),
+          recentActivity: safeArray(perf.recentActivity ?? []),
+          engagementTrend: safeArray(perf.engagementTrend ?? []),
         },
         revenue: {
-          total: safeNumber(safeAccess(apiMetrics, 'revenue', 0)),
-          subscriptions: safeNumber(safeAccess(apiMetrics, 'subscriptions', 0)),
-          transactions: safeNumber(safeAccess(apiMetrics, 'transactions', 0)),
-          growth: safeNumber(safeAccess(apiMetrics, 'growth', 0)),
+          total: safeNumber(overview.totalRevenue ?? 0),
+          subscriptions: safeNumber(apiData.subscriptions ?? 0),
+          transactions: safeNumber(overview.totalInvestments ?? 0),
+          growth: safeNumber(apiData.growth ?? 0),
         }
       };
     } catch (error) {

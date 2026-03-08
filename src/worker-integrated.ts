@@ -8099,6 +8099,8 @@ pitchey_analytics_datapoints_per_minute 1250
       return builder.success({
         overview: {
           totalViews: this.safeParseInt(overview.total_views),
+          totalLikes: this.safeParseInt(overview.total_likes),
+          totalFollowers: 0,
           uniqueVisitors: Math.floor(this.safeParseInt(overview.total_views) * 0.65),
           totalPitches: this.safeParseInt(overview.total_pitches),
           totalInvestments: this.safeParseInt(investments.total_investments),
@@ -8194,9 +8196,9 @@ pitchey_analytics_datapoints_per_minute 1250
            COUNT(CASE WHEN status = 'published' THEN 1 END) as published_pitches,
            COALESCE(SUM(view_count), 0) as total_views,
            COALESCE(SUM(like_count), 0) as total_likes,
-           COALESCE(SUM(save_count), 0) as total_saves
+           COALESCE(SUM(like_count), 0) as total_saves
          FROM pitches
-         WHERE user_id = $1 OR created_by = $1`,
+         WHERE user_id = $1 OR creator_id = $1`,
         [userId]
       );
       const stats = pitchStats[0] || {};
@@ -8211,16 +8213,16 @@ pitchey_analytics_datapoints_per_minute 1250
       const ndaResults = await this.db.query(
         `SELECT COUNT(*) as count FROM ndas n
          JOIN pitches p ON n.pitch_id = p.id
-         WHERE p.user_id = $1 OR p.created_by = $1`,
+         WHERE p.user_id = $1 OR p.creator_id = $1`,
         [userId]
       );
 
       // Get top performing pitches
       const topPitches = await this.db.query(
         `SELECT p.id, p.title, COALESCE(p.view_count, 0) as views,
-                COALESCE(p.like_count, 0) as likes, COALESCE(p.save_count, 0) as saves
+                COALESCE(p.like_count, 0) as likes, 0 as saves
          FROM pitches p
-         WHERE p.user_id = $1 OR p.created_by = $1
+         WHERE p.user_id = $1 OR p.creator_id = $1
          ORDER BY COALESCE(p.view_count, 0) DESC
          LIMIT 5`,
         [userId]
@@ -8231,7 +8233,7 @@ pitchey_analytics_datapoints_per_minute 1250
         `SELECT DATE(pv.viewed_at) as date, COUNT(*) as views
          FROM pitch_views pv
          JOIN pitches p ON pv.pitch_id = p.id
-         WHERE (p.user_id = $1 OR p.created_by = $1)
+         WHERE (p.user_id = $1 OR p.creator_id = $1)
            AND pv.viewed_at >= NOW() - INTERVAL '${days} days'
          GROUP BY DATE(pv.viewed_at)
          ORDER BY date ASC`,
@@ -8241,20 +8243,22 @@ pitchey_analytics_datapoints_per_minute 1250
       const totalViews = parseInt(stats.total_views || '0');
       const totalLikes = parseInt(stats.total_likes || '0');
       const totalSaves = parseInt(stats.total_saves || '0');
+      const totalPitchCount = parseInt(stats.total_pitches || '0');
+      const totalNDACount = parseInt(ndaResults[0]?.count || '0');
       const avgEngagement = totalViews > 0 ? (totalLikes + totalSaves) / totalViews : 0;
 
       const analytics = {
         userId: parseInt(userId as string),
         username: user.username,
-        totalPitches: parseInt(stats.total_pitches || '0'),
+        totalPitches: totalPitchCount,
         publishedPitches: parseInt(stats.published_pitches || '0'),
         totalViews,
         totalLikes,
         totalFollowers: parseInt(followerResults[0]?.count || '0'),
-        totalNDAs: parseInt(ndaResults[0]?.count || '0'),
+        totalNDAs: totalNDACount,
         avgEngagement: Math.round(avgEngagement * 100) / 100,
-        avgRating: totalPitches > 0 ? Math.round(avgEngagement * 50) / 10 : 0,
-        responseRate: totalNDAs > 0 ? Math.min(100, Math.round((parseInt(ndaResults[0]?.count || '0') / Math.max(totalPitches, 1)) * 100)) : 0,
+        avgRating: totalPitchCount > 0 ? Math.round(avgEngagement * 50) / 10 : 0,
+        responseRate: totalNDACount > 0 ? Math.min(100, Math.round((totalNDACount / Math.max(totalPitchCount, 1)) * 100)) : 0,
         topPitches: topPitches.map((p: any) => ({
           id: p.id,
           title: p.title,

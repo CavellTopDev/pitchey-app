@@ -158,17 +158,16 @@ export class WorkerDatabase {
     values?: QueryParameters
   ): Promise<T[]> {
     try {
-      let result: T[];
+      let raw: any;
 
       if (values && values.length > 0) {
-        // For parameterized queries with $1, $2, etc.
-        // Use the .query() method for conventional function calls
-        result = await (this.sql as any).query(text, values) as T[];
+        raw = await (this.sql as any).query(text, values);
       } else {
-        // For queries without parameters
-        result = await (this.sql as any).query(text) as T[];
+        raw = await (this.sql as any).query(text);
       }
 
+      // Neon's .query() returns { rows: [...], rowCount, ... } — unwrap to plain array
+      const result: T[] = Array.isArray(raw) ? raw : (raw?.rows ?? []);
       return result;
     } catch (error) {
       throw this.wrapError(error, text);
