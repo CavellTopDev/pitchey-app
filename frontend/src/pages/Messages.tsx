@@ -224,20 +224,30 @@ export default function Messages() {
       const res = await apiClient.post<{ conversation: { id: number } }>('/api/conversations', {
         recipientId: contactId,
       });
-      if (res.success && res.data?.conversation?.id) {
-        const convId = res.data.conversation.id;
-        setShowNewConversation(false);
-        setContactSearch('');
-        // Refresh sidebar so the new conversation appears
-        await refreshConversations();
-        // Select the conversation
-        setSelectedConversation(convId);
-        joinConversation(convId);
-        hookMarkConversationAsRead(convId);
-        void fetchConversationMessages(convId);
+
+      if (res.success) {
+        // Handle both response shapes: { conversation: { id } } or { id }
+        const convId = (res.data as any)?.conversation?.id ?? (res.data as any)?.id;
+        if (convId) {
+          setShowNewConversation(false);
+          setContactSearch('');
+          // Refresh sidebar so the new conversation appears
+          await refreshConversations();
+          // Select the conversation
+          setSelectedConversation(convId);
+          joinConversation(convId);
+          hookMarkConversationAsRead(convId);
+          void fetchConversationMessages(convId);
+        } else {
+          addNotification('Conversation created but could not open it', 'error');
+        }
+      } else {
+        const errMsg = typeof (res as any).error === 'string' ? (res as any).error : (res as any).error?.message || 'Failed to start conversation';
+        console.error('Start conversation failed:', errMsg);
       }
-    } catch {
-      // handled silently
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Start conversation error:', e.message);
     }
   }, [joinConversation, hookMarkConversationAsRead, fetchConversationMessages, refreshConversations]);
 
