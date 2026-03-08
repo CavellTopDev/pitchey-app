@@ -107,38 +107,37 @@ export default function Messages() {
     markConversationAsRead: hookMarkConversationAsRead
   } = useMessaging();
 
-  // REST-based initial conversation fetch (fallback when WebSocket is slow)
+  // REST-based conversation list fetch
+  const refreshConversations = useCallback(async () => {
+    try {
+      const res = await apiClient.get<{ conversations: Array<Record<string, unknown>> }>('/api/conversations');
+      if (!res.success || !res.data?.conversations) return;
+      const convs = res.data.conversations.map((conv: Record<string, unknown>) => {
+        const convId = conv.id as number;
+        return {
+          ...conv,
+          id: convId,
+          participantName: (conv.participant_name as string) || (conv.participantName as string) || 'Unknown',
+          participantType: ((conv.participant_type as string) || (conv.participantType as string) || 'creator') as 'investor' | 'production' | 'creator',
+          lastMessageText: (conv.last_message as string) || '',
+          timestamp: (conv.updated_at as string) || new Date().toISOString(),
+          isOnline: false,
+          hasUnreadMessages: false,
+          unreadCount: 0,
+        };
+      });
+      setConversations(convs);
+      setLoading(false);
+    } catch {
+      // Non-critical — WebSocket will provide data
+    }
+  }, []);
+
+  // Initial fetch on mount
   useEffect(() => {
-    let cancelled = false;
-    const fetchConversations = async () => {
-      try {
-        const res = await apiClient.get<{ conversations: Array<Record<string, unknown>> }>('/api/conversations');
-        if (cancelled || !res.success || !res.data?.conversations) return;
-        // Only merge if hook hasn't loaded yet
-        if (!hookConversations || hookConversations.length === 0) {
-          const convs = res.data.conversations.map((conv: Record<string, unknown>) => {
-            const convId = conv.id as number;
-            return {
-              ...conv,
-              id: convId,
-              participantName: (conv.participant_name as string) || (conv.participantName as string) || 'Unknown',
-              participantType: ((conv.participant_type as string) || (conv.participantType as string) || 'creator') as 'investor' | 'production' | 'creator',
-              lastMessageText: (conv.last_message as string) || '',
-              timestamp: (conv.updated_at as string) || new Date().toISOString(),
-              isOnline: false,
-              hasUnreadMessages: false,
-              unreadCount: 0,
-            };
-          });
-          setConversations(convs);
-          setLoading(false);
-        }
-      } catch {
-        // Non-critical — WebSocket will provide data
-      }
-    };
-    fetchConversations();
-    return () => { cancelled = true; };
+    if (!hookConversations || hookConversations.length === 0) {
+      void refreshConversations();
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // REST-based message fetch when a conversation is selected
@@ -227,17 +226,20 @@ export default function Messages() {
       });
       if (res.success && res.data?.conversation?.id) {
         const convId = res.data.conversation.id;
+        setShowNewConversation(false);
+        setContactSearch('');
+        // Refresh sidebar so the new conversation appears
+        await refreshConversations();
+        // Select the conversation
         setSelectedConversation(convId);
         joinConversation(convId);
         hookMarkConversationAsRead(convId);
         void fetchConversationMessages(convId);
-        setShowNewConversation(false);
-        setContactSearch('');
       }
     } catch {
       // handled silently
     }
-  }, [joinConversation, hookMarkConversationAsRead, fetchConversationMessages]);
+  }, [joinConversation, hookMarkConversationAsRead, fetchConversationMessages, refreshConversations]);
 
   // Handle recipient query param — find/create conversation and auto-select
   const recipientHandledRef = useRef(false);
