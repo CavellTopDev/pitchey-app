@@ -7,6 +7,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowRight, ArrowLeft, FileText, Users, MapPin, AlertTriangle, CheckCircle, Download, Eye } from 'lucide-react';
 import api from '../../lib/api';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 
 // Types
 interface DocumentTemplate {
@@ -73,7 +74,18 @@ interface GeneratedDocument {
   compliance_status: 'compliant' | 'requires_review' | 'non_compliant';
 }
 
+const userTypeToPartyType = (userType: string): Party['type'] => {
+  switch (userType) {
+    case 'creator': return 'creator';
+    case 'investor': return 'investor';
+    case 'production': return 'production_company';
+    default: return 'individual';
+  }
+};
+
 const LegalDocumentWizard: React.FC = () => {
+  const user = useBetterAuthStore(s => s.user);
+
   // Main state
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -84,7 +96,19 @@ const LegalDocumentWizard: React.FC = () => {
   const [jurisdictions, setJurisdictions] = useState<Jurisdiction[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<DocumentTemplate | null>(null);
   const [selectedJurisdiction, setSelectedJurisdiction] = useState<string>('');
-  const [parties, setParties] = useState<Party[]>([]);
+  // Auto-populate with logged-in user as first party
+  const [parties, setParties] = useState<Party[]>(() => {
+    if (!user) return [];
+    return [{
+      id: String(user.id),
+      name: [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || '',
+      type: userTypeToPartyType(user.userType),
+      email: user.email,
+      company: user.companyName || '',
+      title: '',
+      address: user.location || ''
+    }];
+  });
   const [variables, setVariables] = useState<Record<string, any>>({});
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [complianceIssues, setComplianceIssues] = useState<ComplianceIssue[]>([]);
