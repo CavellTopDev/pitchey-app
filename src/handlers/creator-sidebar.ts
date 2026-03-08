@@ -336,15 +336,46 @@ export async function creatorNdasHandler(
       FROM nda_requests nr
       JOIN pitches p ON p.id = nr.pitch_id
       LEFT JOIN users u ON u.id::text = nr.requester_id::text
-      WHERE nr.pitch_owner_id = ${userId}
+      WHERE (nr.pitch_owner_id = ${userId} OR nr.creator_id = ${userId} OR nr.owner_id = ${userId} OR p.user_id = ${userId})
       ORDER BY nr.requested_at DESC
     `;
+
+    // Also fetch from ndas table (signed NDAs may only exist there)
+    let signedNdas: any[] = [];
+    try {
+      signedNdas = await sql`
+        SELECT
+          n.id,
+          n.pitch_id,
+          n.signer_id AS requester_id,
+          NULL AS pitch_owner_id,
+          n.status,
+          NULL AS message,
+          NULL AS response_message,
+          n.created_at AS requested_at,
+          n.signed_at AS responded_at,
+          n.expires_at,
+          p.title AS pitch_title,
+          u.email AS requester_email,
+          COALESCE(u.name, u.email) AS requester_name
+        FROM ndas n
+        JOIN pitches p ON p.id = n.pitch_id
+        LEFT JOIN users u ON u.id = n.signer_id
+        WHERE p.user_id = ${userId}
+          AND n.id NOT IN (SELECT nr2.id FROM nda_requests nr2 WHERE nr2.pitch_id = n.pitch_id AND nr2.requester_id = n.signer_id)
+        ORDER BY n.created_at DESC
+      `;
+    } catch {
+      // ndas table query is supplementary
+    }
+
+    const allNdas = [...ndas, ...signedNdas];
 
     return jsonResponse({
       success: true,
       data: {
-        ndas,
-        total: ndas.length,
+        ndas: allNdas,
+        total: allNdas.length,
       },
     }, origin);
   } catch (error) {
@@ -389,7 +420,7 @@ export async function creatorCalendarHandler(
         '#ef4444' AS color
       FROM nda_requests nr
       JOIN pitches p ON p.id = nr.pitch_id
-      WHERE nr.pitch_owner_id = ${userId}
+      WHERE (nr.pitch_owner_id = ${userId} OR nr.creator_id = ${userId} OR nr.owner_id = ${userId} OR p.user_id = ${userId})
         AND nr.status = 'pending'
       ORDER BY nr.requested_at DESC
       LIMIT 50

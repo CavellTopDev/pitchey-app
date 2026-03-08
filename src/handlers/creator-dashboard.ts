@@ -121,8 +121,9 @@ export async function creatorDashboardHandler(request: Request, env: Env): Promi
           totalViews: analytics.total_views || 0,
           totalFollowers: userStats.totalFollowers || 0,
           totalInvestments: recentInvestments.length || 0,
-          activeDeals: pendingNDAs.filter((n) => n?.status === 'approved').length,
-          pendingActions: pendingNDAs.filter((n) => n?.status === 'pending').length
+          activeDeals: pendingNDAs.filter((n) => n?.status === 'signed' || n?.status === 'approved').length,
+          pendingActions: pendingNDAs.filter((n) => n?.status === 'pending').length,
+          totalNDAs: pendingNDAs.length
         },
         revenue: revenueData,
         recentPitches: recentPitches,
