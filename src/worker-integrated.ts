@@ -15149,10 +15149,11 @@ Signatures: [To be completed upon signing]
       if (!authCheck.authorized) return authCheck.response;
 
       const origin = request.headers.get('Origin');
+      const sql = this.db.getSql() as any;
+      const userId = authCheck.user.id;
 
       try {
-        // Get active NDAs where user is either requester (signer_id) or pitch owner
-        const activeNDAs = await this.db.query(`
+        const activeNDAs = await sql`
           SELECT n.id, n.pitch_id, n.signer_id as requester_id, n.status,
                  n.nda_type, n.created_at, n.updated_at, n.expires_at,
                  n.signed_at, n.approved_at,
@@ -15165,11 +15166,11 @@ Signatures: [To be completed upon signing]
           FROM ndas n
           JOIN pitches p ON p.id = n.pitch_id
           LEFT JOIN users signer ON signer.id = COALESCE(n.signer_id, n.user_id)
-          JOIN users creator ON creator.id = p.user_id
+          LEFT JOIN users creator ON creator.id = p.user_id
           WHERE n.status IN ('pending', 'approved', 'signed')
-            AND (COALESCE(n.signer_id, n.user_id) = $1 OR p.user_id = $1)
+            AND (COALESCE(n.signer_id, n.user_id) = ${userId} OR p.user_id = ${userId})
           ORDER BY n.created_at DESC
-        `, [authCheck.user.id]);
+        `;
 
         return new Response(JSON.stringify({
           success: true,
@@ -15197,10 +15198,11 @@ Signatures: [To be completed upon signing]
       if (!authCheck.authorized) return authCheck.response;
 
       const origin = request.headers.get('Origin');
+      const sql = this.db.getSql() as any;
+      const userId = authCheck.user.id;
 
       // Get signed NDAs where user is either signer or pitch owner
-      // Note: The ndas table uses signer_id (not requester_id) based on actual schema
-      const signedNDAs = await this.db.query(`
+      const signedNDAs = await sql`
         SELECT n.id, n.pitch_id, n.signer_id as requester_id, n.status,
                n.nda_type, n.created_at, n.updated_at, n.expires_at,
                n.signed_at, n.approved_at, n.approved_by,
@@ -15213,11 +15215,11 @@ Signatures: [To be completed upon signing]
         FROM ndas n
         JOIN pitches p ON p.id = n.pitch_id
         LEFT JOIN users signer ON signer.id = COALESCE(n.signer_id, n.user_id)
-        JOIN users creator ON creator.id = p.user_id
+        LEFT JOIN users creator ON creator.id = p.user_id
         WHERE n.signed_at IS NOT NULL
-          AND (COALESCE(n.signer_id, n.user_id) = $1 OR p.user_id = $1)
+          AND (COALESCE(n.signer_id, n.user_id) = ${userId} OR p.user_id = ${userId})
         ORDER BY n.signed_at DESC
-      `, [authCheck.user.id]);
+      `;
 
       return new Response(JSON.stringify({
         success: true,
