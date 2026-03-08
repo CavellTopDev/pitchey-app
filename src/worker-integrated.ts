@@ -13062,28 +13062,64 @@ pitchey_analytics_datapoints_per_minute 1250
 
       const sql = this.db.getSql() as any;
       // Get incoming NDA requests for pitches owned by this user
-      // ndas table uses signer_id for the requester, pitch owner comes from pitches table
-      const result = await sql`
+      // Check both ndas table (pending) and nda_requests table
+      const ndaResults = await sql`
         SELECT
-          n.*,
-          p.title as pitch_title,
+          n.id, n.pitch_id, n.signer_id as requester_id, n.status,
+          n.nda_type, n.created_at, n.updated_at, n.expires_at,
+          n.signed_at, n.approved_at, n.approved_by,
+          p.title as pitch_title, p.genre as pitch_genre,
           p.user_id as pitch_owner_id,
-          u.username as requester_name,
-          u.email as requester_email,
-          u.first_name as requester_first_name,
-          u.last_name as requester_last_name,
-          u.company_name as requester_company_name
+          u.username as requester_username, u.name as requester_name,
+          u.email as requester_email, u.first_name as requester_first_name,
+          u.last_name as requester_last_name, u.company_name as requester_company_name,
+          creator.username as creator_username, creator.name as creator_name
         FROM ndas n
         JOIN pitches p ON n.pitch_id = p.id
         LEFT JOIN users u ON n.signer_id = u.id
+        LEFT JOIN users creator ON p.user_id = creator.id
         WHERE p.user_id = ${authResult.user.id}
           AND n.status = 'pending'
         ORDER BY n.created_at DESC
       `;
 
+      // Also check nda_requests table for pending requests
+      let nrResults: any[] = [];
+      try {
+        nrResults = await sql`
+          SELECT
+            nr.id, nr.pitch_id, nr.requester_id, nr.status,
+            nr.nda_type, nr.created_at, nr.updated_at, nr.expires_at,
+            nr.message, nr.response_message, nr.requested_at, nr.responded_at,
+            p.title as pitch_title, p.genre as pitch_genre,
+            p.user_id as pitch_owner_id,
+            u.username as requester_username, u.name as requester_name,
+            u.email as requester_email,
+            creator.username as creator_username, creator.name as creator_name
+          FROM nda_requests nr
+          JOIN pitches p ON nr.pitch_id = p.id
+          LEFT JOIN users u ON u.id = nr.requester_id
+          LEFT JOIN users creator ON creator.id = p.user_id
+          WHERE (nr.pitch_owner_id = ${authResult.user.id} OR nr.creator_id = ${authResult.user.id} OR p.user_id = ${authResult.user.id})
+            AND nr.status = 'pending'
+          ORDER BY COALESCE(nr.requested_at, nr.created_at) DESC
+        `;
+      } catch { /* nda_requests table issues are non-fatal */ }
+
+      // Merge and deduplicate by pitch_id + requester_id
+      const seen = new Set<string>();
+      const allRequests: any[] = [];
+      for (const r of [...ndaResults, ...nrResults]) {
+        const key = `${r.pitch_id}-${r.requester_id || r.signer_id}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          allRequests.push(r);
+        }
+      }
+
       return new Response(JSON.stringify({
         success: true,
-        data: result
+        data: { ndaRequests: allRequests, total: allRequests.length }
       }), {
         headers: {
           'Content-Type': 'application/json',
@@ -15115,30 +15151,35 @@ Signatures: [To be completed upon signing]
       const origin = request.headers.get('Origin');
 
       try {
-        // Get active NDAs where user is either requester (user_id) or pitch owner
+        // Get active NDAs where user is either requester (signer_id) or pitch owner
         const activeNDAs = await this.db.query(`
-          SELECT n.*, p.title as pitch_title, p.user_id as creator_id,
-                 requester.email as requester_email, requester.name as requester_name,
-                 creator.email as creator_email, creator.name as creator_name
+          SELECT n.id, n.pitch_id, n.signer_id as requester_id, n.status,
+                 n.nda_type, n.created_at, n.updated_at, n.expires_at,
+                 n.signed_at, n.approved_at,
+                 p.title as pitch_title, p.genre as pitch_genre,
+                 p.user_id as pitch_owner_id,
+                 signer.username as requester_username, signer.name as requester_name,
+                 signer.email as requester_email,
+                 creator.username as creator_username, creator.name as creator_name,
+                 creator.email as creator_email
           FROM ndas n
           JOIN pitches p ON p.id = n.pitch_id
-          JOIN users requester ON requester.id = n.user_id
+          LEFT JOIN users signer ON signer.id = COALESCE(n.signer_id, n.user_id)
           JOIN users creator ON creator.id = p.user_id
-          WHERE n.status IN ('pending', 'approved')
-            AND (n.user_id = $1 OR p.user_id = $1)
+          WHERE n.status IN ('pending', 'approved', 'signed')
+            AND (COALESCE(n.signer_id, n.user_id) = $1 OR p.user_id = $1)
           ORDER BY n.created_at DESC
         `, [authCheck.user.id]);
 
         return new Response(JSON.stringify({
           success: true,
-          data: { ndas: activeNDAs }
+          data: { ndaRequests: activeNDAs, total: activeNDAs.length }
         }), { headers: getCorsHeaders(origin) });
       } catch (dbError) {
         console.error('Active NDAs query error:', dbError);
-        // Return empty data on error
         return new Response(JSON.stringify({
           success: true,
-          data: { ndas: [] }
+          data: { ndaRequests: [], total: 0 }
         }), { headers: getCorsHeaders(origin) });
       }
 
@@ -15160,9 +15201,15 @@ Signatures: [To be completed upon signing]
       // Get signed NDAs where user is either signer or pitch owner
       // Note: The ndas table uses signer_id (not requester_id) based on actual schema
       const signedNDAs = await this.db.query(`
-        SELECT n.*, p.title as pitch_title, p.user_id as creator_id,
-               signer.email as signer_email, signer.name as signer_name,
-               creator.email as creator_email, creator.name as creator_name
+        SELECT n.id, n.pitch_id, n.signer_id as requester_id, n.status,
+               n.nda_type, n.created_at, n.updated_at, n.expires_at,
+               n.signed_at, n.approved_at, n.approved_by,
+               p.title as pitch_title, p.genre as pitch_genre,
+               p.user_id as pitch_owner_id,
+               signer.username as requester_username, signer.name as requester_name,
+               signer.email as requester_email,
+               creator.username as creator_username, creator.name as creator_name,
+               creator.email as creator_email
         FROM ndas n
         JOIN pitches p ON p.id = n.pitch_id
         LEFT JOIN users signer ON signer.id = COALESCE(n.signer_id, n.user_id)
@@ -15174,7 +15221,7 @@ Signatures: [To be completed upon signing]
 
       return new Response(JSON.stringify({
         success: true,
-        data: { ndas: signedNDAs }
+        data: { ndaRequests: signedNDAs, total: signedNDAs.length }
       }), { headers: getCorsHeaders(origin) });
 
     } catch (error) {
