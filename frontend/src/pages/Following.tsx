@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, TrendingUp, Users, Film, Calendar, MapPin, Eye, Heart, AlertCircle } from 'lucide-react';
 import { API_URL } from '../config';
 import { useBetterAuthStore } from '../store/betterAuthStore';
@@ -42,7 +42,11 @@ interface ActivityUpdate {
 }
 
 const Following: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'activity' | 'followers' | 'following'>('activity');
+  const [searchParams] = useSearchParams();
+  const initialTab = (['activity', 'followers', 'following'] as const).includes(searchParams.get('tab') as any)
+    ? (searchParams.get('tab') as 'activity' | 'followers' | 'following')
+    : 'followers';
+  const [activeTab, setActiveTab] = useState<'activity' | 'followers' | 'following'>(initialTab);
   const [data, setData] = useState<(Creator[] | ActivityUpdate[])>([]);
   const [summary, setSummary] = useState({
     newPitches: 0,
@@ -85,7 +89,7 @@ const Following: React.FC = () => {
         endpoint = '/api/follows/following'; // default
       }
       
-    const response = await fetch(`${API_URL}/api/follows`, {
+    const response = await fetch(`${API_URL}${endpoint}`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
