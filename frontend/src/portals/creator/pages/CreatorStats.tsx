@@ -1,17 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  TrendingUp, Eye, Heart, MessageSquare, Users,
-  DollarSign, FileText, Award, Star, Clock,
-  ArrowUp, ArrowDown, BarChart3, PieChart,
-  Calendar, Filter, Download, RefreshCw, AlertCircle
+  TrendingUp, Eye, Heart, Users,
+  DollarSign, FileText, Award, Star,
+  ArrowUp, ArrowDown, PieChart,
+  Download, RefreshCw, AlertCircle
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@shared/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@shared/components/ui/chart';
 import {
-  LineChart, Line,
   BarChart, Bar,
   PieChart as RechartsPieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, ResponsiveContainer
+  XAxis, YAxis, CartesianGrid
 } from 'recharts';
 import { CreatorService, type CreatorStats as CreatorStatsType, type CreatorAnalytics } from '@features/analytics/services/creator.service';
 import { PitchService, type Pitch } from '@features/pitches/services/pitch.service';
@@ -26,11 +25,12 @@ interface QuickStat {
 }
 
 export default function CreatorStats() {
-  const [timeRange, setTimeRange] = useState('7days');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<QuickStat[]>([]);
   const [topPitches, setTopPitches] = useState<Pitch[]>([]);
+  const [genrePerformanceData, setGenrePerformanceData] = useState<{ genre: string; views: number }[]>([]);
+  const [engagementChartData, setEngagementChartData] = useState<{ name: string; value: number; fill: string }[]>([]);
 
   const loadStats = useCallback(async () => {
     try {
@@ -50,6 +50,7 @@ export default function CreatorStats() {
       // Calculate total views and likes from pitches
       const totalViews = myPitches.reduce((acc: number, p: Pitch) => acc + (p.viewCount || 0), 0);
       const totalLikes = myPitches.reduce((acc: number, p: Pitch) => acc + (p.likeCount || 0), 0);
+      const totalNDAs = apiStats?.totalNDAs || myPitches.reduce((acc: number, p: Pitch) => acc + (p.ndaCount || 0), 0);
       const engagementRate = totalViews > 0 ? ((totalLikes / totalViews) * 100) : 0;
 
       setStats([
@@ -87,7 +88,7 @@ export default function CreatorStats() {
         },
         {
           label: 'Total NDAs',
-          value: apiStats?.totalNDAs || myPitches.reduce((acc: number, p: Pitch) => acc + (p.ndaCount || 0), 0),
+          value: totalNDAs,
           change: 0,
           trend: 'stable',
           icon: DollarSign,
@@ -103,6 +104,25 @@ export default function CreatorStats() {
         }
       ]);
 
+      // Build genre performance from real pitch data
+      const genreMap = new Map<string, number>();
+      myPitches.forEach((p: Pitch) => {
+        const genre = p.genre || 'Unknown';
+        genreMap.set(genre, (genreMap.get(genre) || 0) + (p.viewCount || 0));
+      });
+      setGenrePerformanceData(
+        Array.from(genreMap.entries())
+          .map(([genre, views]) => ({ genre, views }))
+          .sort((a, b) => b.views - a.views)
+      );
+
+      // Build engagement breakdown from real totals
+      setEngagementChartData([
+        { name: 'Likes', value: totalLikes, fill: 'hsl(var(--chart-1))' },
+        { name: 'NDAs', value: totalNDAs, fill: 'hsl(var(--chart-2))' },
+        { name: 'Views', value: totalViews, fill: 'hsl(var(--chart-3))' }
+      ].filter(d => d.value > 0));
+
       // Set top pitches (sorted by views)
       const sorted = [...myPitches].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0)).slice(0, 5);
       setTopPitches(sorted);
@@ -113,56 +133,13 @@ export default function CreatorStats() {
     } finally {
       setLoading(false);
     }
-  }, [timeRange]);
+  }, []);
 
   useEffect(() => {
     loadStats();
   }, [loadStats]);
 
-  // Chart data
-  const viewsChartData = [
-    { day: 'Mon', views: 1200 },
-    { day: 'Tue', views: 1900 },
-    { day: 'Wed', views: 1500 },
-    { day: 'Thu', views: 2100 },
-    { day: 'Fri', views: 2300 },
-    { day: 'Sat', views: 1800 },
-    { day: 'Sun', views: 2500 }
-  ];
-
-  const engagementChartData = [
-    { name: 'Likes', value: 342, fill: 'hsl(var(--chart-1))' },
-    { name: 'Comments', value: 128, fill: 'hsl(var(--chart-2))' },
-    { name: 'Shares', value: 87, fill: 'hsl(var(--chart-3))' },
-    { name: 'Saves', value: 256, fill: 'hsl(var(--chart-4))' },
-    { name: 'NDAs', value: 43, fill: 'hsl(var(--chart-5))' }
-  ];
-
-  const genrePerformanceData = [
-    { genre: 'Sci-Fi', views: 3200 },
-    { genre: 'Drama', views: 2800 },
-    { genre: 'Action', views: 2100 },
-    { genre: 'Comedy', views: 1500 },
-    { genre: 'Horror', views: 1200 },
-    { genre: 'Thriller', views: 1658 }
-  ];
-
-  const audienceData = [
-    { name: 'Investors', value: 35, fill: 'hsl(var(--chart-1))' },
-    { name: 'Producers', value: 28, fill: 'hsl(var(--chart-2))' },
-    { name: 'Studios', value: 20, fill: 'hsl(var(--chart-3))' },
-    { name: 'Directors', value: 12, fill: 'hsl(var(--chart-4))' },
-    { name: 'Others', value: 5, fill: 'hsl(var(--chart-5))' }
-  ];
-
   // Chart configurations
-  const viewsConfig = {
-    views: {
-      label: 'Views',
-      color: 'hsl(var(--chart-1))'
-    }
-  };
-
   const engagementConfig = {
     value: {
       label: 'Engagement'
@@ -173,12 +150,6 @@ export default function CreatorStats() {
     views: {
       label: 'Views',
       color: 'hsl(var(--chart-1))'
-    }
-  };
-
-  const audienceConfig = {
-    value: {
-      label: 'Audience'
     }
   };
 
@@ -206,25 +177,6 @@ export default function CreatorStats() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {/* Time Range Selector */}
-            <select
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value)}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-            >
-              <option value="24hours">Last 24 Hours</option>
-              <option value="7days">Last 7 Days</option>
-              <option value="30days">Last 30 Days</option>
-              <option value="90days">Last 90 Days</option>
-              <option value="1year">Last Year</option>
-            </select>
-            
-            {/* Export Button */}
-            <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
-              <Download className="w-4 h-4" />
-              Export
-            </button>
-            
             {/* Refresh Button */}
             <button
               onClick={loadStats}
@@ -303,60 +255,6 @@ export default function CreatorStats() {
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Views Over Time */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <div className="space-y-1">
-              <CardTitle className="text-base font-medium">Views Over Time</CardTitle>
-              <CardDescription>Daily views for the selected period</CardDescription>
-            </div>
-            <BarChart3 className="w-5 h-5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={viewsConfig} className="h-[300px]">
-              <LineChart data={viewsChartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="day" />
-                <YAxis />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Line 
-                  type="monotone" 
-                  dataKey="views" 
-                  stroke="var(--color-views)" 
-                  strokeWidth={2}
-                  dot={{ fill: "var(--color-views)" }}
-                />
-              </LineChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-
-        {/* Engagement Breakdown */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <div className="space-y-1">
-              <CardTitle className="text-base font-medium">Engagement Breakdown</CardTitle>
-              <CardDescription>Types of engagement across your pitches</CardDescription>
-            </div>
-            <PieChart className="w-5 h-5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={engagementConfig} className="h-[300px]">
-              <RechartsPieChart>
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Pie data={engagementChartData} dataKey="value" nameKey="name">
-                  {engagementChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <ChartLegend content={<ChartLegendContent />} />
-              </RechartsPieChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Genre Performance */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -367,39 +265,51 @@ export default function CreatorStats() {
             <TrendingUp className="w-5 h-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <ChartContainer config={genreConfig} className="h-[300px]">
-              <BarChart data={genrePerformanceData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="genre" />
-                <YAxis />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="views" fill="var(--color-views)" />
-              </BarChart>
-            </ChartContainer>
+            {genrePerformanceData.length > 0 ? (
+              <ChartContainer config={genreConfig} className="h-[300px]">
+                <BarChart data={genrePerformanceData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="genre" />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="views" fill="var(--color-views)" />
+                </BarChart>
+              </ChartContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-gray-500">
+                No genre data yet
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Audience Demographics */}
+        {/* Engagement Breakdown */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <div className="space-y-1">
-              <CardTitle className="text-base font-medium">Audience Demographics</CardTitle>
-              <CardDescription>Who is viewing your content</CardDescription>
+              <CardTitle className="text-base font-medium">Engagement Breakdown</CardTitle>
+              <CardDescription>Likes, NDAs, and views across your pitches</CardDescription>
             </div>
-            <Users className="w-5 h-5 text-muted-foreground" />
+            <PieChart className="w-5 h-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <ChartContainer config={audienceConfig} className="h-[300px]">
-              <RechartsPieChart>
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Pie data={audienceData} dataKey="value" nameKey="name" innerRadius={60}>
-                  {audienceData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <ChartLegend content={<ChartLegendContent />} />
-              </RechartsPieChart>
-            </ChartContainer>
+            {engagementChartData.length > 0 ? (
+              <ChartContainer config={engagementConfig} className="h-[300px]">
+                <RechartsPieChart>
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Pie data={engagementChartData} dataKey="value" nameKey="name">
+                    {engagementChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <ChartLegend content={<ChartLegendContent />} />
+                </RechartsPieChart>
+              </ChartContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-gray-500">
+                No engagement data yet
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

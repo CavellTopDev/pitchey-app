@@ -161,21 +161,6 @@ describe('CreatorStats', () => {
     expect(screen.getByText('Total Pitches')).toBeInTheDocument()
   })
 
-  it('renders the time range selector', async () => {
-    render(
-      <MemoryRouter>
-        <CreatorStats />
-      </MemoryRouter>
-    )
-
-    await waitFor(() => {
-      expect(screen.getByText('Total Views')).toBeInTheDocument()
-    })
-
-    const select = screen.getByDisplayValue('Last 7 Days')
-    expect(select).toBeInTheDocument()
-  })
-
   it('renders chart section headings', async () => {
     render(
       <MemoryRouter>
@@ -184,12 +169,10 @@ describe('CreatorStats', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('Views Over Time')).toBeInTheDocument()
+      expect(screen.getByText('Genre Performance')).toBeInTheDocument()
     })
 
     expect(screen.getByText('Engagement Breakdown')).toBeInTheDocument()
-    expect(screen.getByText('Genre Performance')).toBeInTheDocument()
-    expect(screen.getByText('Audience Demographics')).toBeInTheDocument()
   })
 
   it('renders Top Performing Pitches table with data', async () => {
@@ -249,7 +232,7 @@ describe('CreatorStats', () => {
     expect(zeros.length).toBeGreaterThan(0)
   })
 
-  it('renders Export and Refresh buttons', async () => {
+  it('renders Refresh button', async () => {
     render(
       <MemoryRouter>
         <CreatorStats />
@@ -257,7 +240,7 @@ describe('CreatorStats', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('Export')).toBeInTheDocument()
+      expect(screen.getByText('Total Views')).toBeInTheDocument()
     })
 
     // Refresh button (icon-only button)
