@@ -107,9 +107,31 @@ const Following: React.FC = () => {
           const activities = result.activities || [];
           setData(activities);
         } else if (activeTab === 'followers') {
-          setData(result.data?.followers || result.followers || result.data || []);
+          const raw = result.data?.followers || result.followers || result.data || [];
+          setData(raw.map((f: any) => ({
+            ...f,
+            profileImage: f.profileImage || f.profile_image,
+            userType: f.userType || f.user_type || 'user',
+            companyName: f.companyName || f.company_name,
+            firstName: f.firstName || f.first_name,
+            lastName: f.lastName || f.last_name,
+            pitchCount: f.pitchCount ?? f.pitch_count ?? 0,
+            followedAt: f.followedAt || f.followed_at || f.created_at || '',
+            createdAt: f.createdAt || f.created_at || '',
+          })));
         } else if (activeTab === 'following') {
-          setData(result.data?.following || result.following || result.data || []);
+          const raw = result.data?.following || result.following || result.data || [];
+          setData(raw.map((f: any) => ({
+            ...f,
+            profileImage: f.profileImage || f.profile_image,
+            userType: f.userType || f.user_type || 'user',
+            companyName: f.companyName || f.company_name,
+            firstName: f.firstName || f.first_name,
+            lastName: f.lastName || f.last_name,
+            pitchCount: f.pitchCount ?? f.pitch_count ?? 0,
+            followedAt: f.followedAt || f.followed_at || f.created_at || '',
+            createdAt: f.createdAt || f.created_at || '',
+          })));
         } else {
           // Fallback to data directly if it's an array
           setData(Array.isArray(result.data) ? result.data : []);
