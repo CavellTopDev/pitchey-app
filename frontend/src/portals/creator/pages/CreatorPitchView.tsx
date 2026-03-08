@@ -71,7 +71,7 @@ const CreatorPitchView: React.FC = () => {
   const [ndaRequests, setNdaRequests] = useState<NDARequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'ndas' | 'feedback'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'ndas' | 'conversations' | 'feedback'>('overview');
   const [isOwner, setIsOwner] = useState(false);
 
   useEffect(() => {
@@ -260,7 +260,7 @@ const CreatorPitchView: React.FC = () => {
             {isOwner && (
               <div className="bg-white rounded-xl shadow-lg mb-6">
                 <div className="flex border-b">
-                  {['overview', 'analytics', 'ndas', 'feedback'].map((tab) => (
+                  {['overview', 'analytics', 'ndas', 'conversations', 'feedback'].map((tab) => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab as any)}
@@ -434,6 +434,55 @@ const CreatorPitchView: React.FC = () => {
                 ) : (
                   <p className="text-gray-500">No NDA requests yet</p>
                 )}
+              </div>
+            )}
+
+            {activeTab === 'conversations' && isOwner && (
+              <div className="bg-white rounded-xl shadow-lg p-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Conversations</h2>
+                <p className="text-sm text-gray-500 mb-6">Users who have signed the NDA for this pitch. You can message them directly.</p>
+
+                {(() => {
+                  const approvedSigners = ndaRequests.filter(r => r.status === 'approved');
+                  if (approvedSigners.length > 0) {
+                    return (
+                      <div className="space-y-3">
+                        {approvedSigners.map((request) => (
+                          <div key={request.id} className="flex items-center justify-between border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                                <User className="w-5 h-5 text-purple-600" />
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-gray-900">{request.requesterName}</h4>
+                                {request.requesterCompany && (
+                                  <p className="text-sm text-gray-500">{request.requesterCompany}</p>
+                                )}
+                                <p className="text-xs text-gray-400">
+                                  NDA signed {new Date(request.requestedAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => navigate(`/creator/messages?recipient=${request.requesterId}&subject=${encodeURIComponent(`Re: ${pitch?.title || 'Pitch'}`)}`)}
+                              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
+                            >
+                              <MessageSquare className="w-4 h-4" />
+                              Message
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="text-center py-8">
+                      <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-gray-500 font-medium">No signed NDAs yet</p>
+                      <p className="text-sm text-gray-400 mt-1">Once investors or producers sign your NDA, you can start conversations with them here.</p>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
