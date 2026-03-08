@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, ChevronDown, CircleUser, Coins, Menu, X, LogOut, Home, Store } from 'lucide-react';
+import { ChevronDown, CircleUser, Coins, Menu, X, LogOut, Home, Store } from 'lucide-react';
 import { useBetterAuthStore } from '@/store/betterAuthStore';
 import { paymentsAPI } from '@/lib/apiServices';
 import { WebSocketStatusCompact } from '@/components/WebSocketStatus';
+import { NotificationBell } from '@features/notifications/components/NotificationBell';
 
 
 interface MinimalHeaderProps {
@@ -16,7 +17,7 @@ export function MinimalHeader({ onMenuToggle, isSidebarOpen = true, userType }: 
   const navigate = useNavigate();
   const { user, logout } = useBetterAuthStore();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+
   const [creditBalance, setCreditBalance] = useState<number>(0);
 
   useEffect(() => {
@@ -95,29 +96,7 @@ export function MinimalHeader({ onMenuToggle, isSidebarOpen = true, userType }: 
         </button>
 
         {/* Notifications */}
-        <div className="relative">
-          <button
-            onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-            className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100"
-            aria-label="Notifications"
-          >
-            <Bell className="w-5 h-5" />
-            {/* Notification badge */}
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-          </button>
-
-          {/* Notification dropdown */}
-          {isNotificationOpen && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-2">
-              <div className="px-4 py-2 border-b border-gray-200">
-                <h3 className="font-semibold text-gray-900">Notifications</h3>
-              </div>
-              <div className="px-4 py-3 text-sm text-gray-600">
-                No new notifications
-              </div>
-            </div>
-          )}
-        </div>
+        <NotificationBell size="sm" />
 
         {/* Profile Menu */}
         <div className="relative">
