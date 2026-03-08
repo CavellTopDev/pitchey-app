@@ -77,11 +77,7 @@ const Following: React.FC = () => {
       
       // Use different endpoints based on the active tab
       if (activeTab === 'activity') {
-        endpoint = userType === 'creator' ? '/api/creator/following' :
-                   userType === 'investor' ? '/api/investor/following' :
-                   userType === 'production' ? '/api/production/following' :
-                   '/api/investor/following'; // default
-        endpoint += '?tab=activity';
+        endpoint = '/api/pitches/following';
       } else if (activeTab === 'followers') {
         endpoint = '/api/follows/followers';
       } else if (activeTab === 'following') {
@@ -104,8 +100,26 @@ const Following: React.FC = () => {
       if (result.success) {
         // Handle different response formats based on the tab
         if (activeTab === 'activity') {
-          // For activity tab, the API returns activities directly at root level
-          const activities = result.activities || [];
+          // Transform pitches from followed creators into activity items
+          const pitches = result.data?.pitches || result.pitches || result.data || [];
+          const activities = pitches.map((p: any) => ({
+            id: p.id,
+            type: 'pitch_created' as const,
+            creator: {
+              id: p.user_id || p.userId,
+              username: p.creator_name || p.creator_email?.split('@')[0] || 'Creator',
+              profileImage: p.creator_profile_image || p.profile_image,
+              userType: 'creator',
+            },
+            action: 'published a pitch',
+            pitch: {
+              id: p.id,
+              title: p.title,
+              genre: p.genre || '',
+              logline: p.logline || p.short_synopsis || '',
+            },
+            createdAt: p.created_at || p.createdAt || '',
+          }));
           setData(activities);
         } else if (activeTab === 'followers') {
           const raw = result.data?.followers || result.followers || result.data || [];
