@@ -67,6 +67,7 @@ const Following: React.FC = () => {
   const fetchFollowingData = async () => {
     setLoading(true);
     setError(null);
+    setData([]);
 
     try {
       // Note: Better Auth uses cookies, not localStorage tokens
@@ -222,13 +223,13 @@ const Following: React.FC = () => {
               </button>
             </div>
           ) : (
-            activities.map((update) => (
+            activities.filter(u => u && u.creator).map((update) => (
               <div key={update.id} className="bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow">
                 <div className="flex items-start space-x-4">
                   <div className="flex-shrink-0">
-                    {update.creator.profileImage ? (
-                      <img 
-                        src={update.creator.profileImage} 
+                    {update.creator?.profileImage || update.creator?.profile_image ? (
+                      <img
+                        src={update.creator.profileImage || (update.creator as any).profile_image}
                         alt={getDisplayName(update.creator)}
                         className="w-12 h-12 rounded-full object-cover"
                       />
@@ -248,7 +249,7 @@ const Following: React.FC = () => {
                       </span>
                       <span className="text-gray-500">{update.action}</span>
                       <span className="text-gray-400 text-sm">
-                        • {new Date(update.createdAt).toLocaleDateString()}
+                        • {new Date(update.createdAt || (update as any).created_at).toLocaleDateString()}
                       </span>
                     </div>
 
@@ -298,11 +299,11 @@ const Following: React.FC = () => {
             </button>
           </div>
         ) : (
-          followers.map((follower) => (
+          followers.filter(Boolean).map((follower) => (
             <div key={follower.id} className="bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow">
               <div className="flex items-center space-x-4">
                 <div className="flex-shrink-0">
-                  {follower.profileImage ? (
+                  {follower?.profileImage ? (
                     <img 
                       src={follower.profileImage} 
                       alt={getDisplayName(follower)}
@@ -384,11 +385,11 @@ const Following: React.FC = () => {
             </button>
           </div>
         ) : (
-          following.map((creator) => (
+          following.filter(Boolean).map((creator) => (
             <div key={creator.id} className="bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow">
               <div className="flex items-center space-x-4">
                 <div className="flex-shrink-0">
-                  {creator.profileImage ? (
+                  {creator?.profileImage ? (
                     <img 
                       src={creator.profileImage} 
                       alt={getDisplayName(creator)}
