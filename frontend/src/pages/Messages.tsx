@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
   Send, Search, Filter, MessageSquare, Paperclip, MoreVertical,
   RefreshCw, Users, Circle, Smile, FileText, Image, Video, Music,
-  Lock, Unlock, Check, CheckCheck, Clock, X, WifiOff
+  Lock, Unlock, Check, CheckCheck, Clock, X, WifiOff, PenSquare, User, Shield
 } from 'lucide-react';
 import { useMessaging } from '@features/notifications/hooks/useWebSocket';
 import { getUserId } from '../lib/apiServices';
@@ -69,6 +69,10 @@ export default function Messages() {
   const [conversations, setConversations] = useState<EnhancedConversation[]>([]);
   const [currentMessages, setCurrentMessages] = useState<EnhancedMessage[]>([]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [showNewConversation, setShowNewConversation] = useState(false);
+  const [ndaContacts, setNdaContacts] = useState<Array<{ id: number; name: string; type: string; pitchTitle?: string; signedAt?: string }>>([]);
+  const [contactsLoading, setContactsLoading] = useState(false);
+  const [contactSearch, setContactSearch] = useState('');
 
   // Online/offline detection
   useEffect(() => {
@@ -167,6 +171,73 @@ export default function Messages() {
       // Non-critical — WebSocket may provide messages
     }
   }, []);
+
+  // Load NDA contacts for new conversation modal
+  const loadNdaContacts = useCallback(async () => {
+    setContactsLoading(true);
+    try {
+      // Fetch both signed and incoming-signed NDAs to cover both directions
+      const [signedRes, incomingRes] = await Promise.all([
+        apiClient.get<{ ndas?: Array<Record<string, unknown>>; ndaRequests?: Array<Record<string, unknown>> }>('/api/ndas/signed'),
+        apiClient.get<{ ndas?: Array<Record<string, unknown>>; ndaRequests?: Array<Record<string, unknown>> }>('/api/ndas/incoming-signed'),
+      ]);
+
+      const currentUserId = parseInt(getUserId() || '0');
+      const contactMap = new Map<number, { id: number; name: string; type: string; pitchTitle?: string; signedAt?: string }>();
+
+      const processNdas = (ndas: Array<Record<string, unknown>>) => {
+        for (const nda of ndas) {
+          // Get the other party's info
+          const requesterId = (nda.requester_id ?? nda.requesterId ?? nda.signer_id ?? nda.signerId) as number;
+          const ownerId = (nda.owner_id ?? nda.pitch_owner_id ?? nda.ownerId) as number;
+          const otherId = requesterId === currentUserId ? ownerId : requesterId;
+          if (!otherId || otherId === currentUserId) continue;
+
+          const otherName = requesterId === currentUserId
+            ? ((nda.creator_username ?? nda.creator_name ?? nda.pitchOwner ?? nda.owner_name) as string) || 'Unknown'
+            : ((nda.requester_username ?? nda.requester_name ?? nda.requesterName ?? nda.signer_name) as string) || 'Unknown';
+          const otherType = requesterId === currentUserId ? 'creator' : ((nda.requester_type ?? nda.signer_type) as string) || 'user';
+          const pitchTitle = (nda.pitch_title ?? nda.pitchTitle) as string | undefined;
+          const signedAt = (nda.signed_at ?? nda.signedAt ?? nda.created_at ?? nda.createdAt) as string | undefined;
+
+          if (!contactMap.has(otherId)) {
+            contactMap.set(otherId, { id: otherId, name: otherName, type: otherType, pitchTitle, signedAt });
+          }
+        }
+      };
+
+      const signedNdas = signedRes.data?.ndas ?? signedRes.data?.ndaRequests ?? [];
+      const incomingNdas = incomingRes.data?.ndas ?? incomingRes.data?.ndaRequests ?? [];
+      processNdas(signedNdas);
+      processNdas(incomingNdas);
+
+      setNdaContacts(Array.from(contactMap.values()));
+    } catch {
+      // Non-critical
+    } finally {
+      setContactsLoading(false);
+    }
+  }, []);
+
+  // Start a new conversation with a contact
+  const startNewConversation = useCallback(async (contactId: number) => {
+    try {
+      const res = await apiClient.post<{ conversation: { id: number } }>('/api/conversations', {
+        recipientId: contactId,
+      });
+      if (res.success && res.data?.conversation?.id) {
+        const convId = res.data.conversation.id;
+        setSelectedConversation(convId);
+        joinConversation(convId);
+        hookMarkConversationAsRead(convId);
+        void fetchConversationMessages(convId);
+        setShowNewConversation(false);
+        setContactSearch('');
+      }
+    } catch {
+      // handled silently
+    }
+  }, [joinConversation, hookMarkConversationAsRead, fetchConversationMessages]);
 
   // Handle recipient query param — find/create conversation and auto-select
   const recipientHandledRef = useRef(false);
@@ -644,19 +715,29 @@ export default function Messages() {
           <div className="flex h-full">
             {/* Conversations List */}
             <div className="w-1/3 border-r border-gray-200 flex flex-col">
-              {/* Search and Filter */}
+              {/* Header with New Conversation button */}
               <div className="p-4 border-b border-gray-200">
-                <div className="relative mb-3">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <input
-                    type="text"
-                    placeholder="Search conversations..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                  />
+                <div className="flex items-center justify-between mb-3">
+                  <div className="relative flex-1 mr-2">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="text"
+                      placeholder="Search conversations..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                    />
+                  </div>
+                  <button
+                    onClick={() => { setShowNewConversation(true); void loadNdaContacts(); }}
+                    className="flex items-center gap-1 px-3 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors whitespace-nowrap"
+                    title="New conversation"
+                  >
+                    <PenSquare className="w-4 h-4" />
+                    <span className="hidden lg:inline">New</span>
+                  </button>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <Filter className="w-4 h-4 text-gray-400" />
                   <select
@@ -680,18 +761,29 @@ export default function Messages() {
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
                   </div>
                 ) : displayConversations.length === 0 ? (
-                  <div className="p-4 text-center">
-                    <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-gray-500 text-sm">
-                      {searchTerm ? 'No conversations match your search' : 'No conversations found'}
+                  <div className="p-6 text-center">
+                    <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm font-medium">
+                      {searchTerm ? 'No conversations match your search' : 'No conversations yet'}
                     </p>
-                    {searchTerm && (
-                      <button 
+                    {searchTerm ? (
+                      <button
                         onClick={() => setSearchTerm('')}
                         className="text-purple-600 text-sm mt-2 hover:underline"
                       >
                         Clear search
                       </button>
+                    ) : (
+                      <>
+                        <p className="text-gray-400 text-xs mt-1 mb-4">Start a conversation with someone who has signed an NDA</p>
+                        <button
+                          onClick={() => { setShowNewConversation(true); void loadNdaContacts(); }}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
+                        >
+                          <PenSquare className="w-4 h-4" />
+                          Start a Conversation
+                        </button>
+                      </>
                     )}
                   </div>
                 ) : (
@@ -1201,15 +1293,115 @@ export default function Messages() {
               ) : (
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-center">
-                    <MessageSquare className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">Select a conversation</h3>
-                    <p className="text-gray-500">Choose a conversation from the left to start messaging</p>
+                    <p className="text-gray-500 mb-4">Choose a conversation from the left to start messaging</p>
+                    <button
+                      onClick={() => { setShowNewConversation(true); void loadNdaContacts(); }}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      <PenSquare className="w-4 h-4" />
+                      New Conversation
+                    </button>
                   </div>
                 </div>
               )}
             </div>
           </div>
         </div>
+
+        {/* New Conversation Modal */}
+        {showNewConversation && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-4 border-b">
+                <h2 className="text-lg font-semibold text-gray-900">New Conversation</h2>
+                <button
+                  onClick={() => { setShowNewConversation(false); setContactSearch(''); }}
+                  className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Search contacts */}
+              <div className="p-4 border-b">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Search contacts..."
+                    value={contactSearch}
+                    onChange={(e) => setContactSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                    autoFocus
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                  <Shield className="w-3 h-3" />
+                  Showing users with signed NDAs
+                </p>
+              </div>
+
+              {/* Contact List */}
+              <div className="flex-1 overflow-y-auto">
+                {contactsLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+                  </div>
+                ) : ndaContacts.length === 0 ? (
+                  <div className="p-6 text-center">
+                    <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm font-medium">No contacts available</p>
+                    <p className="text-gray-400 text-xs mt-1">You can message users once they have signed an NDA on one of your pitches, or you have signed an NDA on theirs.</p>
+                  </div>
+                ) : (
+                  (() => {
+                    const filtered = ndaContacts.filter(c =>
+                      !contactSearch || c.name.toLowerCase().includes(contactSearch.toLowerCase()) ||
+                      (c.pitchTitle && c.pitchTitle.toLowerCase().includes(contactSearch.toLowerCase()))
+                    );
+                    if (filtered.length === 0) {
+                      return (
+                        <div className="p-6 text-center">
+                          <p className="text-gray-500 text-sm">No contacts match "{contactSearch}"</p>
+                        </div>
+                      );
+                    }
+                    return filtered.map((contact) => (
+                      <button
+                        key={contact.id}
+                        onClick={() => void startNewConversation(contact.id)}
+                        className="w-full flex items-center gap-3 p-4 hover:bg-purple-50 transition-colors text-left border-b border-gray-100 last:border-0"
+                      >
+                        <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                          <User className="w-5 h-5 text-purple-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 text-sm">{contact.name}</p>
+                          {contact.pitchTitle && (
+                            <p className="text-xs text-purple-600 truncate">NDA: {contact.pitchTitle}</p>
+                          )}
+                          {contact.signedAt && (
+                            <p className="text-xs text-gray-400">Signed {new Date(contact.signedAt).toLocaleDateString()}</p>
+                          )}
+                        </div>
+                        <span className={`px-2 py-0.5 text-xs rounded-full ${
+                          contact.type === 'investor' ? 'bg-blue-100 text-blue-700' :
+                          contact.type === 'production' ? 'bg-green-100 text-green-700' :
+                          'bg-purple-100 text-purple-700'
+                        }`}>
+                          {contact.type}
+                        </span>
+                      </button>
+                    ));
+                  })()
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
