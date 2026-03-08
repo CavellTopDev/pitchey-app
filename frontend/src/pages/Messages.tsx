@@ -137,6 +137,37 @@ export default function Messages() {
     return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // REST-based message fetch when a conversation is selected
+  const fetchConversationMessages = useCallback(async (conversationId: number) => {
+    try {
+      const res = await apiClient.get<{ messages: Array<Record<string, unknown>> }>(`/api/conversations/${conversationId}/messages`);
+      if (!res.success || !res.data?.messages) return;
+
+      const currentUserId = parseInt(getUserId() || '0');
+      const msgs: EnhancedMessage[] = res.data.messages.map((msg: Record<string, unknown>) => ({
+        id: (msg.id as number) || 0,
+        conversationId: (msg.conversation_id as number) || (msg.conversationId as number) || conversationId,
+        senderId: (msg.sender_id as number) || (msg.senderId as number) || 0,
+        senderName: (msg.sender_name as string) || (msg.senderName as string) || 'Unknown',
+        senderType: ((msg.sender_type as string) || (msg.senderType as string) || 'creator') as 'investor' | 'production' | 'creator',
+        content: (msg.content as string) || '',
+        message: (msg.content as string) || '',
+        timestamp: (msg.created_at as string) || (msg.timestamp as string) || new Date().toISOString(),
+        isRead: (msg.is_read as boolean) || (msg.isRead as boolean) || false,
+        hasAttachment: false,
+        delivered: true,
+        reactions: [],
+        isEncrypted: false,
+        canEdit: ((msg.sender_id as number) || (msg.senderId as number) || 0) === currentUserId,
+        canDelete: ((msg.sender_id as number) || (msg.senderId as number) || 0) === currentUserId,
+      }));
+
+      setCurrentMessages(msgs);
+    } catch {
+      // Non-critical — WebSocket may provide messages
+    }
+  }, []);
+
   // Handle recipient query param — find/create conversation and auto-select
   const recipientHandledRef = useRef(false);
   useEffect(() => {
@@ -153,10 +184,11 @@ export default function Messages() {
         });
         if (res.success && res.data?.conversation?.id) {
           const convId = res.data.conversation.id;
-          // Auto-select the conversation
+          // Auto-select the conversation and load messages
           setSelectedConversation(convId);
           joinConversation(convId);
           hookMarkConversationAsRead(convId);
+          void fetchConversationMessages(convId);
         }
       } catch {
         // Non-critical — user can still manually select
@@ -165,7 +197,7 @@ export default function Messages() {
       setSearchParams({}, { replace: true });
     };
     initConversation();
-  }, [searchParams, setSearchParams, joinConversation, hookMarkConversationAsRead]);
+  }, [searchParams, setSearchParams, joinConversation, hookMarkConversationAsRead, fetchConversationMessages]);
 
   // Sync with hook conversations and messages
   useEffect(() => {
@@ -359,7 +391,9 @@ export default function Messages() {
     setSelectedConversation(conversationId);
     joinConversation(conversationId);
     hookMarkConversationAsRead(conversationId);
-  }, [joinConversation, hookMarkConversationAsRead]);
+    // Fetch messages via REST so they show immediately
+    void fetchConversationMessages(conversationId);
+  }, [joinConversation, hookMarkConversationAsRead, fetchConversationMessages]);
 
   const handleReplyToMessage = useCallback((message: EnhancedMessage) => {
     setReplyToMessage(message);
