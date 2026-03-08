@@ -187,13 +187,20 @@ export default function FundingOverview({
 
       {/* Quick Actions */}
       <div className="border-t pt-4 mt-4">
-        <div className="grid grid-cols-1 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <button
-            onClick={() => { void navigate('/creator/analytics'); }}
+            onClick={() => { void navigate('/creator/investors'); }}
             className="flex items-center justify-center gap-2 py-2 px-4 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-colors"
           >
-            <TrendingUp className="w-4 h-4" />
-            <span className="text-sm font-medium">View Analytics</span>
+            <Users className="w-4 h-4" />
+            <span className="text-sm font-medium">View Investors</span>
+          </button>
+          <button
+            onClick={() => { void navigate('/creator/funding-settings'); }}
+            className="flex items-center justify-center gap-2 py-2 px-4 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg transition-colors"
+          >
+            <Target className="w-4 h-4" />
+            <span className="text-sm font-medium">Funding Settings</span>
           </button>
         </div>
       </div>

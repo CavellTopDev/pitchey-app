@@ -25,6 +25,10 @@ export const CREATOR_ROUTES = {
   // Onboarding
   onboarding: '/creator/onboarding',
 
+  // Funding & Investors
+  investors: '/creator/investors',
+  fundingSettings: '/creator/funding-settings',
+
   // Other
   portfolio: '/creator/portfolio',
   ndas: '/creator/ndas',
