@@ -40,7 +40,7 @@ export interface Pitch {
   view_count: number;
   like_count: number;
   is_featured: boolean;
-  cover_image?: string;
+  title_image?: string;
   pitch_deck_url?: string;
   world_description?: string;
   characters?: any;
@@ -243,7 +243,7 @@ export class DatabaseQueries {
     const result = await sql`
       INSERT INTO pitches (
         title, logline, synopsis, genre, themes, target_audience, 
-        budget_range, creator_id, status, is_featured, cover_image,
+        budget_range, creator_id, status, is_featured, title_image,
         pitch_deck_url, world_description, characters, treatment,
         market_analysis, financial_projections, production_timeline
       )
@@ -258,7 +258,7 @@ export class DatabaseQueries {
         ${pitchData.creator_id},
         ${pitchData.status},
         ${pitchData.is_featured},
-        ${pitchData.cover_image || null},
+        ${pitchData.title_image || null},
         ${pitchData.pitch_deck_url || null},
         ${pitchData.world_description || null},
         ${pitchData.characters ? JSON.stringify(pitchData.characters) : null},

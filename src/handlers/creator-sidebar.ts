@@ -262,7 +262,7 @@ export async function creatorPortfolioHandler(
         p.logline,
         p.genre,
         p.status,
-        p.cover_image,
+        p.title_image AS cover_image,
         COALESCE(p.view_count, 0)::int AS view_count,
         COALESCE(p.like_count, 0)::int AS like_count,
         p.created_at,

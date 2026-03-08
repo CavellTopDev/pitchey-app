@@ -108,22 +108,22 @@ export async function createPitch(
       title, tagline, genre, subgenre, format,
       logline, synopsis, target_audience, budget_range,
       comparable_works, pitch_deck_url, video_pitch_url,
-      creator_id, status, visibility,
+      creator_id, user_id, status, visibility,
       themes, mood_tone,
       view_count, like_count, investment_count,
       created_at, updated_at, published_at
     ) VALUES (
-      ${input.title}, ${input.tagline}, ${input.genre}, 
+      ${input.title}, ${input.tagline}, ${input.genre},
       ${input.subgenre || null}, ${input.format},
       ${input.logline}, ${input.synopsis || null},
       ${input.target_audience || null}, ${input.budget_range || null},
       ${input.comparable_works || []}::text[],
       ${input.pitch_deck_url || null}, ${input.video_pitch_url || null},
-      ${input.creator_id}, ${input.status || 'draft'}, 
+      ${input.creator_id}, ${input.creator_id}, ${input.status || 'draft'},
       ${input.visibility || 'public'},
       ${input.themes || []}::text[], ${input.mood_tone || []}::text[],
       0, 0, 0,
-      NOW(), NOW(), 
+      NOW(), NOW(),
       ${input.status === 'published' ? sql`NOW()` : null}
     )
     RETURNING *

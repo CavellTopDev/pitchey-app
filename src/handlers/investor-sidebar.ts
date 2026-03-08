@@ -1144,7 +1144,7 @@ export async function investorOpportunitiesHandler(request: Request, env: Env): 
 
     // Cache the result (fire-and-forget)
     if (cache.isConnected) {
-      cache.set(cacheKey, result, 180).catch(() => {});
+      cache.set(cacheKey, result, 180).catch((err: unknown) => { console.error('Investor sidebar cache set error:', err); });
     }
 
     return jsonResponse(result, origin);

@@ -4859,7 +4859,7 @@ pitchey_analytics_datapoints_per_minute 1250
     try {
       const [pitch] = await this.db.query(`
         INSERT INTO pitches (
-          user_id, title, logline, genre, format,
+          user_id, creator_id, title, logline, genre, format,
           format_category, format_subtype, custom_format,
           budget_range, target_audience, short_synopsis, long_synopsis,
           status, visibility, created_at, updated_at, require_nda,
@@ -4868,7 +4868,7 @@ pitchey_analytics_datapoints_per_minute 1250
           video_url, video_password, video_platform,
           themes, world_description, characters
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'draft', 'private', NOW(), NOW(), $13,
+          $1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'draft', 'private', NOW(), NOW(), $13,
           $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25
         ) RETURNING *
       `, [

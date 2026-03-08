@@ -21,13 +21,13 @@ export async function profileHandler(request: Request, env: Env): Promise<Respon
     email: 'alex.creator@demo.com',
     username: 'alexcreator',
     name: 'Alex Creator',
-    user_type: 'creator',
-    first_name: 'Alex',
-    last_name: 'Creator',
-    company_name: 'Creative Studios',
-    profile_image: null,
-    subscription_tier: 'pro',
-    created_at: new Date().toISOString(),
+    userType: 'creator',
+    firstName: 'Alex',
+    lastName: 'Creator',
+    companyName: 'Creative Studios',
+    profileImage: null,
+    subscriptionTier: 'pro',
+    createdAt: new Date().toISOString(),
     bio: 'Demo user profile',
     verified: false
   };
@@ -48,12 +48,17 @@ export async function profileHandler(request: Request, env: Env): Promise<Respon
   
   try {
     const result = await sql`
-      SELECT 
-        id, email, username, 
+      SELECT
+        id, email, username,
         COALESCE(name, username, email) as name,
-        user_type, first_name, last_name,
-        company_name, profile_image, subscription_tier,
-        created_at, bio, verified
+        user_type as "userType",
+        first_name as "firstName",
+        last_name as "lastName",
+        company_name as "companyName",
+        profile_image as "profileImage",
+        subscription_tier as "subscriptionTier",
+        created_at as "createdAt",
+        bio, phone, website, location, verified
       FROM users
       WHERE id = ${userId}
       LIMIT 1

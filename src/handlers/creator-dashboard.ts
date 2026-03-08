@@ -70,31 +70,48 @@ export async function creatorDashboardHandler(request: Request, env: Env): Promi
       });
     }
     
-    // Fetch all dashboard metrics in parallel with error handling for each
+    // Fetch dashboard metrics with inline SQL for reliability
+    // (query modules use WhereBuilder patterns incompatible with neon tagged templates)
     const results = await Promise.allSettled([
-      userQueries.getUserStats(sql, userId).catch(() => ({ totalPitches: 0, totalFollowers: 0 })),
-      pitchQueries.getCreatorPitches(sql, userId, undefined, 5).catch(() => []),
-      analyticsQueries.getUserAnalytics(sql, userId).catch(() => ({ total_views: 0, avg_engagement: 0 })),
-      documentQueries.getUserNDARequests(sql, userId, 'received').catch(() => []),
-      investmentQueries.getInvestorPortfolio(sql, userId, {}).catch(() => []),
-      notificationQueries.getUserNotifications(sql, userId, { limit: 5 }).catch(() => [])
+      sql`
+        SELECT
+          (SELECT COUNT(*)::int FROM pitches WHERE creator_id::text = ${userId} OR user_id::text = ${userId}) as "totalPitches",
+          (SELECT COUNT(*)::int FROM follows WHERE following_id::text = ${userId}) as "totalFollowers"
+      `.catch((err: unknown) => { console.error('Dashboard stats query error:', err); return [{ totalPitches: 0, totalFollowers: 0 }]; }),
+      sql`
+        SELECT id, title, logline, genre, status, view_count, like_count, title_image, created_at, updated_at
+        FROM pitches
+        WHERE creator_id::text = ${userId} OR user_id::text = ${userId}
+        ORDER BY updated_at DESC
+        LIMIT 5
+      `.catch((err: unknown) => { console.error('Dashboard recent pitches query error:', err); return []; }),
+      sql`
+        SELECT
+          COALESCE(SUM(view_count), 0)::int as total_views,
+          COALESCE(AVG(CASE WHEN view_count > 0 THEN (like_count::float / view_count * 100) ELSE 0 END), 0) as avg_engagement
+        FROM pitches
+        WHERE creator_id::text = ${userId} OR user_id::text = ${userId}
+      `.catch((err: unknown) => { console.error('Dashboard analytics query error:', err); return [{ total_views: 0, avg_engagement: 0 }]; }),
+      documentQueries.getUserNDARequests(sql, userId, 'received').catch((err: unknown) => { console.error('Dashboard NDA query error:', err); return []; }),
+      investmentQueries.getInvestorPortfolio(sql, userId, {}).catch((err: unknown) => { console.error('Dashboard investments query error:', err); return []; }),
+      notificationQueries.getUserNotifications(sql, userId, { limit: 5 }).catch((err: unknown) => { console.error('Dashboard notifications query error:', err); return []; })
     ]);
 
-    const userStats = results[0].status === 'fulfilled' ? results[0].value as { totalPitches: number; totalFollowers: number } : { totalPitches: 0, totalFollowers: 0 };
-    const recentPitches = results[1].status === 'fulfilled' ? results[1].value as pitchQueries.Pitch[] : [];
-    const analytics = results[2].status === 'fulfilled' ? results[2].value as { total_views: number; avg_engagement: number } : { total_views: 0, avg_engagement: 0 };
+    const userStats = results[0].status === 'fulfilled' ? (results[0].value as any[])[0] || { totalPitches: 0, totalFollowers: 0 } : { totalPitches: 0, totalFollowers: 0 };
+    const recentPitches = results[1].status === 'fulfilled' ? results[1].value as any[] : [];
+    const analytics = results[2].status === 'fulfilled' ? (results[2].value as any[])[0] || { total_views: 0, avg_engagement: 0 } : { total_views: 0, avg_engagement: 0 };
     const pendingNDAs = results[3].status === 'fulfilled' ? results[3].value as documentQueries.NDARequest[] : [];
     const recentInvestments = results[4].status === 'fulfilled' ? results[4].value as investmentQueries.Investment[] : [];
     const notifications = results[5].status === 'fulfilled' ? results[5].value as notificationQueries.Notification[] : [];
 
     // Calculate revenue metrics with error handling
-    const revenueData = await getRevenueMetrics(sql, userId).catch(() => ({
+    const revenueData = await getRevenueMetrics(sql, userId).catch((err: unknown) => { console.error('Dashboard revenue metrics error:', err); return {
       totalRevenue: 0,
       committedFunds: 0,
       pipelineValue: 0,
       activeInvestors: 0,
       avgDealSize: 0
-    }));
+    }; });
     
     return new Response(JSON.stringify({
       success: true,
@@ -115,7 +132,7 @@ export async function creatorDashboardHandler(request: Request, env: Env): Promi
           notifications: notifications
         },
         analytics: {
-          viewTrend: await getViewTrend(sql, userId).catch(() => []),
+          viewTrend: await getViewTrend(sql, userId).catch((err: unknown) => { console.error('Dashboard view trend error:', err); return []; }),
           engagementRate: analytics.avg_engagement || 0,
           topPerformingPitch: recentPitches.length > 0 ? recentPitches[0] : null
         }
@@ -722,14 +739,14 @@ async function getRevenueMetrics(sql: any, userId: string) {
 
 async function getViewTrend(sql: any, userId: string) {
   const result = await sql`
-    SELECT 
-      DATE_TRUNC('day', ve.created_at) as date,
+    SELECT
+      DATE_TRUNC('day', pv.viewed_at) as date,
       COUNT(*) as views
-    FROM view_events ve
-    JOIN pitches p ON ve.pitch_id = p.id
-    WHERE p.user_id::text = ${userId}
-      AND ve.created_at >= NOW() - INTERVAL '30 days'
-    GROUP BY DATE_TRUNC('day', ve.created_at)
+    FROM pitch_views pv
+    JOIN pitches p ON pv.pitch_id = p.id
+    WHERE (p.creator_id::text = ${userId} OR p.user_id::text = ${userId})
+      AND pv.viewed_at >= NOW() - INTERVAL '30 days'
+    GROUP BY DATE_TRUNC('day', pv.viewed_at)
     ORDER BY date ASC
   `;
   return result;
@@ -759,57 +776,34 @@ async function getContractAlerts(sql: any, userId: string) {
     });
   });
   
-  // Check for unsigned documents
-  const unsigned = await sql`
-    SELECT 
-      i.id,
-      p.title,
-      COUNT(*) as unsigned_count
-    FROM investments i
-    JOIN pitches p ON i.pitch_id = p.id
-    JOIN investment_documents id ON id.investment_id = i.id
-    WHERE p.user_id::text = ${userId}
-      AND i.status IN ('pending', 'committed')
-      AND id.is_signed = false
-    GROUP BY i.id, p.title
-  `;
-  
-  unsigned.forEach((contract: any) => {
-    alerts.push({
-      type: 'info',
-      message: `${contract.unsigned_count} unsigned document(s) for "${contract.title}"`,
-      contractId: contract.id
-    });
-  });
-  
   return alerts;
 }
 
 async function getViewHistory(sql: any, pitchId: string, startDate: Date) {
   return await sql`
-    SELECT 
-      DATE_TRUNC('day', created_at) as date,
+    SELECT
+      DATE_TRUNC('day', viewed_at) as date,
       COUNT(*) as views,
-      COUNT(DISTINCT viewer_id) as unique_viewers,
-      AVG(duration_seconds) as avg_duration
-    FROM view_events
-    WHERE pitch_id = ${pitchId}
-      AND created_at >= ${startDate}
-    GROUP BY DATE_TRUNC('day', created_at)
+      COUNT(DISTINCT user_id) as unique_viewers,
+      COALESCE(AVG(view_duration), 0) as avg_duration
+    FROM pitch_views
+    WHERE pitch_id::text = ${pitchId}
+      AND viewed_at >= ${startDate}
+    GROUP BY DATE_TRUNC('day', viewed_at)
     ORDER BY date ASC
   `;
 }
 
 async function getAudienceDemographics(sql: any, pitchId: string) {
   return await sql`
-    SELECT 
+    SELECT
       u.user_type,
       u.location,
-      COUNT(DISTINCT ve.viewer_id) as viewer_count
-    FROM view_events ve
-    LEFT JOIN users u ON ve.viewer_id = u.id
-    WHERE ve.pitch_id = ${pitchId}
-      AND ve.viewer_id IS NOT NULL
+      COUNT(DISTINCT pv.user_id) as viewer_count
+    FROM pitch_views pv
+    LEFT JOIN users u ON pv.user_id = u.id
+    WHERE pv.pitch_id::text = ${pitchId}
+      AND pv.user_id IS NOT NULL
     GROUP BY u.user_type, u.location
     ORDER BY viewer_count DESC
   `;
@@ -830,33 +824,26 @@ function calculateRevenueProjections(trends: any[]) {
 
 function generateAnalyticsRecommendations(analytics: any) {
   const recommendations = [];
-  
-  if (analytics.bounce_rate > 50) {
-    recommendations.push({
-      type: 'improvement',
-      priority: 'high',
-      message: 'High bounce rate detected. Consider improving your pitch opening or adding more engaging visuals.',
-      metric: 'bounce_rate'
-    });
-  }
-  
-  if (analytics.conversion_rate < 2) {
+  const views = Number(analytics.total_views || analytics.view_count || 0);
+  const likes = Number(analytics.total_likes || analytics.like_count || 0);
+
+  if (views > 0 && likes / views < 0.02) {
     recommendations.push({
       type: 'opportunity',
       priority: 'medium',
-      message: 'Low conversion rate. Consider adding clearer call-to-actions or investment terms.',
-      metric: 'conversion_rate'
+      message: 'Low engagement rate. Consider adding clearer call-to-actions or improving your pitch visuals.',
+      metric: 'engagement_rate'
     });
   }
-  
-  if (analytics.avg_view_duration < 60) {
+
+  if (views === 0) {
     recommendations.push({
       type: 'improvement',
       priority: 'high',
-      message: 'Viewers are not staying long. Consider restructuring content for better engagement.',
-      metric: 'avg_view_duration'
+      message: 'No views yet. Share your pitch link or publish it to start getting visibility.',
+      metric: 'views'
     });
   }
-  
+
   return recommendations;
 }

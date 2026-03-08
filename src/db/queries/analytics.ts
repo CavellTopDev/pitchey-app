@@ -145,7 +145,7 @@ export async function getUserViewsTimeSeries(
         )::date AS date
       ),
       user_pitches AS (
-        SELECT id FROM pitches WHERE creator_id::text = ${userId} OR created_by::text = ${userId}
+        SELECT id FROM pitches WHERE creator_id::text = ${userId} OR user_id::text = ${userId}
       )
       SELECT
         ds.date::text,
@@ -183,7 +183,7 @@ export async function getEngagementTimeSeries(
         )::date AS date
       ),
       user_pitches AS (
-        SELECT id FROM pitches WHERE creator_id::text = ${userId} OR created_by::text = ${userId}
+        SELECT id FROM pitches WHERE creator_id::text = ${userId} OR user_id::text = ${userId}
       ),
       daily_views AS (
         SELECT DATE(viewed_at) as date, COUNT(*) as views
@@ -311,7 +311,7 @@ export async function getAudienceDemographics(
     // Get views by pitch category/genre
     const categoryResult = await sql`
       WITH user_pitches AS (
-        SELECT id, genre FROM pitches WHERE creator_id::text = ${userId} OR created_by::text = ${userId}
+        SELECT id, genre FROM pitches WHERE creator_id::text = ${userId} OR user_id::text = ${userId}
       ),
       category_views AS (
         SELECT
@@ -362,7 +362,7 @@ export async function getTopPerformingPitchesForUser(
         CASE
           WHEN COALESCE(p.view_count, 0) > 0
           THEN ROUND(
-            (COALESCE(p.like_count, 0) + COALESCE(p.save_count, 0))::numeric
+            (COALESCE(p.like_count, 0) + COALESCE((SELECT COUNT(*) FROM saved_pitches sp WHERE sp.pitch_id = p.id), 0))::numeric
             / p.view_count * 100, 1
           )
           ELSE 0
@@ -408,11 +408,11 @@ export async function getMonthlyPerformance(
           DATE_TRUNC('month', created_at)::date as month,
           COUNT(*) as pitches
         FROM pitches
-        WHERE creator_id::text = ${userId} OR created_by::text = ${userId}
+        WHERE creator_id::text = ${userId} OR user_id::text = ${userId}
         GROUP BY DATE_TRUNC('month', created_at)
       ),
       user_pitch_ids AS (
-        SELECT id FROM pitches WHERE creator_id::text = ${userId} OR created_by::text = ${userId}
+        SELECT id FROM pitches WHERE creator_id::text = ${userId} OR user_id::text = ${userId}
       ),
       monthly_views AS (
         SELECT
@@ -517,7 +517,7 @@ export async function getUserResponseRate(
   }
 }
 
-// View tracking
+// View tracking — uses pitch_views table (not view_events)
 export async function trackPitchView(
   sql: SqlQuery,
   pitchId: string,
@@ -530,19 +530,22 @@ export async function trackPitchView(
   }
 ): Promise<ViewEvent> {
   const result = await sql`
-    INSERT INTO view_events (
-      pitch_id, viewer_id, session_id,
+    INSERT INTO pitch_views (
+      pitch_id, user_id, session_id,
       ip_address, user_agent, referrer,
-      duration_seconds, bounce, created_at
+      view_duration, viewed_at
     ) VALUES (
       ${pitchId}, ${viewerId || null}, ${sessionId || crypto.randomUUID()},
-      ${metadata?.ip_address || null}, ${metadata?.user_agent || null}, 
+      ${metadata?.ip_address || null}, ${metadata?.user_agent || null},
       ${metadata?.referrer || null},
-      0, false, NOW()
+      0, NOW()
     )
-    RETURNING *
+    RETURNING
+      id, pitch_id, user_id as viewer_id, session_id,
+      ip_address, user_agent, referrer,
+      view_duration as duration_seconds, false as bounce, viewed_at as created_at
   `;
-  
+
   const event = extractFirst<ViewEvent>(result);
   if (!event) {
     throw new DatabaseError('Failed to track view');
@@ -550,8 +553,8 @@ export async function trackPitchView(
 
   // Update pitch view count
   await sql`
-    UPDATE pitches 
-    SET 
+    UPDATE pitches
+    SET
       view_count = view_count + 1,
       updated_at = NOW()
     WHERE id = ${pitchId}
@@ -564,59 +567,58 @@ export async function updateViewDuration(
   sql: SqlQuery,
   viewEventId: string,
   durationSeconds: number,
-  bounce: boolean
+  _bounce: boolean
 ): Promise<void> {
   await sql`
-    UPDATE view_events
-    SET 
-      duration_seconds = ${durationSeconds},
-      bounce = ${bounce}
+    UPDATE pitch_views
+    SET view_duration = ${durationSeconds}
     WHERE id = ${viewEventId}
   `;
 }
 
-// Pitch analytics
+// Pitch analytics — uses pitch_views table
 export async function getPitchAnalytics(
   sql: SqlQuery,
   pitchId: string,
-  startDate?: Date,
-  endDate?: Date
+  _startDate?: Date,
+  _endDate?: Date
 ): Promise<PitchAnalytics> {
-  const wb = new WhereBuilder();
-  wb.add('ve.pitch_id = $param', pitchId);
-  wb.addOptional('ve.created_at', '>=', startDate);
-  wb.addOptional('ve.created_at', '<=', endDate);
-  
-  const { where, params } = wb.build();
-  
-  const query = `
-    SELECT 
-      $1 as pitch_id,
-      COUNT(*)::int as view_count,
-      COUNT(DISTINCT COALESCE(ve.viewer_id, ve.session_id))::int as unique_viewers,
-      (SELECT COUNT(*) FROM saved_pitches WHERE pitch_id = $1)::int as save_count,
-      0 as share_count, -- Implement share tracking
-      COALESCE(AVG(ve.duration_seconds), 0) as avg_view_duration,
-      (COUNT(CASE WHEN ve.bounce = true THEN 1 END)::float / NULLIF(COUNT(*), 0) * 100) as bounce_rate,
-      COALESCE(
-        (COUNT(CASE WHEN ve.duration_seconds > 30 THEN 1 END)::float / NULLIF(COUNT(*), 0) * 100),
-        0
-      ) as engagement_score,
-      (
-        SELECT COUNT(*)::float / NULLIF(COUNT(DISTINCT ve.viewer_id), 0) * 100
-        FROM investments i
-        WHERE i.pitch_id = $1
-          AND i.status IN ('committed', 'funded')
-      ) as conversion_rate
-    FROM view_events ve
-    ${where}
-  `;
-  
-  const result = await sql(query, params);
-  const analytics = extractFirst<PitchAnalytics>(result);
-  
-  if (!analytics) {
-    // Return empty analytics if no data
+  try {
+    const result = await sql`
+      SELECT
+        ${pitchId} as pitch_id,
+        COUNT(*)::int as view_count,
+        COUNT(DISTINCT COALESCE(pv.user_id::text, pv.session_id))::int as unique_viewers,
+        (SELECT COUNT(*) FROM saved_pitches WHERE pitch_id = ${pitchId})::int as save_count,
+        0 as share_count,
+        COALESCE(AVG(pv.view_duration), 0) as avg_view_duration,
+        0 as bounce_rate,
+        COALESCE(
+          (COUNT(CASE WHEN pv.view_duration > 30 THEN 1 END)::float / NULLIF(COUNT(*), 0) * 100),
+          0
+        ) as engagement_score,
+        0 as conversion_rate
+      FROM pitch_views pv
+      WHERE pv.pitch_id::text = ${pitchId}
+    `;
+
+    const analytics = extractFirst<PitchAnalytics>(result);
+    if (!analytics) {
+      return {
+        pitch_id: pitchId,
+        view_count: 0,
+        unique_viewers: 0,
+        save_count: 0,
+        share_count: 0,
+        avg_view_duration: 0,
+        bounce_rate: 0,
+        engagement_score: 0,
+        conversion_rate: 0
+      };
+    }
+    return analytics;
+  } catch (error) {
+    console.error('[Analytics] getPitchAnalytics error:', error);
     return {
       pitch_id: pitchId,
       view_count: 0,
@@ -629,62 +631,38 @@ export async function getPitchAnalytics(
       conversion_rate: 0
     };
   }
-  
-  return analytics;
 }
 
 export async function getTopPerformingPitches(
   sql: SqlQuery,
   limit: number = 10,
-  metric: 'views' | 'engagement' | 'conversion' = 'views',
-  startDate?: Date,
-  endDate?: Date
+  _metric: 'views' | 'engagement' | 'conversion' = 'views',
+  _startDate?: Date,
+  _endDate?: Date
 ): Promise<Array<{
   pitch_id: string;
   title: string;
   creator_username: string;
   metric_value: number;
 }>> {
-  const wb = new WhereBuilder();
-  wb.addOptional('ve.created_at', '>=', startDate);
-  wb.addOptional('ve.created_at', '<=', endDate);
-  
-  const { where, params } = wb.build();
-  
-  const orderBy = {
-    views: 'view_count DESC',
-    engagement: 'engagement_score DESC',
-    conversion: 'conversion_rate DESC'
-  }[metric];
-  
-  const query = `
-    SELECT 
-      p.id as pitch_id,
-      p.title,
-      u.username as creator_username,
-      CASE 
-        WHEN '${metric}' = 'views' THEN COUNT(ve.*)::float
-        WHEN '${metric}' = 'engagement' THEN 
-          COALESCE(AVG(ve.duration_seconds), 0)::float
-        WHEN '${metric}' = 'conversion' THEN 
-          (
-            SELECT COUNT(*)::float / NULLIF(COUNT(DISTINCT ve.viewer_id), 0) * 100
-            FROM investments i
-            WHERE i.pitch_id = p.id
-              AND i.status IN ('committed', 'funded')
-          )
-      END as metric_value
-    FROM pitches p
-    LEFT JOIN view_events ve ON ve.pitch_id = p.id
-    LEFT JOIN users u ON p.creator_id = u.id
-    ${where.replace('WHERE', where.includes('WHERE') ? 'AND' : 'WHERE')}
-    GROUP BY p.id, p.title, u.username
-    ORDER BY ${orderBy}
-    LIMIT ${limit}
-  `;
-  
-  const result = await sql(query, params);
-  return extractMany<any>(result);
+  try {
+    const result = await sql`
+      SELECT
+        p.id as pitch_id,
+        p.title,
+        COALESCE(u.name, u.email) as creator_username,
+        COALESCE(p.view_count, 0)::float as metric_value
+      FROM pitches p
+      LEFT JOIN users u ON p.creator_id = u.id
+      WHERE p.status = 'published'
+      ORDER BY p.view_count DESC NULLS LAST
+      LIMIT ${limit}
+    `;
+    return extractMany<any>(result);
+  } catch (error) {
+    console.error('[Analytics] getTopPerformingPitches error:', error);
+    return [];
+  }
 }
 
 // User analytics
@@ -715,13 +693,13 @@ export async function getUserAnalytics(
       )::int as total_investments,
       (
         SELECT AVG(
-          CASE 
-            WHEN view_count > 0 THEN 
-              (save_count::float / view_count * 100)
+          CASE
+            WHEN view_count > 0 THEN
+              (like_count::float / view_count * 100)
             ELSE 0
           END
         )
-        FROM pitches 
+        FROM pitches
         WHERE creator_id = ${userId}
       ) as avg_engagement,
       0 as growth_rate, -- Calculate based on time period
@@ -788,16 +766,16 @@ export async function getUserEngagementHistory(
       GROUP BY DATE(created_at)
       
       UNION ALL
-      
-      SELECT 
-        DATE(created_at) as activity_date,
+
+      SELECT
+        DATE(viewed_at) as activity_date,
         0 as pitches_created,
         COUNT(*) as pitches_viewed,
         0 as messages_sent,
         0 as investments_made
-      FROM view_events
-      WHERE viewer_id = ${userId} AND created_at >= ${startDate}
-      GROUP BY DATE(created_at)
+      FROM pitch_views
+      WHERE user_id = ${userId} AND viewed_at >= ${startDate}
+      GROUP BY DATE(viewed_at)
       
       UNION ALL
       
@@ -868,9 +846,9 @@ export async function getPlatformMetrics(
       (SELECT COUNT(*) FROM investments WHERE status IN ('committed', 'funded'))::int as total_investments,
       (SELECT COALESCE(SUM(amount), 0) FROM investments WHERE status = 'funded') as total_revenue,
       (
-        SELECT COUNT(*)::float / NULLIF(COUNT(DISTINCT viewer_id), 0) * 100
+        SELECT COUNT(*)::float / NULLIF(COUNT(DISTINCT pv.user_id), 0) * 100
         FROM investments i
-        JOIN view_events ve ON i.pitch_id = ve.pitch_id
+        JOIN pitch_views pv ON i.pitch_id = pv.pitch_id
         WHERE i.status IN ('committed', 'funded')
       ) as conversion_rate,
       0 as churn_rate, -- Calculate based on subscription data

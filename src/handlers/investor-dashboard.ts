@@ -75,7 +75,7 @@ export async function investorDashboardHandler(request: Request, env: Env): Prom
           COUNT(*) as saved_count
         FROM saved_pitches
         WHERE user_id = ${userId}
-      `.catch(() => [{ saved_count: 0 }]) // Handle if table doesn't exist
+      `.catch((err: unknown) => { console.error('Investor dashboard saved_pitches query error:', err); return [{ saved_count: 0 }]; })
     ]);
     
     return new Response(JSON.stringify({

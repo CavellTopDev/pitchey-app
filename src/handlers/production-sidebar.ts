@@ -73,7 +73,7 @@ export async function productionStatsHandler(
         SELECT FROM information_schema.tables
         WHERE table_schema = 'public' AND table_name = 'production_pipeline'
       ) AS exists
-    `.catch(() => [{ exists: false }]);
+    `.catch((err: unknown) => { console.error('Production table check error:', err); return [{ exists: false }]; });
 
     let totalProjects = 0;
     let activeProjects = 0;
@@ -89,7 +89,7 @@ export async function productionStatsHandler(
           COALESCE(SUM(budget_allocated), 0) AS total_budget_allocated
         FROM production_pipeline
         WHERE production_company_id::text = ${String(userId)}
-      `.catch(() => []);
+      `.catch((err: unknown) => { console.error('Production project stats error:', err); return []; });
 
       if (projectStats.length > 0) {
         totalProjects = Number(projectStats[0].total_projects) || 0;
@@ -114,7 +114,7 @@ export async function productionStatsHandler(
         JOIN production_pipeline pp ON i.pitch_id = pp.pitch_id
         WHERE pp.production_company_id::text = ${String(userId)}
           AND i.status IN ('active', 'funded', 'committed', 'completed')
-      `.catch(() => []);
+      `.catch((err: unknown) => { console.error('Production revenue stats error:', err); return []; });
 
       if (revenueStats.length > 0) {
         totalRevenue = Number(revenueStats[0].total_revenue) || 0;
@@ -129,7 +129,7 @@ export async function productionStatsHandler(
         COUNT(*) FILTER (WHERE status = 'pending' OR status = 'submitted')::int AS pending_submissions
       FROM pitches
       WHERE status IN ('published', 'pending', 'submitted')
-    `.catch(() => [{ total_submissions: 0, pending_submissions: 0 }]);
+    `.catch((err: unknown) => { console.error('Production submission stats error:', err); return [{ total_submissions: 0, pending_submissions: 0 }]; });
 
     const totalSubmissions = Number(submissionStats[0]?.total_submissions) || 0;
     const pendingSubmissions = Number(submissionStats[0]?.pending_submissions) || 0;

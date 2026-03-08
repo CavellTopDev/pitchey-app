@@ -10,6 +10,7 @@ import * as bcrypt from 'bcryptjs';
 
 export interface UserProfileUpdate {
   name?: string;
+  email?: string;
   bio?: string;
   phone?: string;
   website?: string;
@@ -163,6 +164,10 @@ export class UserProfileRoutes {
       if (updates.location !== undefined) {
         updateFields.push(`location = $${paramIndex++}`);
         values.push(updates.location);
+      }
+      if (updates.email !== undefined) {
+        updateFields.push(`email = $${paramIndex++}`);
+        values.push(updates.email);
       }
 
       if (updateFields.length === 0) {
