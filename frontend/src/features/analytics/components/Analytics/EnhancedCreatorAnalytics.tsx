@@ -178,9 +178,18 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
                 value: item.rate
               }))
             : [],
-          fundingProgress: [],
-          categoryPerformance: [],
-          viewerDemographics: [],
+          fundingProgress: (dashboardMetrics?.trends?.investmentsOverTime?.labels || []).map((label: string, i: number) => ({
+            date: label,
+            value: dashboardMetrics?.trends?.investmentsOverTime?.datasets?.[0]?.data?.[i] || 0
+          })).filter((d: any) => d.value > 0),
+          categoryPerformance: (dashboardMetrics?.demographics?.pitchesByGenre?.labels || []).map((label: string, i: number) => ({
+            category: label,
+            views: dashboardMetrics?.demographics?.pitchesByGenre?.datasets?.[0]?.data?.[i] || 0
+          })),
+          viewerDemographics: (dashboardMetrics?.demographics?.viewerTypes || []).map((v: any) => ({
+            type: v.category || v.type || 'Unknown',
+            count: v.value || v.count || 0
+          })),
           topPitches: (userAnalytics?.topPitches && userAnalytics.topPitches.length > 0)
             ? userAnalytics.topPitches.map(pitch => ({
                 title: pitch.title,
@@ -189,7 +198,11 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
                 funding: 0
               }))
             : [],
-          monthlyMetrics: []
+          monthlyMetrics: (dashboardMetrics?.trends?.pitchesOverTime?.labels || []).map((label: string, i: number) => ({
+            month: label,
+            pitches: dashboardMetrics?.trends?.pitchesOverTime?.datasets?.[0]?.data?.[i] || 0,
+            views: dashboardMetrics?.trends?.viewsOverTime?.datasets?.[0]?.data?.[i] || 0
+          })).filter((d: any) => d.pitches > 0 || d.views > 0)
         }
       };
 

@@ -8098,6 +8098,95 @@ pitchey_analytics_datapoints_per_minute 1250
         GROUP BY user_type
       `, []);
 
+      // 8. Pitches with creation dates and view counts (for time-series charts)
+      const pitchTimelineResult = await this.db.query(`
+        SELECT
+          p.id, p.title, p.genre,
+          DATE(p.created_at) as created_date,
+          COALESCE(p.view_count, 0) as views,
+          COALESCE(p.like_count, 0) as likes
+        FROM pitches p
+        WHERE (p.user_id = $1 OR p.creator_id = $1)
+        ORDER BY p.created_at ASC
+      `, [userId]).catch(() => []);
+
+      // 9. Investments received over time
+      const investmentTimeSeriesResult = await this.db.query(`
+        SELECT
+          DATE(i.created_at) as date,
+          COUNT(*) as count,
+          COALESCE(SUM(i.amount), 0) as amount
+        FROM investments i
+        JOIN pitches p ON i.pitch_id = p.id
+        WHERE (p.user_id = $1 OR p.creator_id = $1)
+          AND i.created_at >= NOW() - INTERVAL '${days} days'
+        GROUP BY DATE(i.created_at)
+        ORDER BY date ASC
+      `, [userId]).catch(() => []);
+
+      // 10. NDA requests over time (as engagement proxy)
+      const ndaTimelineResult = await this.db.query(`
+        SELECT
+          DATE(nr.created_at) as date,
+          COUNT(*) as count
+        FROM nda_requests nr
+        JOIN pitches p ON nr.pitch_id = p.id
+        WHERE (p.user_id = $1 OR p.creator_id = $1)
+          AND nr.created_at >= NOW() - INTERVAL '${days} days'
+        GROUP BY DATE(nr.created_at)
+        ORDER BY date ASC
+      `, [userId]).catch(() => []);
+
+      // Build cumulative view data from pitch creation dates
+      // Since pitch_views table may be empty, distribute views across dates
+      const pitchTimeline = pitchTimelineResult || [];
+      const investmentTimeline = investmentTimeSeriesResult || [];
+      const ndaTimeline = ndaTimelineResult || [];
+
+      // Build date-indexed maps (normalized after toDateStr is defined below)
+      const investmentsByDateRaw = investmentTimeline;
+      const ndaByDateRaw = ndaTimeline;
+
+      // Normalize any date value to YYYY-MM-DD string
+      const toDateStr = (d: any): string => {
+        if (!d) return '';
+        const s = d instanceof Date ? d.toISOString() : String(d);
+        // Handle ISO strings, Date.toString(), etc.
+        if (s.includes('T')) return s.split('T')[0];
+        // Try parsing as date
+        try { return new Date(s).toISOString().split('T')[0]; } catch { return s; }
+      };
+
+      // Now build date maps with normalization
+      const investmentsByDate = new Map(investmentsByDateRaw.map((r: any) => [toDateStr(r.date), this.safeParseFloat(r.amount)]));
+      const ndaByDate = new Map(ndaByDateRaw.map((r: any) => [toDateStr(r.date), this.safeParseInt(r.count)]));
+
+      // Build cumulative views: place each pitch's views on its creation date
+      const viewsByDate = new Map<string, number>();
+      const pitchesByDate = new Map<string, number>();
+      for (const p of pitchTimeline) {
+        const d = toDateStr(p.created_date);
+        if (d) {
+          viewsByDate.set(d, (viewsByDate.get(d) || 0) + this.safeParseInt(p.views));
+          pitchesByDate.set(d, (pitchesByDate.get(d) || 0) + 1);
+        }
+      }
+
+      // Generate date labels — only include dates that have data, plus a few boundary dates
+      const allDatesSet = new Set([
+        ...viewsByDate.keys(),
+        ...investmentsByDate.keys(),
+        ...ndaByDate.keys(),
+        ...pitchesByDate.keys()
+      ]);
+      const dateLabels = Array.from(allDatesSet).sort();
+
+      // If no data dates, use a minimal set
+      if (dateLabels.length === 0) {
+        const now = new Date();
+        dateLabels.push(now.toISOString().split('T')[0]);
+      }
+
       // Build the response matching frontend expectations
       const overview = overviewResult[0] || {};
       const followers = followerResult[0] || {};
@@ -8117,10 +8206,18 @@ pitchey_analytics_datapoints_per_minute 1250
           activeUsers: 0
         },
         trends: {
-          viewsOverTime: { labels: [], datasets: [] },
-          investmentsOverTime: { labels: [], datasets: [] },
-          userGrowth: { labels: [], datasets: [] },
-          revenueGrowth: { labels: [], datasets: [] }
+          viewsOverTime: {
+            labels: dateLabels,
+            datasets: [{ label: 'Views', data: dateLabels.map(d => viewsByDate.get(d) || 0) }]
+          },
+          investmentsOverTime: {
+            labels: dateLabels,
+            datasets: [{ label: 'Funding ($)', data: dateLabels.map(d => investmentsByDate.get(d) || 0) }]
+          },
+          pitchesOverTime: {
+            labels: dateLabels,
+            datasets: [{ label: 'Pitches', data: dateLabels.map(d => pitchesByDate.get(d) || 0) }]
+          }
         },
         demographics: {
           usersByRole: {
@@ -8131,8 +8228,10 @@ pitchey_analytics_datapoints_per_minute 1250
             labels: genreResult.map((g: any) => g.genre || 'Other'),
             datasets: [{ label: 'Pitches', data: genreResult.map((g: any) => this.safeParseInt(g.count)) }]
           },
-          pitchesByStatus: { labels: [], datasets: [] },
-          investmentsByRange: { labels: [], datasets: [] }
+          viewerTypes: roleResult.map((r: any) => ({
+            category: (r.user_type || 'unknown').charAt(0).toUpperCase() + (r.user_type || 'unknown').slice(1),
+            value: this.safeParseInt(r.count)
+          }))
         },
         performance: {
           topPitches: topPitchesResult.map((p: any) => ({
@@ -8149,13 +8248,11 @@ pitchey_analytics_datapoints_per_minute 1250
             totalViews: this.safeParseInt(c.total_views),
             totalInvestments: this.safeParseInt(c.total_investments)
           })),
-          topInvestors: []
-        },
-        engagement: {
-          averageSessionDuration: null,
-          bounceRate: null,
-          pageViewsPerSession: null,
-          mostViewedPages: []
+          topInvestors: [],
+          engagementTrend: dateLabels.map(d => ({
+            date: d,
+            rate: viewsByDate.get(d) || 0
+          }))
         }
       });
     } catch (error) {
