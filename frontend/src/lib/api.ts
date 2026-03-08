@@ -416,8 +416,9 @@ export const pitchAPI = {
 
   async getById(id: number) {
     const response = await api.get<Pitch>(`/api/pitches/${id}`);
-    // Transform snake_case to camelCase
-    return transformPitchData(response.data);
+    // Backend returns { success, data: { pitch: {...} } } — extract the pitch object
+    const raw = response.data?.data?.pitch ?? response.data?.data ?? response.data;
+    return transformPitchData(raw);
   },
 
   async create(data: {

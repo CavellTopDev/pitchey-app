@@ -5101,18 +5101,19 @@ pitchey_analytics_datapoints_per_minute 1250
   private async getPitch(request: Request): Promise<Response> {
     const builder = new ApiResponseBuilder(request);
     const params = (request as any).params;
+    const sql = this.db.getSql() as any;
+    const pitchId = params.id;
 
     try {
-      // First get the pitch data
-      const pitchResult = await this.db.query(`
-        SELECT 
+      const pitchResult = await sql`
+        SELECT
           p.*,
           CONCAT(u.first_name, ' ', u.last_name) as creator_name,
           u.user_type as creator_type
         FROM pitches p
         LEFT JOIN users u ON p.user_id = u.id
-        WHERE p.id = $1
-      `, [params.id]);
+        WHERE p.id = ${pitchId}
+      `;
 
       if (!pitchResult || pitchResult.length === 0) {
         return builder.error(ErrorCode.NOT_FOUND, 'Pitch not found');
@@ -5121,23 +5122,24 @@ pitchey_analytics_datapoints_per_minute 1250
       const pitch = pitchResult[0];
 
       // Get view and investment counts separately to avoid GROUP BY issues
-      const countResult = await this.db.query(`
-        SELECT 
-          (SELECT COUNT(*) FROM views WHERE pitch_id = $1) as view_count,
-          (SELECT COUNT(*) FROM investments WHERE pitch_id = $1) as investment_count
-      `, [params.id]);
-
-      const counts = countResult[0] || { view_count: 0, investment_count: 0 };
+      let counts = { view_count: 0, investment_count: 0 };
+      try {
+        const countResult = await sql`
+          SELECT
+            (SELECT COUNT(*) FROM pitch_views WHERE pitch_id = ${pitchId}) as view_count,
+            (SELECT COUNT(*) FROM investments WHERE pitch_id = ${pitchId}) as investment_count
+        `;
+        counts = countResult[0] || counts;
+      } catch { /* counts are non-critical */ }
 
       // Check if the authenticated user has liked this pitch (non-blocking)
       let isLiked = false;
       try {
         const authResult = await this.validateAuth(request);
         if (authResult.valid && authResult.user) {
-          const likeResult = await this.db.query(
-            `SELECT 1 FROM likes WHERE user_id = $1 AND pitch_id = $2 LIMIT 1`,
-            [authResult.user.id, params.id]
-          );
+          const likeResult = await sql`
+            SELECT 1 FROM likes WHERE user_id = ${authResult.user.id} AND pitch_id = ${pitchId} LIMIT 1
+          `;
           isLiked = likeResult.length > 0;
         }
       } catch {
@@ -5150,15 +5152,12 @@ pitchey_analytics_datapoints_per_minute 1250
         isLiked,
         view_count: counts.view_count,
         investment_count: counts.investment_count,
-        // Format creator info as an object for frontend
         creator: {
           id: pitch.user_id,
           name: pitch.creator_name || 'Unknown Creator',
           userType: pitch.creator_type
         },
-        // Ensure userId is set for ownership checks
         userId: pitch.user_id,
-        // Format createdAt properly
         createdAt: pitch.created_at || pitch.createdAt
       };
 
