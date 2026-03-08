@@ -363,7 +363,7 @@ export class AnalyticsEndpointsHandler {
       try {
         // Get basic pitch info
         const pitchResults = await this.db.query(
-          `SELECT p.id, p.title, p.view_count, p.like_count, p.save_count,
+          `SELECT p.id, p.title, p.view_count, p.like_count,
                   COUNT(DISTINCT pa.id) as nda_requests,
                   COUNT(DISTINCT CASE WHEN pa.status = 'approved' THEN pa.id END) as nda_approved,
                   COUNT(DISTINCT m.id) as message_count
@@ -371,7 +371,7 @@ export class AnalyticsEndpointsHandler {
            LEFT JOIN ndas pa ON p.id = pa.pitch_id
            LEFT JOIN messages m ON p.id = m.pitch_id
            WHERE p.id = $1
-           GROUP BY p.id, p.title, p.view_count, p.like_count, p.save_count`,
+           GROUP BY p.id, p.title, p.view_count, p.like_count`,
           [pitchId]
         );
 
@@ -498,9 +498,9 @@ export class AnalyticsEndpointsHandler {
              COUNT(*) as total_pitches,
              COALESCE(SUM(view_count), 0) as total_views,
              COALESCE(SUM(like_count), 0) as total_likes,
-             COALESCE(SUM(save_count), 0) as total_saves
+             COALESCE(SUM(like_count), 0) as total_saves
            FROM pitches
-           WHERE (creator_id = $1 OR created_by = $1) AND status = 'published'`,
+           WHERE (creator_id = $1 OR user_id = $1) AND status = 'published'`,
           [userAuth.userId]
         );
 
@@ -783,9 +783,9 @@ export class AnalyticsEndpointsHandler {
            COUNT(CASE WHEN status = 'published' THEN 1 END) as published_pitches,
            COALESCE(SUM(view_count), 0) as total_views,
            COALESCE(SUM(like_count), 0) as total_likes,
-           COALESCE(SUM(save_count), 0) as total_saves
+           COALESCE(SUM(like_count), 0) as total_saves
          FROM pitches
-         WHERE creator_id = $1 OR created_by = $1`,
+         WHERE creator_id = $1 OR user_id = $1`,
         [targetUserId]
       );
       const stats = pitchStats[0] || {};
@@ -800,7 +800,7 @@ export class AnalyticsEndpointsHandler {
       const ndaResults = await this.db.query(
         `SELECT COUNT(*) as count FROM ndas n
          JOIN pitches p ON n.pitch_id = p.id
-         WHERE p.creator_id = $1 OR p.created_by = $1`,
+         WHERE p.creator_id = $1 OR p.user_id = $1`,
         [targetUserId]
       );
 
@@ -926,7 +926,7 @@ export class AnalyticsEndpointsHandler {
       // Get total views from pitch stats
       const viewStats = await this.db.query(
         `SELECT COALESCE(SUM(view_count), 0)::int as total_views
-         FROM pitches WHERE creator_id = $1 OR created_by = $1`,
+         FROM pitches WHERE creator_id = $1 OR user_id = $1`,
         [userAuth.userId]
       );
       const totalViews = viewStats[0]?.total_views || 0;

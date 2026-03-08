@@ -11338,12 +11338,11 @@ pitchey_analytics_datapoints_per_minute 1250
           p.*,
           u.name as creator_name,
           u.email as creator_email,
-          COALESCE(v.view_count, 0) as view_count,
+          COALESCE(p.view_count, 0) as view_count,
           COALESCE(s.save_count, 0) as save_count
         FROM pitches p
         INNER JOIN users u ON p.user_id = u.id
         INNER JOIN follows f ON f.following_id = u.id
-        LEFT JOIN (SELECT pitch_id, COUNT(*) as view_count FROM views GROUP BY pitch_id) v ON v.pitch_id = p.id
         LEFT JOIN (SELECT pitch_id, COUNT(*) as save_count FROM saved_pitches GROUP BY pitch_id) s ON s.pitch_id = p.id
         WHERE f.follower_id = $1
           AND p.status = 'published'
@@ -13336,7 +13335,7 @@ pitchey_analytics_datapoints_per_minute 1250
       // Try database first
       try {
         const results = await this.db.query(
-          `SELECT * FROM nda_templates WHERE active = true ORDER BY is_default DESC, name ASC`
+          `SELECT *, template_content as content FROM nda_templates ORDER BY is_default DESC, name ASC`
         );
 
         const templates = results.map((row: any) => ({
@@ -13409,7 +13408,7 @@ pitchey_analytics_datapoints_per_minute 1250
       // Try database first
       try {
         const results = await this.db.query(
-          `SELECT * FROM nda_templates WHERE id = $1 AND active = true`,
+          `SELECT *, template_content as content FROM nda_templates WHERE id = $1`,
           [templateId]
         );
 
@@ -13482,9 +13481,9 @@ pitchey_analytics_datapoints_per_minute 1250
       // Try database first
       try {
         const insertResult = await this.db.query(
-          `INSERT INTO nda_templates (name, description, content, variables, is_default, created_by, created_at, updated_at, active)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
-           RETURNING *`,
+          `INSERT INTO nda_templates (name, description, template_content, variables, is_default, created_by, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           RETURNING *, template_content as content`,
           [
             name,
             description ?? null,
@@ -13581,7 +13580,7 @@ pitchey_analytics_datapoints_per_minute 1250
           params.push(updates.description);
         }
         if (updates.content) {
-          updateFields.push(`content = $${++paramCount}`);
+          updateFields.push(`template_content = $${++paramCount}`);
           params.push(updates.content);
         }
         if (updates.variables) {
@@ -13603,7 +13602,7 @@ pitchey_analytics_datapoints_per_minute 1250
           `UPDATE nda_templates 
            SET ${updateFields.join(', ')}
            WHERE id = $${paramCount + 1} AND created_by = $${paramCount + 2}
-           RETURNING *`,
+           RETURNING *, template_content as content`,
           params
         );
 
