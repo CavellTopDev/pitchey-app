@@ -15180,13 +15180,13 @@ Signatures: [To be completed upon signing]
         return new Response(JSON.stringify({
           success: true,
           data: { ndaRequests: activeNDAs, total: activeNDAs.length }
-        }), { headers: getCorsHeaders(origin) });
+        }), { headers: { 'Content-Type': 'application/json', ...getCorsHeaders(origin) } });
       } catch (dbError) {
         console.error('Active NDAs query error:', dbError);
         return new Response(JSON.stringify({
           success: true,
           data: { ndaRequests: [], total: 0 }
-        }), { headers: getCorsHeaders(origin) });
+        }), { headers: { 'Content-Type': 'application/json', ...getCorsHeaders(origin) } });
       }
 
     } catch (error) {
@@ -15229,7 +15229,7 @@ Signatures: [To be completed upon signing]
       return new Response(JSON.stringify({
         success: true,
         data: { ndaRequests: signedNDAs, total: signedNDAs.length }
-      }), { headers: getCorsHeaders(origin) });
+      }), { headers: { 'Content-Type': 'application/json', ...getCorsHeaders(origin) } });
 
     } catch (error) {
       return errorHandler(error, request);
