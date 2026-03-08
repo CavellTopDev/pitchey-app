@@ -50,6 +50,13 @@ export function BreadcrumbNav({ items, showBackButton = true }: BreadcrumbNavPro
 
   const breadcrumbItems = getBreadcrumbs();
 
+  // Hide breadcrumb on pages that have their own header/back navigation
+  const pagesWithOwnHeader = ['/ndas', '/nda-management', '/dashboard'];
+  const currentPage = '/' + (location.pathname.split('/').pop() || '');
+  if (pagesWithOwnHeader.some(p => currentPage === p)) {
+    return null;
+  }
+
   const handleBack = () => {
     const portal = location.pathname.split('/')[1];
     navigate(`/${portal}/dashboard`);
