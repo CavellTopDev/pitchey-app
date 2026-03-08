@@ -672,7 +672,7 @@ function CreatorDashboard() {
           <p className="text-xs text-gray-500 mt-1">Out of 5.0</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { void navigate('/creator/portfolio'); }}>
+        <div className="bg-white rounded-xl shadow-sm p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { void navigate('/creator/following'); }}>
           <div className="flex items-center justify-between mb-2">
             <span className="text-gray-500 text-sm">Followers</span>
             <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -680,7 +680,7 @@ function CreatorDashboard() {
             </svg>
           </div>
           <p className="text-2xl font-bold text-gray-900">{followers}</p>
-          <p className="text-xs text-blue-500 mt-1 hover:underline">View portfolio →</p>
+          <p className="text-xs text-blue-500 mt-1 hover:underline">View followers →</p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm p-6">
