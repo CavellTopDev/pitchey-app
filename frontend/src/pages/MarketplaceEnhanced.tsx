@@ -122,7 +122,7 @@ export default function MarketplaceEnhanced() {
     formats: searchParams.get('formats')?.split(',').filter(Boolean) || [],
     budgetRange: { 
       min: parseInt(searchParams.get('budgetMin') || '0'), 
-      max: parseInt(searchParams.get('budgetMax') || '10000000') 
+      max: parseInt(searchParams.get('budgetMax') || '500000000')
     },
     status: searchParams.get('status')?.split(',').filter(Boolean) || [],
     hasNDA: searchParams.get('hasNDA') === 'true' ? true : searchParams.get('hasNDA') === 'false' ? false : null,
@@ -169,7 +169,7 @@ export default function MarketplaceEnhanced() {
     if (filters.formats.length) params.set('formats', filters.formats.join(','));
     if (filters.status.length) params.set('status', filters.status.join(','));
     if (filters.budgetRange.min > 0) params.set('budgetMin', filters.budgetRange.min.toString());
-    if (filters.budgetRange.max < 10000000) params.set('budgetMax', filters.budgetRange.max.toString());
+    if (filters.budgetRange.max < 500000000) params.set('budgetMax', filters.budgetRange.max.toString());
     if (filters.hasNDA !== null) params.set('hasNDA', filters.hasNDA.toString());
     if (filters.hasInvestment !== null) params.set('hasInvestment', filters.hasInvestment.toString());
 
@@ -413,7 +413,7 @@ export default function MarketplaceEnhanced() {
     setFilters({
       genres: [],
       formats: [],
-      budgetRange: { min: 0, max: 10000000 },
+      budgetRange: { min: 0, max: 500000000 },
       status: [],
       hasNDA: null,
       hasInvestment: null,
@@ -427,7 +427,7 @@ export default function MarketplaceEnhanced() {
     filters.formats.length > 0 || 
     filters.status.length > 0 ||
     filters.budgetRange.min > 0 || 
-    filters.budgetRange.max < 10000000 ||
+    filters.budgetRange.max < 500000000 ||
     filters.hasNDA !== null ||
     filters.hasInvestment !== null ||
     searchQuery !== '';
@@ -665,7 +665,7 @@ export default function MarketplaceEnhanced() {
             {/* Quick stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-white/10 backdrop-blur rounded-lg p-3">
-                <div className="text-2xl font-bold">{stats.totalPitches}</div>
+                <div className="text-2xl font-bold">{filteredPitches.length}</div>
                 <div className="text-xs text-blue-100">Active Pitches</div>
               </div>
               <div className="bg-white/10 backdrop-blur rounded-lg p-3">
@@ -909,15 +909,15 @@ export default function MarketplaceEnhanced() {
                         aria-label="Budget range slider"
                         type="range"
                         min="0"
-                        max="10000000"
+                        max="500000000"
                         step="100000"
                         value={filters.budgetRange.max}
                         onChange={(e) => setFilters(f => ({ ...f, budgetRange: { ...f.budgetRange, max: parseInt(e.target.value) } }))}
                         className="w-full"
                       />
                       <div className="flex justify-between text-xs text-gray-600">
-                        <span>${(filters.budgetRange.min / 1000).toFixed(0)}K</span>
-                        <span>${(filters.budgetRange.max / 1000).toFixed(0)}K</span>
+                        <span>${(filters.budgetRange.min / 1000000).toFixed(0)}M</span>
+                        <span>${(filters.budgetRange.max / 1000000).toFixed(0)}M</span>
                       </div>
                     </div>
                   </div>
