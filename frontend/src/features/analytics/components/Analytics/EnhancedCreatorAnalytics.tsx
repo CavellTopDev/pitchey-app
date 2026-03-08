@@ -450,10 +450,10 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
                 color: '#3B82F6'
               },
               {
-                label: 'Views (x10)',
+                label: 'Views',
                 data: analyticsData.charts.monthlyMetrics.map(item => ({
                   date: item.month,
-                  value: Math.floor(item.views / 10)
+                  value: item.views
                 })),
                 color: '#10B981'
               }

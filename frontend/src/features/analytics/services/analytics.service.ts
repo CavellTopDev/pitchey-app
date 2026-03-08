@@ -348,7 +348,9 @@ export class AnalyticsService {
           subscriptions: safeNumber(apiData.subscriptions ?? 0),
           transactions: safeNumber(overview.totalInvestments ?? 0),
           growth: safeNumber(apiData.growth ?? 0),
-        }
+        },
+        trends: apiData.trends || {},
+        demographics: apiData.demographics || {},
       };
     } catch (error) {
       console.error('Failed to fetch dashboard metrics:', error);
