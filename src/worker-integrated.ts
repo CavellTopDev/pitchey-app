@@ -696,12 +696,12 @@ class RouteRegistry {
         console.error('Failed to initialize admin handler (non-fatal):', adminErr);
       }
 
-      // Initialize legal document handler
+      // Initialize legal document handler (R2 handler is lazy-init, pass null for storage)
       try {
-        if (this.db && this.enhancedR2Handler && this.auditService) {
+        if (this.db && this.auditService) {
           this.legalDocumentHandler = new LegalDocumentHandler(
             this.db,
-            this.enhancedR2Handler,
+            this.enhancedR2Handler || null,
             this.auditService
           );
         }
