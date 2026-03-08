@@ -800,7 +800,7 @@ export class LegalDocumentHandler {
           generated_content as content,
           created_at,
           generated_by as created_by,
-          u.display_name as author_name,
+          COALESCE(u.name, u.first_name, u.username) as author_name,
           LENGTH(html_preview::text) as file_size,
           compliance_status
         FROM generated_documents gd

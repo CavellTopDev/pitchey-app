@@ -112,13 +112,16 @@ const DocumentComparisonTool: React.FC = () => {
   const loadDocuments = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await api.get('/api/legal/documents/versions');
       if (response.data?.success) {
-        setDocuments(response.data.data.documents);
+        setDocuments(response.data.data.documents || []);
+      } else {
+        setDocuments([]);
       }
     } catch (error) {
       console.error('Error loading documents:', error);
-      setError('Failed to load documents');
+      setDocuments([]);
     } finally {
       setLoading(false);
     }
@@ -255,6 +258,14 @@ const DocumentComparisonTool: React.FC = () => {
 
       {/* Document Selection */}
       <div className="bg-white rounded-lg border p-6">
+        {documents.length === 0 && !loading ? (
+          <div className="text-center py-12">
+            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Documents Yet</h3>
+            <p className="text-gray-500">Generate a legal document using the Document Wizard first, then come back here to compare versions.</p>
+          </div>
+        ) : (
+        <>
         <h2 className="text-lg font-medium text-gray-900 mb-4">Select Documents to Compare</h2>
         
         <div className="grid gap-6 md:grid-cols-2">
@@ -399,6 +410,8 @@ const DocumentComparisonTool: React.FC = () => {
             )}
           </button>
         </div>
+        </>
+        )}
       </div>
 
       {/* Error Message */}
