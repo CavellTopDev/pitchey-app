@@ -481,13 +481,13 @@ export async function ndaStatsHandler(request: Request, env: Env): Promise<Respo
     const result = await sql`
       SELECT 
         COUNT(*) as total,
-        COUNT(*) FILTER (WHERE status = 'pending') as pending,
-        COUNT(*) FILTER (WHERE status = 'approved') as approved,
-        COUNT(*) FILTER (WHERE status = 'rejected') as rejected,
-        COUNT(*) FILTER (WHERE status = 'expired') as expired
+        COUNT(*) FILTER (WHERE n.status = 'pending') as pending,
+        COUNT(*) FILTER (WHERE n.status = 'approved') as approved,
+        COUNT(*) FILTER (WHERE n.status = 'rejected') as rejected,
+        COUNT(*) FILTER (WHERE n.status = 'expired') as expired
       FROM nda_requests n
       JOIN pitches p ON n.pitch_id = p.id
-      WHERE n.requester_id = ${userId} OR p.user_id = ${userId}
+      WHERE n.requester_id = ${userId} OR n.creator_id = ${userId} OR p.user_id = ${userId}
     `;
     
     return new Response(JSON.stringify({
@@ -497,7 +497,11 @@ export async function ndaStatsHandler(request: Request, env: Env): Promise<Respo
         pending: Number(result[0]?.pending) || 0,
         approved: Number(result[0]?.approved) || 0,
         rejected: Number(result[0]?.rejected) || 0,
-        expired: Number(result[0]?.expired) || 0
+        expired: Number(result[0]?.expired) || 0,
+        approvalRate: Number(result[0]?.total) > 0
+          ? Math.round((Number(result[0]?.approved) / Number(result[0]?.total)) * 100)
+          : 0,
+        avgResponseTime: 0
       }
     }), {
       status: 200,

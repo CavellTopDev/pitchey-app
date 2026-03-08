@@ -14030,39 +14030,40 @@ Signatures: [To be completed upon signing]
       if (!authResult.authorized) return authResult.response!;
 
       const url = new URL(request.url);
-      const timeframe = url.searchParams.get('timeframe') || '30d';
+      const timeframe = url.searchParams.get('timeframe') || 'all';
       const pitchId = url.searchParams.get('pitchId');
 
       // Try database first
       try {
         let query = `
-          SELECT 
+          SELECT
             COUNT(*) as total,
-            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-            SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved,
-            SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected,
-            SUM(CASE WHEN status = 'signed' THEN 1 ELSE 0 END) as signed,
-            SUM(CASE WHEN status = 'expired' THEN 1 ELSE 0 END) as expired,
-            SUM(CASE WHEN status = 'revoked' THEN 1 ELSE 0 END) as revoked
-          FROM ndas
-          WHERE (requester_id = $1 OR creator_id = $1)
+            SUM(CASE WHEN n.status = 'pending' THEN 1 ELSE 0 END) as pending,
+            SUM(CASE WHEN n.status = 'approved' THEN 1 ELSE 0 END) as approved,
+            SUM(CASE WHEN n.status = 'rejected' THEN 1 ELSE 0 END) as rejected,
+            SUM(CASE WHEN n.status = 'signed' THEN 1 ELSE 0 END) as signed,
+            SUM(CASE WHEN n.status = 'expired' THEN 1 ELSE 0 END) as expired,
+            SUM(CASE WHEN n.status = 'revoked' THEN 1 ELSE 0 END) as revoked
+          FROM ndas n
+          JOIN pitches p ON p.id = n.pitch_id
+          WHERE (n.signer_id = $1 OR p.user_id = $1)
         `;
 
         const params = [authResult.user.id];
         let paramCount = 1;
 
         if (pitchId) {
-          query += ` AND pitch_id = $${++paramCount}`;
+          query += ` AND n.pitch_id = $${++paramCount}`;
           params.push(parseInt(pitchId));
         }
 
         // Add timeframe filter
         if (timeframe === '7d') {
-          query += ` AND created_at > NOW() - INTERVAL '7 days'`;
+          query += ` AND n.created_at > NOW() - INTERVAL '7 days'`;
         } else if (timeframe === '30d') {
-          query += ` AND created_at > NOW() - INTERVAL '30 days'`;
+          query += ` AND n.created_at > NOW() - INTERVAL '30 days'`;
         } else if (timeframe === '90d') {
-          query += ` AND created_at > NOW() - INTERVAL '90 days'`;
+          query += ` AND n.created_at > NOW() - INTERVAL '90 days'`;
         }
 
         const results = await this.db.query(query, params);
