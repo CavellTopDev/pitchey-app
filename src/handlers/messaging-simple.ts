@@ -1,6 +1,6 @@
 // Phase 2: Simple Messaging System Handler for Worker Integration
 // Direct database queries — aligned with migration 019_messaging_system_tables.sql
-// Schema: conversations (type, created_by), conversation_participants, messages (conversation_id)
+// Schema: conversations (is_group, created_by_id, pitch_id), conversation_participants (conversation_id, user_id, is_active), messages (conversation_id, sender_id)
 
 export class SimpleMessagingHandler {
   constructor(private db: any) {}
@@ -67,7 +67,7 @@ export class SimpleMessagingHandler {
           `SELECT c.id FROM conversations c
            JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = $1
            JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = $2
-           WHERE c.type = 'direct' LIMIT 1`,
+           WHERE c.is_group = FALSE LIMIT 1`,
           [userId, recipient_id]
         );
 
@@ -76,7 +76,7 @@ export class SimpleMessagingHandler {
         } else {
           // Create new direct conversation
           const newConv = await this.db.query(
-            `INSERT INTO conversations (type, created_by) VALUES ('direct', $1) RETURNING id`,
+            `INSERT INTO conversations (is_group, created_by_id) VALUES (FALSE, $1) RETURNING id`,
             [userId]
           );
           convId = newConv[0].id;
@@ -183,7 +183,7 @@ export class SimpleMessagingHandler {
         `SELECT c.id FROM conversations c
          JOIN conversation_participants cp1 ON cp1.conversation_id = c.id AND cp1.user_id = $1
          JOIN conversation_participants cp2 ON cp2.conversation_id = c.id AND cp2.user_id = $2
-         WHERE c.type = 'direct' LIMIT 1`,
+         WHERE c.is_group = FALSE LIMIT 1`,
         [userId, recipientId]
       );
 
@@ -194,7 +194,7 @@ export class SimpleMessagingHandler {
       } else {
         // Create new direct conversation
         const newConv = await this.db.query(
-          `INSERT INTO conversations (type, created_by, pitch_id) VALUES ('direct', $1, $2) RETURNING id`,
+          `INSERT INTO conversations (is_group, created_by_id, pitch_id) VALUES (FALSE, $1, $2) RETURNING id`,
           [userId, pitchId || null]
         );
         conversationId = newConv[0].id;
