@@ -8014,10 +8014,12 @@ pitchey_analytics_datapoints_per_minute 1250
       return builder.success(StubRoutes.getFallbackAnalytics(range));
     }
 
-    try {
-      // Get comprehensive analytics from Neon database
+    const userId = authResult.user?.id?.toString();
 
-      // 1. Overview metrics
+    try {
+      // Get user-scoped analytics from Neon database
+
+      // 1. Overview metrics (scoped to current user's pitches)
       const overviewResult = await this.db.query(`
         SELECT
           COALESCE(SUM(p.view_count), 0) as total_views,
@@ -8025,27 +8027,27 @@ pitchey_analytics_datapoints_per_minute 1250
           COUNT(DISTINCT p.id) as total_pitches,
           COALESCE(AVG(p.rating), 0) as avg_rating
         FROM pitches p
-        WHERE p.status = 'published'
-      `, []);
+        WHERE (p.user_id = $1 OR p.creator_id = $1)
+      `, [userId]);
 
-      // 2. Total users and active users
-      const userResult = await this.db.query(`
-        SELECT
-          COUNT(*) as total_users,
-          COUNT(CASE WHEN last_login_at >= CURRENT_DATE - INTERVAL '${days} days' THEN 1 END) as active_users
-        FROM users
-      `, []);
+      // 2. Follower count for this user
+      const followerResult = await this.db.query(`
+        SELECT COUNT(*) as total_followers
+        FROM follows WHERE following_id = $1
+      `, [userId]);
 
-      // 3. Total investments and revenue
+      // 3. Investments in this user's pitches
       const investmentResult = await this.db.query(`
         SELECT
           COUNT(*) as total_investments,
-          COALESCE(SUM(amount), 0) as total_revenue
-        FROM investments
-        WHERE status = 'active'
-      `, []);
+          COALESCE(SUM(i.amount), 0) as total_revenue
+        FROM investments i
+        JOIN pitches p ON i.pitch_id = p.id
+        WHERE (p.user_id = $1 OR p.creator_id = $1)
+          AND i.status = 'active'
+      `, [userId]);
 
-      // 4. Top pitches by views
+      // 4. Top pitches by views (this user's)
       const topPitchesResult = await this.db.query(`
         SELECT
           p.id, p.title,
@@ -8053,12 +8055,12 @@ pitchey_analytics_datapoints_per_minute 1250
           COALESCE((SELECT COUNT(*) FROM investments i WHERE i.pitch_id = p.id), 0) as investments,
           COALESCE(p.rating, 0) as rating
         FROM pitches p
-        WHERE p.status = 'published'
+        WHERE (p.user_id = $1 OR p.creator_id = $1)
         ORDER BY p.view_count DESC NULLS LAST
         LIMIT 5
-      `, []);
+      `, [userId]);
 
-      // 5. Top creators
+      // 5. Top creators (global — informational)
       const topCreatorsResult = await this.db.query(`
         SELECT
           u.id, u.name,
@@ -8073,15 +8075,15 @@ pitchey_analytics_datapoints_per_minute 1250
         LIMIT 5
       `, []);
 
-      // 6. Pitches by genre distribution
+      // 6. Pitches by genre distribution (this user's)
       const genreResult = await this.db.query(`
         SELECT genre, COUNT(*) as count
         FROM pitches
-        WHERE status = 'published' AND genre IS NOT NULL
+        WHERE (user_id = $1 OR creator_id = $1) AND genre IS NOT NULL
         GROUP BY genre
         ORDER BY count DESC
         LIMIT 6
-      `, []);
+      `, [userId]);
 
       // 7. Users by role distribution
       const roleResult = await this.db.query(`
@@ -8093,21 +8095,21 @@ pitchey_analytics_datapoints_per_minute 1250
 
       // Build the response matching frontend expectations
       const overview = overviewResult[0] || {};
-      const users = userResult[0] || {};
+      const followers = followerResult[0] || {};
       const investments = investmentResult[0] || {};
 
       return builder.success({
         overview: {
           totalViews: this.safeParseInt(overview.total_views),
           totalLikes: this.safeParseInt(overview.total_likes),
-          totalFollowers: 0,
+          totalFollowers: this.safeParseInt(followers.total_followers),
           uniqueVisitors: Math.floor(this.safeParseInt(overview.total_views) * 0.65),
           totalPitches: this.safeParseInt(overview.total_pitches),
           totalInvestments: this.safeParseInt(investments.total_investments),
           totalRevenue: this.safeParseFloat(investments.total_revenue),
           averageRating: this.safeParseFloat(overview.avg_rating) || null,
           conversionRate: null,
-          activeUsers: this.safeParseInt(users.active_users)
+          activeUsers: 0
         },
         trends: {
           viewsOverTime: { labels: [], datasets: [] },
