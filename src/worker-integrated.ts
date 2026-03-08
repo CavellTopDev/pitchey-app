@@ -13079,7 +13079,7 @@ pitchey_analytics_datapoints_per_minute 1250
         LEFT JOIN users u ON n.signer_id = u.id
         LEFT JOIN users creator ON p.user_id = creator.id
         WHERE p.user_id = ${authResult.user.id}
-          AND n.status = 'pending'
+          AND n.signer_id != ${authResult.user.id}
         ORDER BY n.created_at DESC
       `;
 
@@ -13101,7 +13101,7 @@ pitchey_analytics_datapoints_per_minute 1250
           LEFT JOIN users u ON u.id = nr.requester_id
           LEFT JOIN users creator ON creator.id = p.user_id
           WHERE (nr.pitch_owner_id = ${authResult.user.id} OR nr.creator_id = ${authResult.user.id} OR p.user_id = ${authResult.user.id})
-            AND nr.status = 'pending'
+            AND nr.requester_id != ${authResult.user.id}
           ORDER BY COALESCE(nr.requested_at, nr.created_at) DESC
         `;
       } catch { /* nda_requests table issues are non-fatal */ }

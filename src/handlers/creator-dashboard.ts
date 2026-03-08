@@ -79,7 +79,12 @@ export async function creatorDashboardHandler(request: Request, env: Env): Promi
           (SELECT COUNT(*)::int FROM follows WHERE following_id::text = ${userId}) as "totalFollowers"
       `.catch((err: unknown) => { console.error('Dashboard stats query error:', err); return [{ totalPitches: 0, totalFollowers: 0 }]; }),
       sql`
-        SELECT id, title, logline, genre, status, view_count, like_count, title_image, created_at, updated_at
+        SELECT id, title, logline, genre, status,
+               view_count as views, like_count as likes,
+               title_image as thumbnail, created_at, updated_at,
+               COALESCE((SELECT COUNT(*) FROM nda_requests nr WHERE nr.pitch_id = pitches.id), 0)::int +
+               COALESCE((SELECT COUNT(*) FROM ndas n WHERE n.pitch_id = pitches.id), 0)::int as "ndaRequests",
+               rating
         FROM pitches
         WHERE creator_id::text = ${userId} OR user_id::text = ${userId}
         ORDER BY updated_at DESC

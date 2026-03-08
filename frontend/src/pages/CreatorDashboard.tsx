@@ -535,7 +535,7 @@ function CreatorDashboard() {
                           Edit
                         </button>
                         <button
-                          onClick={() => { void navigate(`/pitch/${pitch.id}`); }}
+                          onClick={() => { void navigate(`/creator/pitch/${pitch.id}`); }}
                           className="text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 px-2 py-1 rounded transition"
                         >
                           View
