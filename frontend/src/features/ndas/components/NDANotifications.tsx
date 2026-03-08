@@ -391,7 +391,9 @@ export function NDANotificationPanel({ className = '' }: { className?: string })
         creatorId: user?.id,
         limit: 10
       });
-      setRequests(response.ndas);
+      // Filter client-side since backend may not filter by status
+      const pendingOnly = response.ndas.filter(nda => nda.status === 'pending');
+      setRequests(pendingOnly);
     } catch (error) {
       console.error('Failed to fetch NDA requests:', error);
     } finally {
@@ -444,10 +446,10 @@ export function NDANotificationPanel({ className = '' }: { className?: string })
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <h4 className="font-medium text-gray-900">
-                      {nda.pitch?.title || (nda as any).pitch_title || 'Unknown Pitch'}
+                      {(nda as any).pitchTitle || nda.pitch?.title || (nda as any).pitch_title || 'Unknown Pitch'}
                     </h4>
                     <p className="text-sm text-gray-600 mt-1">
-                      Request from <span className="font-medium">{nda.requester?.username || (nda as any).requester_username || 'Unknown User'}</span>
+                      Request from <span className="font-medium">{(nda as any).requesterName || nda.requester?.username || (nda as any).requester_username || 'Unknown User'}</span>
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                       {new Date(nda.createdAt || (nda as any).created_at).toLocaleDateString()}
