@@ -8000,8 +8000,9 @@ pitchey_analytics_datapoints_per_minute 1250
 
     const builder = new ApiResponseBuilder(request);
     const url = new URL(request.url);
-    const range = url.searchParams.get('range') || 'month';
-    const days = range === 'year' ? 365 : range === 'month' ? 30 : range === 'week' ? 7 : 1;
+    const range = url.searchParams.get('range') || url.searchParams.get('preset') || 'month';
+    const days = range === 'year' ? 365 : range === 'quarter' ? 90 : range === 'month' ? 30 : range === 'week' ? 7 : 1;
+    const dateFilter = `AND p.created_at >= NOW() - INTERVAL '${days} days'`;
 
     // Initialize database if needed
     if (!this.db) {
@@ -8019,7 +8020,7 @@ pitchey_analytics_datapoints_per_minute 1250
     try {
       // Get user-scoped analytics from Neon database
 
-      // 1. Overview metrics (scoped to current user's pitches)
+      // 1. Overview metrics (scoped to current user's pitches, filtered by time range)
       const overviewResult = await this.db.query(`
         SELECT
           COALESCE(SUM(p.view_count), 0) as total_views,
@@ -8028,6 +8029,7 @@ pitchey_analytics_datapoints_per_minute 1250
           COALESCE(AVG(p.rating), 0) as avg_rating
         FROM pitches p
         WHERE (p.user_id = $1 OR p.creator_id = $1)
+          ${dateFilter}
       `, [userId]);
 
       // 2. Follower count for this user
@@ -8036,7 +8038,7 @@ pitchey_analytics_datapoints_per_minute 1250
         FROM follows WHERE following_id = $1
       `, [userId]);
 
-      // 3. Investments in this user's pitches
+      // 3. Investments in this user's pitches (filtered by time range)
       const investmentResult = await this.db.query(`
         SELECT
           COUNT(*) as total_investments,
@@ -8045,9 +8047,10 @@ pitchey_analytics_datapoints_per_minute 1250
         JOIN pitches p ON i.pitch_id = p.id
         WHERE (p.user_id = $1 OR p.creator_id = $1)
           AND i.status = 'active'
+          AND i.created_at >= NOW() - INTERVAL '${days} days'
       `, [userId]);
 
-      // 4. Top pitches by views (this user's)
+      // 4. Top pitches by views (this user's, filtered by time range)
       const topPitchesResult = await this.db.query(`
         SELECT
           p.id, p.title,
@@ -8056,6 +8059,7 @@ pitchey_analytics_datapoints_per_minute 1250
           COALESCE(p.rating, 0) as rating
         FROM pitches p
         WHERE (p.user_id = $1 OR p.creator_id = $1)
+          ${dateFilter}
         ORDER BY p.view_count DESC NULLS LAST
         LIMIT 5
       `, [userId]);
@@ -8075,11 +8079,12 @@ pitchey_analytics_datapoints_per_minute 1250
         LIMIT 5
       `, []);
 
-      // 6. Pitches by genre distribution (this user's)
+      // 6. Pitches by genre distribution (this user's, filtered by time range)
       const genreResult = await this.db.query(`
         SELECT genre, COUNT(*) as count
-        FROM pitches
-        WHERE (user_id = $1 OR creator_id = $1) AND genre IS NOT NULL
+        FROM pitches p
+        WHERE (p.user_id = $1 OR p.creator_id = $1) AND p.genre IS NOT NULL
+          ${dateFilter}
         GROUP BY genre
         ORDER BY count DESC
         LIMIT 6
