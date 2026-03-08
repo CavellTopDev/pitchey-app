@@ -28,14 +28,17 @@ export default function PaymentMethodCard({ paymentMethods, onRefresh }: Payment
 
       const result = await paymentsAPI.addPaymentMethod() as any;
 
-      if (result && result.url) {
-        // Redirect to Stripe setup intent
+      if (result?.url) {
         window.location.href = result.url;
+      } else if (result?.clientSecret) {
+        // Stripe Elements setup - requires Stripe.js integration
+        setError('Stripe payment setup is being configured. Please try again later.');
       } else {
-        throw new Error('No setup URL received');
+        setError('Payment processing is not yet available. Please check back soon.');
       }
     } catch (err: any) {
       setError(err.message || 'Failed to add payment method');
+    } finally {
       setLoading(false);
     }
   };

@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { 
-  CreditCard, 
-  Download, 
-  History, 
-  Settings, 
-  Star, 
-  Film, 
+import {
+  CreditCard,
+  Download,
+  History,
+  Settings,
+  Star,
   LogOut,
   Receipt,
   Coins,
@@ -14,6 +13,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { useBetterAuthStore } from '../store/betterAuthStore';
+import Logo from '../components/Logo';
 import { paymentsAPI } from '../lib/apiServices';
 import SubscriptionCard from '@features/billing/components/SubscriptionCard';
 import CreditPurchase from '@features/billing/components/CreditPurchase';
@@ -137,14 +137,11 @@ export default function Billing() {
               <div className="h-8 w-px bg-gray-300"></div>
               
               {/* Pitchey Logo */}
-              <Link 
-                to="/" 
-                className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
+              <Link
+                to="/"
+                className="flex items-center hover:opacity-80 transition-opacity"
               >
-                <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-purple-500 rounded-lg flex items-center justify-center">
-                  <Film className="w-6 h-6 text-white" />
-                </div>
-                <span className="text-xl font-bold text-gray-900">Pitchey</span>
+                <Logo size="md" />
               </Link>
               
               {/* Divider */}
