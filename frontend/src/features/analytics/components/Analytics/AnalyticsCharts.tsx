@@ -165,7 +165,7 @@ export const BarChart: React.FC<BarChartProps> = ({
       <ResponsiveContainer width="100%" height={height - 60}>
         <RechartsBarChart 
           data={data}
-          layout={horizontal ? 'horizontal' : 'vertical'}
+          layout={horizontal ? 'vertical' : 'horizontal'}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           {horizontal ? (
@@ -348,22 +348,27 @@ export const AreaChart: React.FC<AreaChartProps> = ({
   color = colors.primary,
   height = 300,
 }) => {
+  // Determine if all values are zero to set a visible Y domain
+  const maxValue = data.reduce((max, d) => Math.max(max, d.value || 0), 0);
+  const yDomain: [number, string | number] = maxValue === 0 ? [0, 100] : [0, 'auto'];
+
   return (
     <div style={{ height }} className="bg-white rounded-lg border border-gray-200 p-4">
       <h4 className="text-lg font-medium text-gray-900 mb-4">{title}</h4>
       <ResponsiveContainer width="100%" height={height - 60}>
         <RechartsAreaChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis 
-            dataKey="date" 
+          <XAxis
+            dataKey="date"
             axisLine={false}
             tickLine={false}
             tick={{ fontSize: 12, fill: '#666' }}
           />
-          <YAxis 
+          <YAxis
             axisLine={false}
             tickLine={false}
             tick={{ fontSize: 12, fill: '#666' }}
+            domain={yDomain}
           />
           <Tooltip 
             contentStyle={{

@@ -417,7 +417,7 @@ export const pitchAPI = {
   async getById(id: number) {
     const response = await api.get<Pitch>(`/api/pitches/${id}`);
     // Backend returns { success, data: { pitch: {...} } } — extract the pitch object
-    const raw = response.data?.data?.pitch ?? response.data?.data ?? response.data;
+    const raw = (response.data as any)?.data?.pitch ?? (response.data as any)?.data ?? response.data;
     return transformPitchData(raw);
   },
 

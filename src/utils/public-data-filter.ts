@@ -50,9 +50,9 @@ export interface PublicPitch {
   production_stage?: string;
   development_stage?: string;
   production_location?: string;
-  created_at: Date;
-  updated_at: Date;
-  published_at?: Date;
+  created_at: string;
+  updated_at: string;
+  published_at?: string;
   // Creator info (public only)
   creator_username?: string;
   creator_avatar?: string;
@@ -72,7 +72,7 @@ export interface PublicUser {
   bio?: string;
   location?: string;
   website?: string;
-  created_at: Date;
+  created_at: string;
 }
 
 /**
@@ -199,9 +199,9 @@ export function filterPitchForPublic(pitch: any): PublicPitch | null {
     development_stage: pitch.development_stage,
     production_location: pitch.production_location,
 
-    created_at: new Date(pitch.created_at),
-    updated_at: new Date(pitch.updated_at),
-    published_at: pitch.published_at ? new Date(pitch.published_at) : undefined,
+    created_at: pitch.created_at ? String(pitch.created_at) : new Date().toISOString(),
+    updated_at: pitch.updated_at ? String(pitch.updated_at) : new Date().toISOString(),
+    published_at: pitch.published_at ? String(pitch.published_at) : undefined,
 
     // Safe creator information (if available)
     creator_username: pitch.creator_username,
@@ -243,7 +243,7 @@ export function filterUserForPublic(user: any): PublicUser | null {
     bio: user.bio ? truncateText(user.bio, 200) : undefined,
     location: user.location,
     website: isValidUrl(user.website) ? user.website : undefined,
-    created_at: new Date(user.created_at)
+    created_at: user.created_at ? String(user.created_at) : new Date().toISOString()
   };
 }
 

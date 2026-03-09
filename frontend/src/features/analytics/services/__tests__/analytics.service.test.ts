@@ -167,27 +167,27 @@ describe('AnalyticsService', () => {
   // ─── getDashboardMetrics ─────────────────────────────────────────
   describe('getDashboardMetrics', () => {
     it('returns transformed dashboard metrics on success', async () => {
-      const mockMetrics = {
-        totalViews: 1000,
-        totalLikes: 200,
-        totalFollowers: 500,
-        totalPitches: 20,
-        viewsChange: 0.1,
-        likesChange: 0.05,
-        followersChange: 0.2,
-        pitchesChange: 0.0,
-        topPitches: [],
-        recentActivity: [],
-        engagementTrend: [],
-        revenue: 5000,
-        subscriptions: 2000,
-        transactions: 3000,
-        growth: 0.15,
-      };
-
       mockGet.mockResolvedValue({
         success: true,
-        data: { metrics: mockMetrics },
+        data: {
+          overview: {
+            totalViews: 1000,
+            totalLikes: 200,
+            totalFollowers: 500,
+            totalPitches: 20,
+            viewsChange: 0.1,
+            likesChange: 0.05,
+            followersChange: 0.2,
+            pitchesChange: 0.0,
+          },
+          performance: {
+            topPitches: [],
+            recentActivity: [],
+            engagementTrend: [],
+          },
+          trends: {},
+          demographics: {},
+        },
       });
 
       const result = await AnalyticsService.getDashboardMetrics();

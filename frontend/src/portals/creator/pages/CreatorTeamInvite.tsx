@@ -267,9 +267,8 @@ export default function CreatorTeamInvite() {
   };
 
   const handleResendInvite = async (inviteId: string) => {
-    // Note: Resend functionality would need a dedicated API endpoint
-    // For now, we update the UI optimistically
     try {
+      await TeamService.resendInvitation(inviteId);
       setPendingInvites(prev => prev.map(invite =>
         invite.id === inviteId
           ? { ...invite, status: 'resent' as const, invitedDate: new Date().toISOString() }

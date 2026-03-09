@@ -100,7 +100,6 @@ export default function Messages() {
     onlineUsers,
     unreadCounts,
     isConnected,
-    sendChatMessage,
     startTyping: hookStartTyping,
     stopTyping: hookStopTyping,
     joinConversation,
@@ -114,13 +113,16 @@ export default function Messages() {
       if (!res.success || !res.data?.conversations) return;
       const convs = res.data.conversations.map((conv: Record<string, unknown>) => {
         const convId = conv.id as number;
+        const lastMsgText = (conv.last_message as string) || '';
         return {
           ...conv,
           id: convId,
           participantName: (conv.participant_name as string) || (conv.participantName as string) || 'Unknown',
           participantType: ((conv.participant_type as string) || (conv.participantType as string) || 'creator') as 'investor' | 'production' | 'creator',
-          lastMessageText: (conv.last_message as string) || '',
-          timestamp: (conv.updated_at as string) || new Date().toISOString(),
+          lastMessageText: lastMsgText,
+          // Sidebar reads convExtra.lastMessage.content
+          lastMessage: lastMsgText ? { content: lastMsgText } : undefined,
+          timestamp: (conv.last_message_time as string) || (conv.updated_at as string) || new Date().toISOString(),
           isOnline: false,
           hasUnreadMessages: false,
           unreadCount: 0,
@@ -143,7 +145,8 @@ export default function Messages() {
   // REST-based message fetch when a conversation is selected
   const fetchConversationMessages = useCallback(async (conversationId: number) => {
     try {
-      const res = await apiClient.get<{ messages: Array<Record<string, unknown>> }>(`/api/conversations/${conversationId}/messages`);
+      // GET /api/conversations/:id returns { conversation, messages }
+      const res = await apiClient.get<{ conversation: Record<string, unknown>; messages: Array<Record<string, unknown>> }>(`/api/conversations/${conversationId}`);
       if (!res.success || !res.data?.messages) return;
 
       const currentUserId = parseInt(getUserId() || '0');
@@ -421,19 +424,41 @@ export default function Messages() {
         }
       }
 
-      // Send message with attachments if any
-      if (attachments.length > 0) {
-        await fetch(`/api/conversations/${selectedConversation}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            content: newMessage.trim() || '[File attachment]',
-            attachments
-          })
-        });
-      } else {
-        sendChatMessage(selectedConversation, newMessage.trim());
+      // Always send via REST API so message is persisted and we get a response
+      const messageContent = newMessage.trim() || (attachments.length > 0 ? '[File attachment]' : '');
+      const payload: Record<string, unknown> = { content: messageContent };
+      if (attachments.length > 0) payload.attachments = attachments;
+
+      const res = await apiClient.post<{ message: Record<string, unknown> }>(
+        `/api/conversations/${selectedConversation}/messages`,
+        payload
+      );
+
+      if (res.success) {
+        // Add the sent message to the chat immediately
+        const msg = res.data?.message;
+        const currentUserId = parseInt(getUserId() || '0');
+        const sentMsg: EnhancedMessage = {
+          id: (msg?.id as number) || Date.now(),
+          conversationId: selectedConversation,
+          senderId: currentUserId,
+          senderName: user?.name || 'You',
+          senderType: (user?.userType || 'creator') as 'investor' | 'production' | 'creator',
+          content: messageContent,
+          message: messageContent,
+          timestamp: (msg?.created_at as string) || new Date().toISOString(),
+          isRead: false,
+          hasAttachment: attachments.length > 0,
+          delivered: true,
+          reactions: [],
+          isEncrypted: false,
+          canEdit: true,
+          canDelete: true,
+        };
+        setCurrentMessages(prev => [...prev, sentMsg]);
+
+        // Refresh sidebar so last_message updates
+        void refreshConversations();
       }
 
       // Clear input and reset state
@@ -444,8 +469,6 @@ export default function Messages() {
 
       // Focus back to input
       messageInputRef.current?.focus();
-
-      addNotification('Message sent successfully', 'success');
     } catch (error: unknown) {
       console.error('Failed to send message:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to send message';
@@ -453,7 +476,7 @@ export default function Messages() {
     } finally {
       setSendingMessage(false);
     }
-  }, [newMessage, selectedFiles, selectedConversation, sendingMessage, sendChatMessage, addNotification]);
+  }, [newMessage, selectedFiles, selectedConversation, sendingMessage, user, addNotification, refreshConversations]);
 
   const handleKeyPress = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {

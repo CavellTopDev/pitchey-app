@@ -696,8 +696,8 @@ export default function PitchDetail() {
                 </div>
               </div>
             ) : (
-              // Fallback: Show message if user has signed NDA but no protected content is available
-              (hasSignedNDA || isOwner) && !pitch?.protectedContent ? (
+              // Fallback: Show message if NDA-signed user has no protected content (not for owner)
+              hasSignedNDA && !isOwner && !pitch?.protectedContent ? (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
                   <div className="flex items-center gap-3">
                     <Shield className="w-5 h-5 text-yellow-600" />

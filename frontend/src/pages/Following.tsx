@@ -241,7 +241,7 @@ const Following: React.FC = () => {
               <div key={update.id} className="bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow">
                 <div className="flex items-start space-x-4">
                   <div className="flex-shrink-0">
-                    {update.creator?.profileImage || update.creator?.profile_image ? (
+                    {update.creator?.profileImage || (update.creator as any)?.profile_image ? (
                       <img
                         src={update.creator.profileImage || (update.creator as any).profile_image}
                         alt={getDisplayName(update.creator)}

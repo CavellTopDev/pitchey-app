@@ -178,13 +178,31 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
                 value: item.rate
               }))
             : [],
-          fundingProgress: (dashboardMetrics?.trends?.investmentsOverTime?.labels || []).map((label: string, i: number) => ({
-            date: label,
-            value: dashboardMetrics?.trends?.investmentsOverTime?.datasets?.[0]?.data?.[i] || 0
-          })).filter((d: any) => d.value > 0),
+          fundingProgress: (() => {
+            const investLabels = dashboardMetrics?.trends?.investmentsOverTime?.labels || [];
+            const investData = dashboardMetrics?.trends?.investmentsOverTime?.datasets?.[0]?.data || [];
+            const points = investLabels.map((label: string, i: number) => ({
+              date: label,
+              value: investData[i] || 0
+            }));
+            // If no funding data, show zero baseline using view timeline dates
+            if (points.length === 0 || points.every((p: any) => p.value === 0)) {
+              const fallbackLabels = dashboardMetrics?.trends?.viewsOverTime?.labels || dashboardMetrics?.trends?.pitchesOverTime?.labels || [];
+              if (fallbackLabels.length > 0) {
+                return fallbackLabels.map((label: string) => ({ date: label, value: 0 }));
+              }
+              // Last resort: show today with 0
+              return [{ date: new Date().toISOString().split('T')[0], value: 0 }];
+            }
+            // Build cumulative sum
+            let cumulative = 0;
+            return points.map((p: any) => ({ date: p.date, value: (cumulative += p.value) }));
+          })(),
           categoryPerformance: (dashboardMetrics?.demographics?.pitchesByGenre?.labels || []).map((label: string, i: number) => ({
             category: label,
-            views: dashboardMetrics?.demographics?.pitchesByGenre?.datasets?.[0]?.data?.[i] || 0
+            views: dashboardMetrics?.demographics?.pitchesByGenre?.datasets?.[0]?.data?.[i] || 0,
+            funding: 0,
+            pitches: 1
           })),
           viewerDemographics: (dashboardMetrics?.demographics?.viewerTypes || []).map((v: any) => ({
             type: v.category || v.type || 'Unknown',
@@ -201,7 +219,8 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
           monthlyMetrics: (dashboardMetrics?.trends?.pitchesOverTime?.labels || []).map((label: string, i: number) => ({
             month: label,
             pitches: dashboardMetrics?.trends?.pitchesOverTime?.datasets?.[0]?.data?.[i] || 0,
-            views: dashboardMetrics?.trends?.viewsOverTime?.datasets?.[0]?.data?.[i] || 0
+            views: dashboardMetrics?.trends?.viewsOverTime?.datasets?.[0]?.data?.[i] || 0,
+            funding: 0
           })).filter((d: any) => d.pitches > 0 || d.views > 0)
         }
       };

@@ -71,9 +71,9 @@ describe('Following', () => {
     vi.clearAllMocks()
   })
 
-  const renderComponent = () =>
+  const renderComponent = (initialEntries: string[] = ['/following']) =>
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={initialEntries}>
         <Following />
       </MemoryRouter>
     )
@@ -92,7 +92,7 @@ describe('Following', () => {
     })
   })
 
-  it('renders Activity Feed tab by default', async () => {
+  it('renders Activity Feed tab', async () => {
     renderComponent()
     await waitFor(() => {
       expect(screen.getByText('Activity Feed')).toBeInTheDocument()
@@ -108,21 +108,21 @@ describe('Following', () => {
   })
 
   it('shows empty activity state when no activities', async () => {
-    renderComponent()
+    renderComponent(['/following?tab=activity'])
     await waitFor(() => {
       expect(screen.getByText('No recent activity from followed creators')).toBeInTheDocument()
     })
   })
 
   it('renders "Browse Marketplace" link in empty activity state', async () => {
-    renderComponent()
+    renderComponent(['/following?tab=activity'])
     await waitFor(() => {
       expect(screen.getByText('Browse Marketplace →')).toBeInTheDocument()
     })
   })
 
   it('navigates to marketplace from empty activity state', async () => {
-    renderComponent()
+    renderComponent(['/following?tab=activity'])
     await waitFor(() => {
       expect(screen.getByText('Browse Marketplace →')).toBeInTheDocument()
     })
@@ -136,7 +136,7 @@ describe('Following', () => {
       summary: { newPitches: 5, activeCreators: 3, engagementRate: 42 }
     }))
 
-    renderComponent()
+    renderComponent(['/following?tab=activity'])
     await waitFor(() => {
       expect(screen.getByText('Activity Summary')).toBeInTheDocument()
       expect(screen.getByText('5')).toBeInTheDocument()
@@ -145,7 +145,7 @@ describe('Following', () => {
   })
 
   it('renders stat labels in activity summary', async () => {
-    renderComponent()
+    renderComponent(['/following?tab=activity'])
     await waitFor(() => {
       expect(screen.getByText('New Pitches')).toBeInTheDocument()
       expect(screen.getByText('Active Creators')).toBeInTheDocument()
@@ -154,7 +154,7 @@ describe('Following', () => {
   })
 
   it('renders timeframe selector dropdown', async () => {
-    renderComponent()
+    renderComponent(['/following?tab=activity'])
     await waitFor(() => {
       expect(screen.getByText('Last 7 days')).toBeInTheDocument()
     })
@@ -162,38 +162,29 @@ describe('Following', () => {
 
   it('shows activity items when activities exist', async () => {
     mockFetch.mockResolvedValue(makeSuccessResponse({
-      activities: [{
-        id: 1,
-        type: 'pitch_created',
-        creator: { id: 10, username: 'creator1', userType: 'creator' },
-        action: 'created a new pitch',
-        pitch: { id: 5, title: 'Epic Adventure', genre: 'Action', logline: 'A hero rises' },
+      pitches: [{
+        id: 5,
+        title: 'Epic Adventure',
+        genre: 'Action',
+        logline: 'A hero rises',
+        user_id: 10,
+        creator_name: 'creator1',
         createdAt: '2025-01-15T10:00:00Z',
       }],
       summary: { newPitches: 1, activeCreators: 1, engagementRate: 0 }
     }))
 
-    renderComponent()
+    renderComponent(['/following?tab=activity'])
     await waitFor(() => {
       expect(screen.getByText('creator1')).toBeInTheDocument()
       expect(screen.getByText('Epic Adventure')).toBeInTheDocument()
     })
   })
 
-  it('shows empty followers state when Followers tab is clicked', async () => {
-    mockFetch
-      .mockResolvedValueOnce(makeSuccessResponse({
-        activities: [],
-        summary: { newPitches: 0, activeCreators: 0, engagementRate: 0 }
-      }))
-      .mockResolvedValueOnce(makeSuccessResponse({ followers: [], data: [] }))
+  it('shows empty followers state on default tab', async () => {
+    mockFetch.mockResolvedValue(makeSuccessResponse({ followers: [], data: [] }))
 
     renderComponent()
-    await waitFor(() => {
-      expect(screen.getByText('Followers')).toBeInTheDocument()
-    })
-
-    fireEvent.click(screen.getByText('Followers'))
     await waitFor(() => {
       expect(screen.getByText("You don't have any followers yet")).toBeInTheDocument()
     })
@@ -245,7 +236,7 @@ describe('Following', () => {
 
   it('shows error banner when API call fails', async () => {
     mockFetch.mockResolvedValue(makeErrorResponse())
-    renderComponent()
+    renderComponent(['/following?tab=activity'])
     await waitFor(() => {
       // When ok=false, component throws "Failed to fetch following data" which shows in error div
       expect(screen.getByText('Failed to fetch following data')).toBeInTheDocument()
@@ -258,7 +249,7 @@ describe('Following', () => {
       summary: { newPitches: 0, activeCreators: 7, engagementRate: 0 }
     }))
 
-    renderComponent()
+    renderComponent(['/following?tab=activity'])
     await waitFor(() => {
       // The text may be split across text nodes in the span
       // Use getByText with a function matcher

@@ -126,14 +126,15 @@ describe('ComprehensiveNDAManagement', () => {
   });
 
   describe('rendering for creator', () => {
-    it('shows NDA Management header with Shield icon', async () => {
+    it('shows Overview tab and Incoming Requests tab for creators', async () => {
       render(<ComprehensiveNDAManagement userType="creator" userId={1} />);
 
       await waitFor(() => {
-        expect(screen.getByText('NDA Management')).toBeInTheDocument();
+        expect(screen.getByText('Overview')).toBeInTheDocument();
       });
 
-      expect(screen.getByText(/Manage your confidentiality agreements/i)).toBeInTheDocument();
+      expect(screen.getByText('Incoming Requests')).toBeInTheDocument();
+      expect(screen.getAllByText('Active NDAs').length).toBeGreaterThan(0);
     });
 
     it('fetches incoming requests for creators', async () => {

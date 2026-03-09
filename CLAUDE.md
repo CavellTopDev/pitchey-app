@@ -68,7 +68,7 @@ Detailed context split by domain to keep LLM context focused:
 - **Stage 3 (Communication + Credits)**: Messaging (edit/delete/attachments), credit system (9 actions), Stripe code, email (Resend), PBKDF2 passwords
 - **Stage 4 (Launch Readiness)**: Legal pages, terms acceptance, production submissions workflow, E2E in CI
 
-### Stage 5: Hardening & Full Coverage — IN PROGRESS
+### Stage 5: Hardening & Full Coverage — COMPLETE (except Stripe Go-Live)
 
 #### 5A. Stripe Go-Live (User Action Required)
 
@@ -142,6 +142,15 @@ Detailed context split by domain to keep LLM context focused:
 | Email send logging to `email_logs` table | `src/services/worker-email.ts` | DONE (migration 041) |
 | File quota checking against `file_storage` table | `src/services/file-validation.service.ts` | DONE (migration 041) |
 | `user_storage_usage` view for quick lookups | `src/db/migrations/041_email_logs_and_file_storage.sql` | DONE |
+
+#### 5H. UX Polish & Portal Audit (P2) — DONE
+
+| Item | File | Status |
+|------|------|--------|
+| Error page flash on route navigation | `frontend/src/shared/components/layout/PortalLayout.tsx` — `PageErrorBoundary` wraps `<Outlet>` | DONE |
+| Activity feed 30s auto-polling | `frontend/src/portals/creator/pages/CreatorActivity.tsx` — silent polling, no loading spinner | DONE |
+| "Submit for Review" workflow | `frontend/src/pages/ManagePitches.tsx` — draft pitches get Send button → `under_review` status | DONE |
+| Dead imports cleanup in App.tsx | Removed 4 unused `ProductionSettings*` imports + duplicate `/creator/:creatorId` route | DONE |
 
 ### Current Numbers
 - 607 API routes, 135 pages, 165 components, 26 services, 4 stores

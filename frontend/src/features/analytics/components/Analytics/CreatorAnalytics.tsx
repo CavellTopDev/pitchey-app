@@ -24,17 +24,40 @@ interface CreatorAnalyticsProps {
     potentialInvestment: number;
     investmentChange: number;
   };
+  followers?: number;
+  engagementRate?: number;
+  trends?: {
+    viewsOverTime?: { labels: string[]; datasets: { label: string; data: number[] }[] };
+    pitchesOverTime?: { labels: string[]; datasets: { label: string; data: number[] }[] };
+  };
 }
 
-export const CreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({ 
-  pitchPerformance 
+export const CreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
+  pitchPerformance,
+  followers = 0,
+  engagementRate = 0,
+  trends
 }) => {
   const [_timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
 
+  // Build chart data from trends
   const performanceData = {
-    views: [] as { label: string; value: number }[],
-    likes: [] as { label: string; value: number }[]
+    views: (trends?.viewsOverTime?.labels || []).map((label, i) => ({
+      label,
+      value: trends?.viewsOverTime?.datasets?.[0]?.data?.[i] || 0
+    })),
+    likes: (trends?.pitchesOverTime?.labels || []).map((label, i) => ({
+      label,
+      value: trends?.pitchesOverTime?.datasets?.[0]?.data?.[i] || 0
+    }))
   };
+
+  // Calculate engagement rate if not provided
+  const calculatedEngagement = engagementRate || (
+    pitchPerformance.totalViews > 0
+      ? Math.round((pitchPerformance.totalLikes / pitchPerformance.totalViews) * 100 * 10) / 10
+      : 0
+  );
 
   return (
     <div className="bg-white rounded-xl border p-6">
@@ -86,14 +109,14 @@ export const CreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
         />
         <AnalyticCard
           title="Followers"
-          value={0}
+          value={followers}
           change={0}
           icon={<Users className="w-5 h-5 text-indigo-500" />}
           variant="secondary"
         />
         <AnalyticCard
           title="Engagement Rate"
-          value={0}
+          value={calculatedEngagement}
           icon={<TrendingUp className="w-5 h-5 text-yellow-500" />}
           variant="warning"
           format="percentage"

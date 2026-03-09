@@ -45,6 +45,13 @@ vi.mock('../../lib/apiServices', () => ({
   getUserId: () => '1',
 }))
 
+vi.mock('../../lib/api-client', () => ({
+  apiClient: {
+    get: vi.fn().mockResolvedValue({ success: true, data: { conversations: [] } }),
+    post: vi.fn().mockResolvedValue({ success: true, data: { conversation: { id: 1 } } }),
+  },
+}))
+
 vi.mock('../../config/subscription-plans', () => ({
   getCreditCost: () => ({ credits: 2, description: 'Send message' }),
 }))
@@ -104,7 +111,7 @@ describe('Messages', () => {
     it('shows empty state when no conversations', async () => {
       render(<Messages />)
       await waitFor(() => {
-        expect(screen.getByText(/no conversations|no messages|start a conversation/i)).toBeInTheDocument()
+        expect(screen.getByText('No conversations yet')).toBeInTheDocument()
       })
     })
   })

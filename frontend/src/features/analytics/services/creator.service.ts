@@ -68,34 +68,37 @@ export class CreatorService {
     notifications: CreatorNotification[];
     activities: CreatorActivity[];
   }> {
-    const response = await apiClient.get<{
-      success: boolean;
-      dashboard: {
-        stats: CreatorStats;
-        recentPitches: Pitch[];
-        notifications: CreatorNotification[];
-        activities: CreatorActivity[];
-      };
-    }>('/api/creator/dashboard');
+    const response = await apiClient.get<any>('/api/creator/dashboard');
 
     if (!response.success) {
       throw new Error(response.error?.message || 'Failed to fetch dashboard');
     }
 
-    return response.data?.dashboard || {
+    // API returns { overview, revenue, recentPitches, notifications, activities }
+    // directly in data (no "dashboard" wrapper)
+    const d = response.data || {};
+    const overview = d.overview || d.dashboard?.stats || {};
+    const pitches = d.recentPitches || d.dashboard?.recentPitches || [];
+
+    // Compute engagement rate from pitches if not provided
+    const totalViews = overview.totalViews || 0;
+    const totalLikes = pitches.reduce((acc: number, p: any) => acc + (p.likes || p.like_count || 0), 0) || overview.totalLikes || 0;
+    const engagementRate = totalViews > 0 ? Math.round((totalLikes / totalViews) * 100 * 10) / 10 : 0;
+
+    return {
       stats: {
-        totalPitches: 0,
-        publishedPitches: 0,
-        draftPitches: 0,
-        totalViews: 0,
-        totalLikes: 0,
-        totalNDAs: 0,
-        avgEngagementRate: 0,
-        monthlyGrowth: 0
+        totalPitches: overview.totalPitches || 0,
+        publishedPitches: pitches.filter((p: any) => p.status === 'published').length,
+        draftPitches: pitches.filter((p: any) => p.status === 'draft').length,
+        totalViews,
+        totalLikes,
+        totalNDAs: overview.totalNDAs || 0,
+        avgEngagementRate: engagementRate,
+        monthlyGrowth: overview.monthlyGrowth || 0
       },
-      recentPitches: [],
-      notifications: [],
-      activities: []
+      recentPitches: pitches,
+      notifications: d.notifications || d.dashboard?.notifications || [],
+      activities: d.activities || d.dashboard?.activities || []
     };
   }
 

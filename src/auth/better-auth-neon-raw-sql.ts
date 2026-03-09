@@ -35,7 +35,7 @@ function createRawSQLAdapter(sql: ReturnType<typeof neon>) {
   return {
     async findUser(email: string) {
       const result = await sql`
-        SELECT id, email, username, user_type, password_hash,
+        SELECT id, email, username, user_type, password_hash, password_hash AS password,
                first_name, last_name, company_name, profile_image, subscription_tier,
                bio,
                COALESCE(name, username, email) as name

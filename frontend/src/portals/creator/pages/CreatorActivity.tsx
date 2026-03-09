@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Activity, Bell, Heart, MessageSquare, Eye, Star,
@@ -49,7 +49,7 @@ function mapActivityType(apiType: string): ActivityItem['type'] {
 }
 
 // Transform API activity to local format
-function transformActivity(apiActivity: CreatorActivityType): ActivityItem {
+function transformActivity(apiActivity: CreatorActivityType & { user?: { name: string; role: string } }): ActivityItem {
   return {
     id: String(apiActivity.id),
     type: mapActivityType(apiActivity.type),
@@ -58,6 +58,18 @@ function transformActivity(apiActivity: CreatorActivityType): ActivityItem {
     timestamp: new Date(apiActivity.createdAt),
     metadata: apiActivity.metadata,
     read: true, // API doesn't have read status yet
+    ...(apiActivity.user ? {
+      user: {
+        name: apiActivity.user.name,
+        role: apiActivity.user.role,
+      }
+    } : {}),
+    ...(apiActivity.metadata?.pitchId ? {
+      pitch: {
+        id: String(apiActivity.metadata.pitchId),
+        title: apiActivity.metadata.pitchTitle || ''
+      }
+    } : {}),
   };
 }
 
@@ -75,15 +87,13 @@ export default function CreatorActivity() {
     engagementRate: 0
   });
 
-  // Load activities from API
-  useEffect(() => {
-    loadActivities();
-    loadStats();
-  }, []);
+  const isInitialLoad = useRef(true);
 
-  const loadActivities = async () => {
+  const loadActivities = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       setError(null);
 
       const response = await CreatorService.getActivityFeed({ limit: 50 });
@@ -92,22 +102,44 @@ export default function CreatorActivity() {
         const transformedActivities = response.activities.map(transformActivity);
         setActivities(transformedActivities);
       } else {
-        // If no activities, set empty array (will show empty state)
         setActivities([]);
       }
     } catch (err) {
       console.error('Failed to load activities:', err);
-      setError('Failed to load activity feed. Please try again.');
-      // Set empty activities on error
-      setActivities([]);
+      if (!silent) {
+        setError('Failed to load activity feed. Please try again.');
+      }
+      if (!silent) {
+        setActivities([]);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
+      isInitialLoad.current = false;
     }
-  };
+  }, []);
+
+  // Load activities from API on mount
+  useEffect(() => {
+    loadActivities();
+    loadStats();
+  }, [loadActivities]);
+
+  // Auto-poll every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadActivities(true);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [loadActivities]);
 
   const loadStats = async () => {
     try {
-      const dashboardData = await CreatorService.getDashboard();
+      const [dashboardData, followerData] = await Promise.all([
+        CreatorService.getDashboard(),
+        CreatorService.getFollowers({ limit: 1 }).catch(() => ({ followers: [], total: 0 }))
+      ]);
 
       // Calculate stats from dashboard data
       const unreadNotifications = dashboardData.notifications?.filter(n => !n.isRead).length || 0;
@@ -117,7 +149,7 @@ export default function CreatorActivity() {
       setStats({
         unreadCount: unreadNotifications,
         todayViews: todayViews,
-        newFollowers: 0, // Not tracked in current API
+        newFollowers: followerData.total || 0,
         engagementRate: engagementRate
       });
     } catch (err) {

@@ -105,6 +105,15 @@ export interface DashboardMetrics {
     transactions: number;
     growth: number;
   };
+  trends?: {
+    viewsOverTime?: { labels: string[]; datasets: { label: string; data: number[] }[] };
+    investmentsOverTime?: { labels: string[]; datasets: { label: string; data: number[] }[] };
+    pitchesOverTime?: { labels: string[]; datasets: { label: string; data: number[] }[] };
+  };
+  demographics?: {
+    viewerTypes?: { type: string; count: number }[];
+    pitchesByGenre?: { labels: string[]; datasets: { label: string; data: number[] }[] };
+  };
 }
 
 export interface Activity {

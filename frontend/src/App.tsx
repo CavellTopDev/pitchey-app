@@ -27,182 +27,199 @@ if (import.meta.env.DEV) {
   });
 }
 
+// Retry wrapper for lazy imports — handles stale chunks after deploys
+// If a chunk fails to load (404 after deploy), retry once then reload the page
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function lazyRetry(factory: () => Promise<{ default: React.ComponentType<any> }>) {
+  return lazy(() =>
+    factory().catch(() => {
+      // Chunk likely stale after deploy — reload the page once
+      const reloadKey = 'chunk-reload-' + window.location.pathname;
+      if (!sessionStorage.getItem(reloadKey)) {
+        sessionStorage.setItem(reloadKey, '1');
+        window.location.reload();
+        // Return a never-resolving promise to prevent flash
+        return new Promise<never>(() => {});
+      }
+      // Already reloaded once — clear flag and let error boundary handle it
+      sessionStorage.removeItem(reloadKey);
+      return factory();
+    })
+  );
+}
+
 // Immediately needed components (not lazy loaded)
 import Layout from './components/Layout';
 
 // Lazy load Homepage with prefetch
-const Homepage = lazy(() => 
+const Homepage = lazyRetry(() =>
   import('./pages/Homepage' /* webpackPrefetch: true */)
 )
 
 // Lazy loaded pages with prefetch for critical paths
-const Login = lazy(() => import('./pages/Login' /* webpackPrefetch: true */));
-const Register = lazy(() => import('./pages/Register' /* webpackPrefetch: true */));
-const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Login = lazyRetry(() => import('./pages/Login' /* webpackPrefetch: true */));
+const Register = lazyRetry(() => import('./pages/Register' /* webpackPrefetch: true */));
+const Dashboard = lazyRetry(() => import('./pages/Dashboard'));
 
 // Onboarding Components (lazy-loaded to defer onboarding CSS)
-const OnboardingSettings = lazy(() => import('./components/Onboarding/OnboardingSettings'));
+const OnboardingSettings = lazyRetry(() => import('./components/Onboarding/OnboardingSettings'));
 
 // Multi-Portal Pages
-const PortalSelect = lazy(() => import('./pages/PortalSelect'));
-const CreatorLogin = lazy(() => import('./pages/CreatorLogin'));
-const InvestorLogin = lazy(() => import('./pages/InvestorLogin'));
-const ProductionLogin = lazy(() => import('./pages/ProductionLogin'));
-const CreatorDashboard = lazy(() => import('./pages/CreatorDashboard'));
-const InvestorDashboard = lazy(() => import('./pages/InvestorDashboard'));
-const InvestorDashboardDebug = lazy(() => import('./pages/InvestorDashboardDebug'));
-const ProductionDashboard = lazy(() => import('./pages/ProductionDashboard'));
-const CreatorProfile = lazy(() => import('./pages/CreatorProfile'));
-const OnboardingPage = lazy(() => import('@portals/creator/pages/CreatorOnboardingPage'));
+const PortalSelect = lazyRetry(() => import('./pages/PortalSelect'));
+const CreatorLogin = lazyRetry(() => import('./pages/CreatorLogin'));
+const InvestorLogin = lazyRetry(() => import('./pages/InvestorLogin'));
+const ProductionLogin = lazyRetry(() => import('./pages/ProductionLogin'));
+const CreatorDashboard = lazyRetry(() => import('./pages/CreatorDashboard'));
+const InvestorDashboard = lazyRetry(() => import('./pages/InvestorDashboard'));
+const InvestorDashboardDebug = lazyRetry(() => import('./pages/InvestorDashboardDebug'));
+const ProductionDashboard = lazyRetry(() => import('./pages/ProductionDashboard'));
+const CreatorProfile = lazyRetry(() => import('./pages/CreatorProfile'));
+const OnboardingPage = lazyRetry(() => import('@portals/creator/pages/CreatorOnboardingPage'));
 
 // Public Pages
-const Marketplace = lazy(() => import('./pages/MarketplaceEnhanced'));
-const PublicPitchView = lazy(() => import('./pages/PublicPitchView'));
+const Marketplace = lazyRetry(() => import('./pages/MarketplaceEnhanced'));
+const PublicPitchView = lazyRetry(() => import('./pages/PublicPitchView'));
 
 // Creator Pages
-const CreatePitch = lazy(() => import('./pages/CreatePitch'));
-const ManagePitches = lazy(() => import('./pages/ManagePitches'));
-const Messages = lazy(() => import('./pages/Messages'));
-const Calendar = lazy(() => import('./pages/Calendar'));
-const PitchDetail = lazy(() => import('./pages/PitchDetail'));
-const PitchEdit = lazy(() => import('./pages/PitchEdit'));
-const PitchAnalytics = lazy(() => import('./pages/PitchAnalytics'));
-const CreatorNDAManagement = lazy(() => import('./pages/CreatorNDAManagement'));
-const CreatorPitchView = lazy(() => import('@portals/creator/pages/CreatorPitchView'));
-const CreatorActivity = lazy(() => import('@portals/creator/pages/CreatorActivity'));
-const CreatorStats = lazy(() => import('@portals/creator/pages/CreatorStats'));
-const CreatorPitchesPublished = lazy(() => import('@portals/creator/pages/CreatorPitchesPublished'));
-const CreatorPitchesDrafts = lazy(() => import('@portals/creator/pages/CreatorPitchesDrafts'));
-const CreatorPitchesReview = lazy(() => import('@portals/creator/pages/CreatorPitchesReview'));
-const CreatorPitchesAnalytics = lazy(() => import('@portals/creator/pages/CreatorPitchesAnalytics'));
-const CreatorTeamMembers = lazy(() => import('@portals/creator/pages/CreatorTeamMembers'));
-const CreatorTeamInvite = lazy(() => import('@portals/creator/pages/CreatorTeamInvite'));
-const CreatorTeamRoles = lazy(() => import('@portals/creator/pages/CreatorTeamRoles'));
-const CreatorCollaborations = lazy(() => import('@portals/creator/pages/CreatorCollaborations'));
-const CreatorAnalyticsPage = lazy(() => import('./pages/CreatorAnalyticsPage'));
-const ProductionAnalyticsPage = lazy(() => import('./pages/ProductionAnalyticsPage'));
+const CreatePitch = lazyRetry(() => import('./pages/CreatePitch'));
+const ManagePitches = lazyRetry(() => import('./pages/ManagePitches'));
+const Messages = lazyRetry(() => import('./pages/Messages'));
+const Calendar = lazyRetry(() => import('./pages/Calendar'));
+const PitchDetail = lazyRetry(() => import('./pages/PitchDetail'));
+const PitchEdit = lazyRetry(() => import('./pages/PitchEdit'));
+const PitchAnalytics = lazyRetry(() => import('./pages/PitchAnalytics'));
+const CreatorNDAManagement = lazyRetry(() => import('./pages/CreatorNDAManagement'));
+const CreatorPitchView = lazyRetry(() => import('@portals/creator/pages/CreatorPitchView'));
+const CreatorActivity = lazyRetry(() => import('@portals/creator/pages/CreatorActivity'));
+const CreatorStats = lazyRetry(() => import('@portals/creator/pages/CreatorStats'));
+const CreatorPitchesPublished = lazyRetry(() => import('@portals/creator/pages/CreatorPitchesPublished'));
+const CreatorPitchesDrafts = lazyRetry(() => import('@portals/creator/pages/CreatorPitchesDrafts'));
+const CreatorPitchesReview = lazyRetry(() => import('@portals/creator/pages/CreatorPitchesReview'));
+const CreatorPitchesAnalytics = lazyRetry(() => import('@portals/creator/pages/CreatorPitchesAnalytics'));
+const CreatorTeamMembers = lazyRetry(() => import('@portals/creator/pages/CreatorTeamMembers'));
+const CreatorTeamInvite = lazyRetry(() => import('@portals/creator/pages/CreatorTeamInvite'));
+const CreatorTeamRoles = lazyRetry(() => import('@portals/creator/pages/CreatorTeamRoles'));
+const CreatorCollaborations = lazyRetry(() => import('@portals/creator/pages/CreatorCollaborations'));
+const CreatorAnalyticsPage = lazyRetry(() => import('./pages/CreatorAnalyticsPage'));
+const ProductionAnalyticsPage = lazyRetry(() => import('./pages/ProductionAnalyticsPage'));
 
 // Production Pages
 // ProductionPitchCreate removed - production companies cannot create pitches
-const ProductionPitchDetail = lazy(() => import('./pages/ProductionPitchDetail'));
-const ProductionPitchView = lazy(() => import('@portals/production/pages/ProductionPitchView'));
+const ProductionPitchDetail = lazyRetry(() => import('./pages/ProductionPitchDetail'));
+const ProductionPitchView = lazyRetry(() => import('@portals/production/pages/ProductionPitchView'));
 
 // Common Pages
-const Profile = lazy(() => import('./pages/Profile'));
-const Settings = lazy(() => import('./pages/Settings'));
-const NotificationCenter = lazy(() => import('./pages/NotificationCenter'));
+const Profile = lazyRetry(() => import('./pages/Profile'));
+const Settings = lazyRetry(() => import('./pages/Settings'));
+const NotificationCenter = lazyRetry(() => import('./pages/NotificationCenter'));
 
 // Investor Pages
-const InvestorBrowse = lazy(() => import('./pages/InvestorBrowse'));
-const InvestorPitchView = lazy(() => import('@portals/investor/pages/InvestorPitchView'));
+const InvestorBrowse = lazyRetry(() => import('./pages/InvestorBrowse'));
+const InvestorPitchView = lazyRetry(() => import('@portals/investor/pages/InvestorPitchView'));
 
 // Billing Page
-const Billing = lazy(() => import('./pages/Billing'));
+const Billing = lazyRetry(() => import('./pages/Billing'));
 
 // Following/Portfolio Pages
-const Following = lazy(() => import('./pages/Following'));
-const CreatorPortfolio = lazy(() => import('./pages/CreatorPortfolio'));
-const UserPortfolio = lazy(() => import('./pages/UserPortfolio'));
+const Following = lazyRetry(() => import('./pages/Following'));
+const CreatorPortfolio = lazyRetry(() => import('./pages/CreatorPortfolio'));
+const UserPortfolio = lazyRetry(() => import('./pages/UserPortfolio'));
 
 // Info Pages
-const HowItWorks = lazy(() => import('./pages/HowItWorks'));
-const About = lazy(() => import('./pages/About'));
-const Contact = lazy(() => import('./pages/Contact'));
-const Terms = lazy(() => import('./pages/Terms'));
-const Privacy = lazy(() => import('./pages/Privacy'));
+const HowItWorks = lazyRetry(() => import('./pages/HowItWorks'));
+const About = lazyRetry(() => import('./pages/About'));
+const Contact = lazyRetry(() => import('./pages/Contact'));
+const Terms = lazyRetry(() => import('./pages/Terms'));
+const Privacy = lazyRetry(() => import('./pages/Privacy'));
 
 // Admin Pages
-const AdminDashboard = lazy(() => import('@portals/admin/pages/AdminDashboard'));
-const UserManagement = lazy(() => import('@portals/admin/pages/UserManagement'));
-const ContentModeration = lazy(() => import('@portals/admin/pages/ContentModeration'));
+const AdminDashboard = lazyRetry(() => import('@portals/admin/pages/AdminDashboard'));
+const UserManagement = lazyRetry(() => import('@portals/admin/pages/UserManagement'));
+const ContentModeration = lazyRetry(() => import('@portals/admin/pages/ContentModeration'));
 
 // Coming Soon Page for unimplemented routes
-const ComingSoon = lazy(() => import('./pages/ComingSoon'));
-const NDARequests = lazy(() => import('@portals/investor/pages/NDARequests'));
+const ComingSoon = lazyRetry(() => import('./pages/ComingSoon'));
+const NDARequests = lazyRetry(() => import('@portals/investor/pages/NDARequests'));
 
 // New Investor Pages
-const PerformanceTracking = lazy(() => import('@portals/investor/pages/PerformanceTracking'));
-const PendingDeals = lazy(() => import('@portals/investor/pages/PendingDeals'));
-const AllInvestments = lazy(() => import('@portals/investor/pages/AllInvestments'));
-const CompletedProjects = lazy(() => import('@portals/investor/pages/CompletedProjects'));
-const ROIAnalysis = lazy(() => import('@portals/investor/pages/ROIAnalysis'));
-const MarketTrends = lazy(() => import('@portals/investor/pages/MarketTrends'));
-const RiskAssessment = lazy(() => import('@portals/investor/pages/RiskAssessment'));
-const FinancialOverview = lazy(() => import('@portals/investor/pages/FinancialOverview'));
-const TransactionHistory = lazy(() => import('@portals/investor/pages/TransactionHistory'));
-const BudgetAllocation = lazy(() => import('@portals/investor/pages/BudgetAllocation'));
-const TaxDocuments = lazy(() => import('@portals/investor/pages/TaxDocuments'));
-const InvestorSettings = lazy(() => import('@portals/investor/pages/InvestorSettings'));
-const InvestorWallet = lazy(() => import('@portals/investor/pages/InvestorWallet'));
-const PaymentMethods = lazy(() => import('@portals/investor/pages/PaymentMethods'));
+const PerformanceTracking = lazyRetry(() => import('@portals/investor/pages/PerformanceTracking'));
+const PendingDeals = lazyRetry(() => import('@portals/investor/pages/PendingDeals'));
+const AllInvestments = lazyRetry(() => import('@portals/investor/pages/AllInvestments'));
+const CompletedProjects = lazyRetry(() => import('@portals/investor/pages/CompletedProjects'));
+const ROIAnalysis = lazyRetry(() => import('@portals/investor/pages/ROIAnalysis'));
+const MarketTrends = lazyRetry(() => import('@portals/investor/pages/MarketTrends'));
+const RiskAssessment = lazyRetry(() => import('@portals/investor/pages/RiskAssessment'));
+const FinancialOverview = lazyRetry(() => import('@portals/investor/pages/FinancialOverview'));
+const TransactionHistory = lazyRetry(() => import('@portals/investor/pages/TransactionHistory'));
+const BudgetAllocation = lazyRetry(() => import('@portals/investor/pages/BudgetAllocation'));
+const TaxDocuments = lazyRetry(() => import('@portals/investor/pages/TaxDocuments'));
+const InvestorSettings = lazyRetry(() => import('@portals/investor/pages/InvestorSettings'));
+const InvestorWallet = lazyRetry(() => import('@portals/investor/pages/InvestorWallet'));
+const PaymentMethods = lazyRetry(() => import('@portals/investor/pages/PaymentMethods'));
 
 // New Pages
-const ProductionProjects = lazy(() => import('@portals/production/pages/ProductionProjects'));
-const ProductionProjectsDevelopment = lazy(() => import('@portals/production/pages/ProductionProjectsDevelopment'));
-const ProductionProjectsActive = lazy(() => import('@portals/production/pages/ProductionProjectsActive'));
-const ProductionProjectsPost = lazy(() => import('@portals/production/pages/ProductionProjectsPost'));
-const ProductionProjectsCompleted = lazy(() => import('@portals/production/pages/ProductionProjectsCompleted'));
-const ProductionPipeline = lazy(() => import('@portals/production/pages/ProductionPipeline'));
-const ProductionSubmissions = lazy(() => import('@portals/production/pages/ProductionSubmissions'));
-const ProductionSubmissionsNew = lazy(() => import('@portals/production/pages/ProductionSubmissionsNew'));
-const ProductionSubmissionsReview = lazy(() => import('@portals/production/pages/ProductionSubmissionsReview'));
-const ProductionSubmissionsShortlisted = lazy(() => import('@portals/production/pages/ProductionSubmissionsShortlisted'));
-const ProductionSubmissionsAccepted = lazy(() => import('@portals/production/pages/ProductionSubmissionsAccepted'));
-const ProductionSubmissionsRejected = lazy(() => import('@portals/production/pages/ProductionSubmissionsRejected'));
-const ProductionSubmissionsArchive = lazy(() => import('@portals/production/pages/ProductionSubmissionsArchive'));
-const ProductionAnalytics = lazy(() => import('@portals/production/pages/ProductionAnalytics'));
-const ProductionActivity = lazy(() => import('@portals/production/pages/ProductionActivity'));
-const ProductionStats = lazy(() => import('@portals/production/pages/ProductionStats'));
-const TeamManagement = lazy(() => import('./pages/TeamManagement'));
-const TeamMembers = lazy(() => import('./pages/team/TeamMembers'));
-const TeamInvite = lazy(() => import('./pages/team/TeamInvite'));
-const TeamRoles = lazy(() => import('@portals/production/pages/TeamRoles'));
-const ProductionCollaborations = lazy(() => import('@portals/production/pages/ProductionCollaborations'));
-const ProductionRevenue = lazy(() => import('@portals/production/pages/ProductionRevenue'));
-const ProductionSaved = lazy(() => import('@portals/production/pages/ProductionSaved'));
-const ProductionSettingsProfile = lazy(() => import('@portals/production/pages/ProductionSettingsProfile'));
-const ProductionSettingsNotifications = lazy(() => import('@portals/production/pages/ProductionSettingsNotifications'));
-const ProductionSettingsBilling = lazy(() => import('@portals/production/pages/ProductionSettingsBilling'));
-const ProductionSettingsSecurity = lazy(() => import('@portals/production/pages/ProductionSettingsSecurity'));
-const AdvancedSearch = lazy(() => import('./pages/AdvancedSearch'));
-const SearchPage = lazy(() => import('./pages/SearchPage'));
-const SettingsProfile = lazy(() => import('./pages/settings/SettingsProfile'));
-const NotificationSettings = lazy(() => import('./pages/settings/NotificationSettings'));
-const PrivacySettings = lazy(() => import('./pages/settings/PrivacySettings'));
-const InvestorPortfolio = lazy(() => import('@portals/investor/pages/InvestorPortfolio'));
-const InvestorActivity = lazy(() => import('@portals/investor/pages/InvestorActivity'));
-const InvestorAnalytics = lazy(() => import('@portals/investor/pages/InvestorAnalytics'));
-const InvestorStats = lazy(() => import('@portals/investor/pages/InvestorStats'));
-const InvestorSaved = lazy(() => import('@portals/investor/pages/InvestorSaved'));
-const InvestorWatchlist = lazy(() => import('@portals/investor/pages/InvestorWatchlist'));
-const InvestorDeals = lazy(() => import('@portals/investor/pages/InvestorDeals'));
-const InvestorPerformance = lazy(() => import('@portals/investor/pages/InvestorPerformance'));
-const InvestorDiscover = lazy(() => import('@portals/investor/pages/InvestorDiscover'));
-const InvestorReports = lazy(() => import('@portals/investor/pages/InvestorReports'));
-const InvestorNetwork = lazy(() => import('@portals/investor/pages/InvestorNetwork'));
-const InvestorCoInvestors = lazy(() => import('@portals/investor/pages/InvestorCoInvestors'));
-const InvestorProductionCompanies = lazy(() => import('@portals/investor/pages/InvestorProductionCompanies'));
-const InvestorCreators = lazy(() => import('@portals/investor/pages/InvestorCreators'));
-const Transactions = lazy(() => import('@portals/admin/pages/Transactions'));
-const SystemSettings = lazy(() => import('@portals/admin/pages/SystemSettings'));
+const ProductionProjects = lazyRetry(() => import('@portals/production/pages/ProductionProjects'));
+const ProductionProjectsDevelopment = lazyRetry(() => import('@portals/production/pages/ProductionProjectsDevelopment'));
+const ProductionProjectsActive = lazyRetry(() => import('@portals/production/pages/ProductionProjectsActive'));
+const ProductionProjectsPost = lazyRetry(() => import('@portals/production/pages/ProductionProjectsPost'));
+const ProductionProjectsCompleted = lazyRetry(() => import('@portals/production/pages/ProductionProjectsCompleted'));
+const ProductionPipeline = lazyRetry(() => import('@portals/production/pages/ProductionPipeline'));
+const ProductionSubmissions = lazyRetry(() => import('@portals/production/pages/ProductionSubmissions'));
+const ProductionSubmissionsNew = lazyRetry(() => import('@portals/production/pages/ProductionSubmissionsNew'));
+const ProductionSubmissionsReview = lazyRetry(() => import('@portals/production/pages/ProductionSubmissionsReview'));
+const ProductionSubmissionsShortlisted = lazyRetry(() => import('@portals/production/pages/ProductionSubmissionsShortlisted'));
+const ProductionSubmissionsAccepted = lazyRetry(() => import('@portals/production/pages/ProductionSubmissionsAccepted'));
+const ProductionSubmissionsRejected = lazyRetry(() => import('@portals/production/pages/ProductionSubmissionsRejected'));
+const ProductionSubmissionsArchive = lazyRetry(() => import('@portals/production/pages/ProductionSubmissionsArchive'));
+const ProductionAnalytics = lazyRetry(() => import('@portals/production/pages/ProductionAnalytics'));
+const ProductionActivity = lazyRetry(() => import('@portals/production/pages/ProductionActivity'));
+const ProductionStats = lazyRetry(() => import('@portals/production/pages/ProductionStats'));
+const TeamManagement = lazyRetry(() => import('./pages/TeamManagement'));
+const TeamMembers = lazyRetry(() => import('./pages/team/TeamMembers'));
+const TeamInvite = lazyRetry(() => import('./pages/team/TeamInvite'));
+const TeamRoles = lazyRetry(() => import('@portals/production/pages/TeamRoles'));
+const ProductionCollaborations = lazyRetry(() => import('@portals/production/pages/ProductionCollaborations'));
+const ProductionRevenue = lazyRetry(() => import('@portals/production/pages/ProductionRevenue'));
+const ProductionSaved = lazyRetry(() => import('@portals/production/pages/ProductionSaved'));
+const AdvancedSearch = lazyRetry(() => import('./pages/AdvancedSearch'));
+const SearchPage = lazyRetry(() => import('./pages/SearchPage'));
+const SettingsProfile = lazyRetry(() => import('./pages/settings/SettingsProfile'));
+const NotificationSettings = lazyRetry(() => import('./pages/settings/NotificationSettings'));
+const PrivacySettings = lazyRetry(() => import('./pages/settings/PrivacySettings'));
+const InvestorPortfolio = lazyRetry(() => import('@portals/investor/pages/InvestorPortfolio'));
+const InvestorActivity = lazyRetry(() => import('@portals/investor/pages/InvestorActivity'));
+const InvestorAnalytics = lazyRetry(() => import('@portals/investor/pages/InvestorAnalytics'));
+const InvestorStats = lazyRetry(() => import('@portals/investor/pages/InvestorStats'));
+const InvestorSaved = lazyRetry(() => import('@portals/investor/pages/InvestorSaved'));
+const InvestorWatchlist = lazyRetry(() => import('@portals/investor/pages/InvestorWatchlist'));
+const InvestorDeals = lazyRetry(() => import('@portals/investor/pages/InvestorDeals'));
+const InvestorPerformance = lazyRetry(() => import('@portals/investor/pages/InvestorPerformance'));
+const InvestorDiscover = lazyRetry(() => import('@portals/investor/pages/InvestorDiscover'));
+const InvestorReports = lazyRetry(() => import('@portals/investor/pages/InvestorReports'));
+const InvestorNetwork = lazyRetry(() => import('@portals/investor/pages/InvestorNetwork'));
+const InvestorCoInvestors = lazyRetry(() => import('@portals/investor/pages/InvestorCoInvestors'));
+const InvestorProductionCompanies = lazyRetry(() => import('@portals/investor/pages/InvestorProductionCompanies'));
+const InvestorCreators = lazyRetry(() => import('@portals/investor/pages/InvestorCreators'));
+const Transactions = lazyRetry(() => import('@portals/admin/pages/Transactions'));
+const SystemSettings = lazyRetry(() => import('@portals/admin/pages/SystemSettings'));
 
 // Test Pages
-const TestNavigation = lazy(() => import('./pages/TestNavigation'));
+const TestNavigation = lazyRetry(() => import('./pages/TestNavigation'));
 
 // Legal Pages
-const LegalDocumentWizard = lazy(() => import('./components/Legal/LegalDocumentWizard'));
-const LegalLibrary = lazy(() => import('./components/Legal/LegalLibrary'));
-const DocumentComparisonTool = lazy(() => import('./components/Legal/DocumentComparisonTool'));
-const TemplateEditor = lazy(() => import('./components/Legal/TemplateEditor'));
-const LegalDocumentDashboard = lazy(() => import('./components/Legal/LegalDocumentDashboard'));
+const LegalDocumentWizard = lazyRetry(() => import('./components/Legal/LegalDocumentWizard'));
+const LegalLibrary = lazyRetry(() => import('./components/Legal/LegalLibrary'));
+const DocumentComparisonTool = lazyRetry(() => import('./components/Legal/DocumentComparisonTool'));
+const TemplateEditor = lazyRetry(() => import('./components/Legal/TemplateEditor'));
+const LegalDocumentDashboard = lazyRetry(() => import('./components/Legal/LegalDocumentDashboard'));
 
 // Browse Pages
-const BrowseTabsFixed = lazy(() => import('@features/browse/components/BrowseTabsFixed'));
-const BrowseGenres = lazy(() => import('./pages/BrowseGenres'));
-const BrowseTopRated = lazy(() => import('./pages/BrowseTopRated'));
+const BrowseTabsFixed = lazyRetry(() => import('@features/browse/components/BrowseTabsFixed'));
+const BrowseGenres = lazyRetry(() => import('./pages/BrowseGenres'));
+const BrowseTopRated = lazyRetry(() => import('./pages/BrowseTopRated'));
 
 // Error Pages
-const NotFound = lazy(() => import('./pages/NotFound'));
+const NotFound = lazyRetry(() => import('./pages/NotFound'));
 
 // Query client temporarily disabled to resolve JavaScript initialization errors
 
@@ -495,10 +512,9 @@ function App() {
           {/* Legacy Portfolio Routes (for backward compatibility) */}
           <Route path="/creator/portfolio" element={<CreatorPortfolio />} />
           <Route path="/creator/portfolio-auth" element={
-            isAuthenticated && userType === 'creator' ? <CreatorPortfolio /> : 
+            isAuthenticated && userType === 'creator' ? <CreatorPortfolio /> :
             <Navigate to="/login/creator" />
           } />
-          <Route path="/creator/:creatorId" element={<CreatorPortfolio />} />
           
           {/* New Unified Portfolio Routes */}
           <Route path="/portfolio" element={<UserPortfolio />} />

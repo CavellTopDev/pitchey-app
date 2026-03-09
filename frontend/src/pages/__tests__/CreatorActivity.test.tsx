@@ -19,10 +19,13 @@ vi.mock('react-router-dom', async () => {
 })
 
 // ─── Creator Service ─────────────────────────────────────────────────
+const mockGetFollowers = vi.fn()
+
 vi.mock('@features/analytics/services/creator.service', () => ({
   CreatorService: {
     getActivityFeed: mockGetActivityFeed,
     getDashboard: mockGetDashboard,
+    getFollowers: mockGetFollowers,
   },
 }))
 
@@ -76,6 +79,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockGetActivityFeed.mockResolvedValue({ activities: mockActivities })
   mockGetDashboard.mockResolvedValue(mockDashboardData)
+  mockGetFollowers.mockResolvedValue({ followers: [], total: 3 })
 })
 
 afterEach(() => {
@@ -250,7 +254,9 @@ describe('CreatorActivity', () => {
     })
 
     // 1 unread notification from mockDashboardData
-    const unreadValue = screen.getAllByText('1')
-    expect(unreadValue.length).toBeGreaterThan(0)
+    await waitFor(() => {
+      const unreadValue = screen.getAllByText('1')
+      expect(unreadValue.length).toBeGreaterThan(0)
+    })
   })
 })

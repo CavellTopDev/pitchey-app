@@ -955,6 +955,34 @@ export class PitchService {
   // === PUBLIC ENDPOINTS FOR GUEST BROWSING ===
   // These endpoints work without authentication and are rate-limited
 
+  // Transform snake_case public pitch response to camelCase Pitch
+  private static transformPublicPitch(p: any): Pitch {
+    return {
+      ...p,
+      userId: p.user_id ?? p.userId,
+      viewCount: p.view_count ?? p.viewCount ?? 0,
+      likeCount: p.like_count ?? p.likeCount ?? 0,
+      ndaCount: p.nda_count ?? p.ndaCount ?? 0,
+      commentCount: p.comment_count ?? p.commentCount ?? 0,
+      shareCount: p.share_count ?? p.shareCount ?? 0,
+      createdAt: p.created_at ?? p.createdAt,
+      updatedAt: p.updated_at ?? p.updatedAt,
+      publishedAt: p.published_at ?? p.publishedAt,
+      titleImage: p.title_image ?? p.titleImage,
+      thumbnailUrl: p.thumbnail_url ?? p.thumbnailUrl,
+      shortSynopsis: p.short_synopsis ?? p.shortSynopsis,
+      longSynopsis: p.long_synopsis ?? p.longSynopsis,
+      targetAudience: p.target_audience ?? p.targetAudience,
+      estimatedBudget: p.estimated_budget ?? p.estimatedBudget,
+      budgetBracket: p.budget_bracket ?? p.budgetBracket,
+      budgetRange: p.budget_range ?? p.budgetRange,
+      requireNda: p.require_nda ?? p.requireNda,
+      creatorUsername: p.creator_username ?? p.creatorUsername,
+      creatorAvatar: p.creator_avatar ?? p.creatorAvatar,
+      creatorCompany: p.creator_company ?? p.creatorCompany,
+    };
+  }
+
   // Get public trending pitches (no auth required)
   static async getPublicTrendingPitches(limit: number = 20): Promise<Pitch[]> {
     try {
@@ -974,7 +1002,8 @@ export class PitchService {
         data?: { pitches?: Pitch[] };
       }
       const data = await response.json() as PublicPitchesJson;
-      return data.success === true ? (data.data?.pitches ?? []) : [];
+      const pitches = data.success === true ? (data.data?.pitches ?? []) : [];
+      return pitches.map(PitchService.transformPublicPitch);
     } catch (error) {
       console.warn('Error fetching public trending pitches:', error);
       return [];
@@ -1000,7 +1029,8 @@ export class PitchService {
         data?: { pitches?: Pitch[] };
       }
       const data = await response.json() as PublicPitchesJson;
-      return data.success === true ? (data.data?.pitches ?? []) : [];
+      const pitches = data.success === true ? (data.data?.pitches ?? []) : [];
+      return pitches.map(PitchService.transformPublicPitch);
     } catch (error) {
       console.warn('Error fetching public new pitches:', error);
       return [];
@@ -1026,7 +1056,8 @@ export class PitchService {
         data?: { pitches?: Pitch[] };
       }
       const data = await response.json() as PublicPitchesJson;
-      return data.success === true ? (data.data?.pitches ?? []) : [];
+      const pitches = data.success === true ? (data.data?.pitches ?? []) : [];
+      return pitches.map(PitchService.transformPublicPitch);
     } catch (error) {
       console.warn('Error fetching public featured pitches:', error);
       return [];

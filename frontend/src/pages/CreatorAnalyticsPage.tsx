@@ -22,6 +22,8 @@ export default function CreatorAnalyticsPage() {
     potentialInvestment: 0,
     investmentChange: 0
   });
+  const [followers, setFollowers] = useState(0);
+  const [trends, setTrends] = useState<any>(null);
   const [topPitches, setTopPitches] = useState<{ id: number; title: string; views: number; likes: number }[]>([]);
   const [audienceBreakdown, setAudienceBreakdown] = useState<{ userType: string; count: number; percentage: number }[]>([]);
 
@@ -47,6 +49,8 @@ export default function CreatorAnalyticsPage() {
           potentialInvestment: dashboardMetrics.revenue?.total || 0,
           investmentChange: dashboardMetrics.revenue?.growth || 0
         });
+        setFollowers(dashboardMetrics.overview.totalFollowers || 0);
+        setTrends((dashboardMetrics as any).trends || null);
       }
 
       // Map creator analytics to top pitches & audience breakdown
@@ -140,7 +144,11 @@ export default function CreatorAnalyticsPage() {
           {activeTab === 'overview' && (
             <div className="space-y-6">
               {/* Main Analytics Component */}
-              <CreatorAnalytics pitchPerformance={pitchPerformance} />
+              <CreatorAnalytics
+                pitchPerformance={pitchPerformance}
+                followers={followers}
+                trends={trends}
+              />
 
               {/* Additional Overview Sections */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

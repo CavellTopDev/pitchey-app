@@ -217,48 +217,153 @@ export async function creatorActivitiesHandler(request: Request, env: Env): Prom
       });
     }
 
-    // Simplified activity query - get pitch-related activities
-    // For now, just fetch created/published pitches as activity items
+    // Build type filter clause
+    const typeMap: Record<string, string[]> = {
+      view: ['pitch_view'],
+      like: ['pitch_like'],
+      follow: ['follow'],
+      nda: ['nda_request'],
+      investment: ['investment'],
+      comment: ['message_sent'],
+      milestone: ['pitch_published', 'pitch_created'],
+    };
+    const allowedTypes = type && typeMap[type] ? typeMap[type] : null;
+
+    // Union across all activity sources for this creator's pitches
     const activities = await sql`
-      SELECT
-        id,
-        CASE
-          WHEN status = 'published' AND published_at IS NOT NULL THEN 'pitch_published'
-          ELSE 'pitch_created'
-        END as type,
-        CASE
-          WHEN status = 'published' AND published_at IS NOT NULL
-          THEN 'You published "' || title || '"'
-          ELSE 'You created "' || title || '"'
-        END as description,
-        COALESCE(published_at, created_at) as created_at,
-        jsonb_build_object(
-          'pitchId', id,
-          'pitchTitle', title,
-          'status', status
-        ) as metadata
-      FROM pitches
-      WHERE user_id = ${userId}
-      ORDER BY COALESCE(published_at, created_at) DESC
+      WITH creator_pitches AS (
+        SELECT id, title FROM pitches WHERE user_id = ${userId}
+      ),
+      all_activities AS (
+        -- Pitch published/created
+        SELECT
+          p.id as source_id,
+          CASE WHEN p.status = 'published' AND p.published_at IS NOT NULL THEN 'pitch_published' ELSE 'pitch_created' END as type,
+          CASE WHEN p.status = 'published' AND p.published_at IS NOT NULL
+            THEN 'You published "' || p.title || '"'
+            ELSE 'You created "' || p.title || '"'
+          END as description,
+          COALESCE(p.published_at, p.created_at) as created_at,
+          NULL as actor_name,
+          NULL as actor_role,
+          jsonb_build_object('pitchId', p.id, 'pitchTitle', p.title, 'status', p.status) as metadata
+        FROM pitches p
+        WHERE p.user_id = ${userId}
+
+        UNION ALL
+
+        -- Views on creator's pitches (exclude self-views)
+        SELECT
+          v.id as source_id,
+          'pitch_view' as type,
+          COALESCE(u.username, 'Someone') || ' viewed "' || cp.title || '"' as description,
+          v.viewed_at as created_at,
+          COALESCE(u.username, 'Anonymous') as actor_name,
+          COALESCE(u.user_type, 'visitor') as actor_role,
+          jsonb_build_object('pitchId', cp.id, 'pitchTitle', cp.title) as metadata
+        FROM views v
+        JOIN creator_pitches cp ON cp.id = v.pitch_id
+        LEFT JOIN users u ON u.id = v.viewer_id
+        WHERE v.viewer_id IS DISTINCT FROM ${userId}
+
+        UNION ALL
+
+        -- Likes on creator's pitches
+        SELECT
+          l.id as source_id,
+          'pitch_like' as type,
+          u.username || ' liked "' || cp.title || '"' as description,
+          l.created_at,
+          u.username as actor_name,
+          u.user_type as actor_role,
+          jsonb_build_object('pitchId', cp.id, 'pitchTitle', cp.title) as metadata
+        FROM likes l
+        JOIN creator_pitches cp ON cp.id = l.pitch_id
+        LEFT JOIN users u ON u.id = l.user_id
+
+        UNION ALL
+
+        -- Follows (someone followed this creator)
+        SELECT
+          f.id as source_id,
+          'follow' as type,
+          u.username || ' started following you' as description,
+          f.created_at,
+          u.username as actor_name,
+          u.user_type as actor_role,
+          jsonb_build_object('followerId', f.follower_id) as metadata
+        FROM follows f
+        LEFT JOIN users u ON u.id = f.follower_id
+        WHERE f.following_id = ${userId}
+
+        UNION ALL
+
+        -- NDA requests on creator's pitches
+        SELECT
+          n.id as source_id,
+          'nda_request' as type,
+          u.username || ' requested NDA for "' || cp.title || '"' as description,
+          n.created_at,
+          u.username as actor_name,
+          u.user_type as actor_role,
+          jsonb_build_object('pitchId', cp.id, 'pitchTitle', cp.title, 'status', n.status) as metadata
+        FROM nda_requests n
+        JOIN creator_pitches cp ON cp.id = n.pitch_id
+        LEFT JOIN users u ON u.id = n.requester_id
+
+        UNION ALL
+
+        -- Investments in creator's pitches
+        SELECT
+          i.id as source_id,
+          'investment' as type,
+          u.username || ' invested in "' || cp.title || '"' as description,
+          i.created_at,
+          u.username as actor_name,
+          u.user_type as actor_role,
+          jsonb_build_object('pitchId', cp.id, 'pitchTitle', cp.title, 'amount', i.amount) as metadata
+        FROM investments i
+        JOIN creator_pitches cp ON cp.id = i.pitch_id
+        LEFT JOIN users u ON u.id = i.investor_id
+      )
+      SELECT * FROM all_activities
+      WHERE (${allowedTypes}::text[] IS NULL OR type = ANY(${allowedTypes}::text[]))
+      ORDER BY created_at DESC
       LIMIT ${limit} OFFSET ${offset}
     `;
 
-    // Get total count
+    // Get total count with same filter
     const countResult = await sql`
-      SELECT COUNT(*) as total
-      FROM pitches
-      WHERE user_id = ${userId}
+      WITH creator_pitches AS (
+        SELECT id FROM pitches WHERE user_id = ${userId}
+      ),
+      all_activities AS (
+        SELECT CASE WHEN status = 'published' AND published_at IS NOT NULL THEN 'pitch_published' ELSE 'pitch_created' END as type FROM pitches WHERE user_id = ${userId}
+        UNION ALL SELECT 'pitch_view' FROM views WHERE pitch_id IN (SELECT id FROM creator_pitches) AND viewer_id IS DISTINCT FROM ${userId}
+        UNION ALL SELECT 'pitch_like' FROM likes WHERE pitch_id IN (SELECT id FROM creator_pitches)
+        UNION ALL SELECT 'follow' FROM follows WHERE following_id = ${userId}
+        UNION ALL SELECT 'nda_request' FROM nda_requests WHERE pitch_id IN (SELECT id FROM creator_pitches)
+        UNION ALL SELECT 'investment' FROM investments WHERE pitch_id IN (SELECT id FROM creator_pitches)
+      )
+      SELECT COUNT(*) as total FROM all_activities
+      WHERE (${allowedTypes}::text[] IS NULL OR type = ANY(${allowedTypes}::text[]))
     `;
 
     const total = parseInt(countResult[0]?.total || '0');
 
     // Transform activities
     const transformedActivities = activities.map((activity: any) => ({
-      id: activity.id,
+      id: activity.source_id,
       type: activity.type,
       description: activity.description,
       createdAt: activity.created_at,
-      metadata: activity.metadata
+      metadata: activity.metadata,
+      ...(activity.actor_name ? {
+        user: {
+          name: activity.actor_name,
+          role: activity.actor_role || 'user'
+        }
+      } : {})
     }));
 
     return new Response(JSON.stringify({
