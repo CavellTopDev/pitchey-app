@@ -15,7 +15,7 @@ import { pitchAPI } from '../lib/api';
 import type { Pitch } from '../lib/api';
 import { ndaAPI, analyticsAPI, companyAPI, paymentsAPI, pitchServicesAPI } from '../lib/apiServices';
 import { API_URL } from '../config';
-import apiClient from '../lib/api-client';
+import apiClient, { savedPitchesAPI } from '../lib/api-client';
 import { NotificationWidget } from '../components/Dashboard/NotificationWidget';
 import { NotificationBell } from '@features/notifications/components/NotificationBell';
 import { getSubscriptionTier } from '../config/subscription-plans';
@@ -115,8 +115,8 @@ function ProductionDashboard() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   // Handle logout
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/');
   };
 
@@ -452,8 +452,15 @@ function ProductionDashboard() {
           p.id === pitchId ? { ...p, likeCount: p.likeCount + 1 } : p
         ));
       }
-      // In production, call API
-      // await pitchServicesAPI.toggleLike(pitchId, !isLiked);
+      try {
+        if (isLiked) {
+          await pitchAPI.unlike(pitchId);
+        } else {
+          await pitchAPI.like(pitchId);
+        }
+      } catch (apiErr) {
+        console.error('Error calling like API:', apiErr);
+      }
     } catch (error) {
       console.error('Error toggling like:', error);
     }
@@ -467,8 +474,15 @@ function ProductionDashboard() {
       } else {
         setSavedPitches(prev => [...prev, pitchId]);
       }
-      // In production, call API
-      // await pitchServicesAPI.toggleSave(pitchId, !isSaved);
+      try {
+        if (isSaved) {
+          await savedPitchesAPI.unsavePitch(pitchId);
+        } else {
+          await savedPitchesAPI.savePitch(pitchId);
+        }
+      } catch (apiErr) {
+        console.error('Error calling save API:', apiErr);
+      }
     } catch (error) {
       console.error('Error toggling save:', error);
     }
@@ -476,43 +490,43 @@ function ProductionDashboard() {
 
   const handleRequestNDA = async (pitchId: number, pitchTitle: string) => {
     try {
-      // Show confirmation or modal
       if (confirm(`Request NDA access for "${pitchTitle}"?`)) {
-        // Add to outgoing requests
-        const newRequest = {
-          id: Date.now(),
-          pitchId,
-          pitchTitle,
-          status: 'pending',
-          requestDate: new Date().toISOString(),
-          message: 'Requesting NDA access for full pitch materials'
-        };
-        setOutgoingNDARequests(prev => [...prev, newRequest]);
-        
-        // In production, call API
-        // await ndaAPI.requestNDA(pitchId, 'basic', 'Requesting access to full pitch materials');
-        
-        alert('NDA request sent successfully! You will be notified when approved.');
+        const result = await ndaAPI.requestNDA(pitchId, {
+          ndaType: 'basic',
+          requestMessage: 'Requesting access to full pitch materials'
+        });
+        if (result && result.success) {
+          setOutgoingNDARequests(prev => [...prev, {
+            id: (result.data as any)?.id || Date.now(),
+            pitchId,
+            pitchTitle,
+            status: 'pending',
+            requestDate: new Date().toISOString(),
+            message: 'Requesting NDA access for full pitch materials'
+          }]);
+        } else {
+          console.error('NDA request failed:', result?.error);
+        }
       }
     } catch (error) {
       console.error('Error requesting NDA:', error);
-      alert('Failed to send NDA request. Please try again.');
     }
   };
 
   const confirmSignNDA = async () => {
     if (selectedNDA) {
       try {
-        // In production, this would call the API to sign the NDA
-        // await pitchAPI.signNDA(selectedNDA.pitchId, 'basic');
-        
-        // Move from pending to signed with proper creator info
-        setOutgoingNDARequests(prev => prev.filter(n => n.id !== selectedNDA.id));
-        setSignedNDAs(prev => [...prev, {
-          ...selectedNDA,
-          signedDate: 'Just now',
-          expiresIn: '2 years'
-        }]);
+        const result = await ndaAPI.approveRequest(selectedNDA.id);
+        if (result && result.success) {
+          setOutgoingNDARequests(prev => prev.filter(n => n.id !== selectedNDA.id));
+          setSignedNDAs(prev => [...prev, {
+            ...selectedNDA,
+            signedDate: new Date().toISOString(),
+            expiresIn: '2 years'
+          }]);
+        } else {
+          console.error('Failed to sign NDA:', result?.error);
+        }
         setShowNDAModal(false);
         setSelectedNDA(null);
       } catch (error) {
@@ -1209,38 +1223,6 @@ function ProductionDashboard() {
               ))}
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-              <h3 className="font-semibold text-blue-900 mb-2">Enhanced Media Options</h3>
-              <p className="text-sm text-blue-800 mb-4">
-                As a production company, you can view and invest in comprehensive pitch packages including:
-              </p>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                <div className="flex items-center gap-2 text-blue-700">
-                  <BookOpen className="w-4 h-4" />
-                  <span>Lookbooks</span>
-                </div>
-                <div className="flex items-center gap-2 text-blue-700">
-                  <FileText className="w-4 h-4" />
-                  <span>Scripts</span>
-                </div>
-                <div className="flex items-center gap-2 text-blue-700">
-                  <Video className="w-4 h-4" />
-                  <span>Trailers</span>
-                </div>
-                <div className="flex items-center gap-2 text-blue-700">
-                  <BarChart3 className="w-4 h-4" />
-                  <span>Pitch Decks</span>
-                </div>
-                <div className="flex items-center gap-2 text-blue-700">
-                  <DollarSign className="w-4 h-4" />
-                  <span>Budget Breakdowns</span>
-                </div>
-                <div className="flex items-center gap-2 text-blue-700">
-                  <Calendar className="w-4 h-4" />
-                  <span>Production Timelines</span>
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
@@ -1396,7 +1378,9 @@ function ProductionDashboard() {
                               {pitch.creator?.companyName || pitch.creator?.username || 'Unknown Creator'}
                             </Link>
                             <span className="text-gray-500 text-sm">published a new pitch</span>
-                            <span className="text-gray-400 text-sm">• 2 days ago</span>
+                            {pitch.createdAt && (
+                              <span className="text-gray-400 text-sm">• {new Date(pitch.createdAt).toLocaleDateString()}</span>
+                            )}
                             {pitch.creator?.id && (
                               <FollowButton 
                                 creatorId={pitch.creator.id} 
@@ -1783,212 +1767,24 @@ function ProductionDashboard() {
               />
             </div>
 
-            {/* Additional Tools Section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Custom NDA Templates */}
-              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <FileText className="w-6 h-6 text-purple-600" />
-                  <div>
-                    <h3 className="font-semibold text-purple-900">Custom NDA Templates</h3>
-                    <p className="text-sm text-purple-700">Upload your company's standard NDA</p>
-                  </div>
-                </div>
-                
-                {/* Upload Area */}
-                <div className="space-y-4">
-                  <input
-                    ref={ndaFileInputRef}
-                    type="file"
-                    accept=".pdf,.doc,.docx"
-                    onChange={handleNDAFileSelect}
-                    className="hidden"
-                  />
-                  
-                  <button 
-                    onClick={() => ndaFileInputRef.current?.click()}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                  >
-                    <Upload className="w-4 h-4" />
-                    Upload Template
-                  </button>
-                  
-                  <p className="text-xs text-purple-600">
-                    Supported: PDF, DOC, DOCX • Max size: 10MB
-                  </p>
-                  
-                  {/* Uploaded Templates List */}
-                  {ndaTemplates.length > 0 && (
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-medium text-purple-900">Uploaded Templates:</h4>
-                      {ndaTemplates.map(template => (
-                        <div key={template.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-purple-200">
-                          <div className="flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-purple-600" />
-                            <span className="text-sm font-medium text-gray-900">{template.name}</span>
-                            <span className="text-xs text-gray-500">({(template.size / 1024 / 1024).toFixed(1)}MB)</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {template.uploadStatus === 'uploading' && (
-                              <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
-                            )}
-                            {template.uploadStatus === 'completed' && (
-                              <CheckCircle className="w-4 h-4 text-green-600" />
-                            )}
-                            {template.uploadStatus === 'error' && (
-                              <X className="w-4 h-4 text-red-600" />
-                            )}
-                            <button
-                              onClick={() => removeNDATemplate(template.id)}
-                              className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+            {/* NDA Summary Stats */}
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <BarChart3 className="w-5 h-5 text-blue-600" />
+                <h3 className="font-semibold text-gray-900">NDA Summary</h3>
               </div>
-
-              {/* NDA Analytics */}
-              <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <BarChart3 className="w-6 h-6 text-blue-600" />
-                  <div>
-                    <h3 className="font-semibold text-blue-900">NDA Analytics</h3>
-                    <p className="text-sm text-blue-700">Track your NDA approval rates</p>
-                  </div>
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-2xl font-bold text-gray-900">{incomingNDARequests.length}</p>
+                  <p className="text-sm text-gray-600">Pending Requests</p>
                 </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <div className="font-semibold text-blue-900">95%</div>
-                    <div className="text-blue-600">Approval Rate</div>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-blue-900">2.3 days</div>
-                    <div className="text-blue-600">Avg Response Time</div>
-                  </div>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-2xl font-bold text-green-600">{signedNDAs.length + incomingSignedNDAs.length}</p>
+                  <p className="text-sm text-gray-600">Signed NDAs</p>
                 </div>
-              </div>
-            </div>
-
-            {/* AI Recommendations & Smart Tools Section */}
-            <div className="mt-8">
-              <div className="flex items-center gap-3 mb-6">
-                <Activity className="w-6 h-6 text-green-600" />
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">AI-Powered Recommendations</h2>
-                  <p className="text-sm text-gray-600">Smart suggestions and automated assistance</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Smart Pitch Discovery */}
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <Search className="w-6 h-6 text-green-600" />
-                    <div>
-                      <h3 className="font-semibold text-green-900">Smart Pitch Discovery</h3>
-                      <p className="text-sm text-green-700">AI-curated recommendations</p>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="text-sm">
-                      <div className="font-medium text-green-900 mb-2">Trending in Your Genre:</div>
-                      <div className="space-y-2">
-                        <div className="p-2 bg-white rounded border">
-                          <div className="font-medium text-gray-900">Sci-Fi Thriller</div>
-                          <div className="text-xs text-gray-600">Match: 89% • Trending +15%</div>
-                        </div>
-                        <div className="p-2 bg-white rounded border">
-                          <div className="font-medium text-gray-900">Action Drama</div>
-                          <div className="text-xs text-gray-600">Match: 76% • Rising Interest</div>
-                        </div>
-                      </div>
-                    </div>
-                    <button className="w-full mt-3 px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors">
-                      View All Recommendations
-                    </button>
-                  </div>
-                </div>
-
-                {/* Smart Upload Assistant */}
-                <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <Upload className="w-6 h-6 text-orange-600" />
-                    <div>
-                      <h3 className="font-semibold text-orange-900">Smart Upload Assistant</h3>
-                      <p className="text-sm text-orange-700">Automated file analysis</p>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="text-sm">
-                      <div className="font-medium text-orange-900 mb-2">Upload Suggestions:</div>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                          <span className="text-sm">Script formatting detection</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                          <span className="text-sm">Auto-categorization</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-yellow-600" />
-                          <span className="text-sm">Content quality analysis</span>
-                        </div>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={() => document.getElementById('smart-upload-input')?.click()}
-                      className="w-full mt-3 px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors"
-                    >
-                      Smart Upload Documents
-                    </button>
-                    <input
-                      id="smart-upload-input"
-                      type="file"
-                      multiple
-                      accept=".pdf,.doc,.docx"
-                      onChange={handleSmartUpload}
-                      className="hidden"
-                    />
-                  </div>
-                </div>
-
-                {/* Content Analysis */}
-                <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-xl p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <BarChart3 className="w-6 h-6 text-indigo-600" />
-                    <div>
-                      <h3 className="font-semibold text-indigo-900">Content Analysis</h3>
-                      <p className="text-sm text-indigo-700">AI-powered insights</p>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="text-sm">
-                      <div className="font-medium text-indigo-900 mb-2">Analysis Ready:</div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-xs">
-                          <span>Genre Detection</span>
-                          <span className="text-green-600">Active</span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span>Market Trends</span>
-                          <span className="text-green-600">Active</span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span>Audience Targeting</span>
-                          <span className="text-yellow-600">Premium</span>
-                        </div>
-                      </div>
-                    </div>
-                    <button className="w-full mt-3 px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors">
-                      Run Analysis
-                    </button>
-                  </div>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-2xl font-bold text-purple-600">{outgoingNDARequests.length}</p>
+                  <p className="text-sm text-gray-600">Your Requests</p>
                 </div>
               </div>
             </div>

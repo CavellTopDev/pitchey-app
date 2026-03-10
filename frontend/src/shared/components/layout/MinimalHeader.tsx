@@ -115,7 +115,9 @@ export function MinimalHeader({ onMenuToggle, isSidebarOpen = true, userType }: 
           {isProfileOpen && (
             <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2">
               <div className="px-4 py-2 border-b border-gray-200">
-                <p className="text-sm font-semibold text-gray-900">{user?.name || 'User'}</p>
+                <p className="text-sm font-semibold text-gray-900">
+                  {userType === 'production' && user?.companyName ? user.companyName : user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.name || 'User'}
+                </p>
                 <p className="text-xs text-gray-600">{user?.email}</p>
               </div>
 

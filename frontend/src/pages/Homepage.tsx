@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Film, TrendingUp, Search, Play, Star, Eye, Heart, Calendar, ArrowRight, Sparkles, User, Building2, Wallet } from 'lucide-react';
+import { Film, TrendingUp, Search, Play, Star, Eye, Heart, Calendar, ArrowRight, Sparkles, User, Building2, Wallet, LogOut } from 'lucide-react';
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import { pitchService } from '@features/pitches/services/pitch.service';
+import { pitchAPI } from '../lib/api';
 import type { Pitch } from '@features/pitches/services/pitch.service';
 import { getGenresSync, getFormatsSync } from '@config/pitchConstants';
 import FormatDisplay from '../components/FormatDisplay';
@@ -11,7 +12,7 @@ import FormatDisplay from '../components/FormatDisplay';
 
 export default function Homepage() {
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useBetterAuthStore();
+  const { isAuthenticated, user, logout } = useBetterAuthStore();
   const userType = user?.userType;
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('all');
@@ -19,6 +20,39 @@ export default function Homepage() {
   const [trendingPitches, setTrendingPitches] = useState<Pitch[]>([]);
   const [newReleases, setNewReleases] = useState<Pitch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [likedPitches, setLikedPitches] = useState<Set<number>>(new Set());
+
+  const handleLike = async (e: React.MouseEvent, pitchId: number) => {
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      navigate('/portals');
+      return;
+    }
+    const isLiked = likedPitches.has(pitchId);
+    // Optimistic update
+    setLikedPitches(prev => {
+      const next = new Set(prev);
+      if (isLiked) { next.delete(pitchId); } else { next.add(pitchId); }
+      return next;
+    });
+    const updateCount = (pitches: Pitch[]) =>
+      pitches.map(p => p.id === pitchId ? { ...p, likeCount: p.likeCount + (isLiked ? -1 : 1) } : p);
+    setTrendingPitches(updateCount);
+    setNewReleases(updateCount);
+    try {
+      if (isLiked) { await pitchAPI.unlike(pitchId); } else { await pitchAPI.like(pitchId); }
+    } catch (err) {
+      console.error('Like failed:', err);
+      // Rollback
+      setLikedPitches(prev => {
+        const next = new Set(prev);
+        if (isLiked) { next.add(pitchId); } else { next.delete(pitchId); }
+        return next;
+      });
+      setTrendingPitches(prev => prev.map(p => p.id === pitchId ? { ...p, likeCount: p.likeCount + (isLiked ? 1 : -1) } : p));
+      setNewReleases(prev => prev.map(p => p.id === pitchId ? { ...p, likeCount: p.likeCount + (isLiked ? 1 : -1) } : p));
+    }
+  };
 
   useEffect(() => {
     // Add delay to prevent rate limiting on initial page load
@@ -124,15 +158,26 @@ export default function Homepage() {
                       </>
                     )}
                     <span className="text-xs text-gray-400">•</span>
-                    <span className="text-sm text-gray-900">{user.username}</span>
+                    <span className="text-sm text-gray-900">
+                      {userType === 'production' && user.companyName ? user.companyName : user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.username}
+                    </span>
                   </div>
-                  
+
                   {/* Dashboard Button */}
                   <button
                     onClick={() => navigate(`/${userType}/dashboard`)}
                     className="text-button px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
                   >
                     Dashboard
+                  </button>
+
+                  {/* Sign Out Button */}
+                  <button
+                    onClick={async () => { await logout(); navigate('/'); }}
+                    className="text-button px-3 py-2 text-gray-500 hover:text-red-600 transition"
+                    title="Sign Out"
+                  >
+                    <LogOut className="w-4 h-4" />
                   </button>
                 </>
               ) : (
@@ -318,10 +363,13 @@ export default function Homepage() {
                           <Eye className="w-3 h-3" />
                           {pitch.viewCount}
                         </span>
-                        <span className="flex items-center gap-1">
-                          <Heart className="w-3 h-3" />
+                        <button
+                          onClick={(e) => handleLike(e, pitch.id)}
+                          className={`flex items-center gap-1 hover:text-red-500 transition ${likedPitches.has(pitch.id) ? 'text-red-500' : ''}`}
+                        >
+                          <Heart className={`w-3 h-3 ${likedPitches.has(pitch.id) ? 'fill-current' : ''}`} />
                           {pitch.likeCount}
-                        </span>
+                        </button>
                       </div>
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
@@ -400,10 +448,13 @@ export default function Homepage() {
                           <Eye className="w-3 h-3" />
                           {pitch.viewCount}
                         </span>
-                        <span className="flex items-center gap-1">
-                          <Heart className="w-3 h-3" />
+                        <button
+                          onClick={(e) => handleLike(e, pitch.id)}
+                          className={`flex items-center gap-1 hover:text-red-500 transition ${likedPitches.has(pitch.id) ? 'text-red-500' : ''}`}
+                        >
+                          <Heart className={`w-3 h-3 ${likedPitches.has(pitch.id) ? 'fill-current' : ''}`} />
                           {pitch.likeCount}
-                        </span>
+                        </button>
                       </div>
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
@@ -501,7 +552,7 @@ export default function Homepage() {
               <h3 className="text-card-title mb-4">For Creators</h3>
               <ul className="space-y-2">
                 <li><button onClick={() => navigate('/portals')} className="text-metadata hover:text-purple-600 transition">Submit Pitch</button></li>
-                <li><button className="text-metadata hover:text-purple-600 transition">Pricing</button></li>
+                <li><button onClick={() => navigate('/billing')} className="text-metadata hover:text-purple-600 transition">Pricing</button></li>
               </ul>
             </div>
             <div>

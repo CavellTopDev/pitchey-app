@@ -560,7 +560,7 @@ export class PitchService {
       pitch?: Pitch;
     }
     const response = await apiClient.post<PublishResponse>(
-      `/api/creator/pitches/${id}/publish`,
+      `/api/pitches/${id}/publish`,
       {}
     );
 
@@ -583,7 +583,7 @@ export class PitchService {
       pitch?: Pitch;
     }
     const response = await apiClient.post<ArchiveResponse>(
-      `/api/creator/pitches/${id}/archive`,
+      `/api/pitches/${id}/archive`,
       {}
     );
 

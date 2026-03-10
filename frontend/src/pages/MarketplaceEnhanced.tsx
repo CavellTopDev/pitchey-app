@@ -35,7 +35,8 @@ import {
   Zap,
   WifiOff,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  LogOut
 } from 'lucide-react';
 
 // Get the best available image URL from a pitch (handles snake_case API + camelCase)
@@ -83,7 +84,7 @@ interface FilterState {
 export default function MarketplaceEnhanced() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { isAuthenticated, user } = useBetterAuthStore();
+  const { isAuthenticated, user, logout } = useBetterAuthStore();
   const toast = useToast();
   const { isMobile } = useResponsive();
   
@@ -619,9 +620,11 @@ export default function MarketplaceEnhanced() {
                   {/* User info */}
                   <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-lg">
                     <User className="w-4 h-4 text-gray-600" />
-                    <span className="text-sm text-gray-700">{user?.username || user?.email}</span>
+                    <span className="text-sm text-gray-700">
+                      {user?.userType === 'production' && user?.companyName ? user.companyName : user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.username || user?.email}
+                    </span>
                   </div>
-                  
+
                   {/* Dashboard button */}
                   <button
                     onClick={() => {
@@ -630,6 +633,15 @@ export default function MarketplaceEnhanced() {
                     className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
                   >
                     Dashboard
+                  </button>
+
+                  {/* Sign Out button */}
+                  <button
+                    onClick={async () => { await logout(); navigate('/'); }}
+                    className="px-3 py-2 text-gray-500 hover:text-red-600 transition"
+                    title="Sign Out"
+                  >
+                    <LogOut className="w-4 h-4" />
                   </button>
                 </>
               ) : (

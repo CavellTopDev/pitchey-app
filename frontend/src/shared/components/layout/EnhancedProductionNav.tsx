@@ -27,6 +27,7 @@ export const productionNavigationSections: NavigationSection[] = [
     title: 'Dashboard',
     items: [
       { label: 'Overview', path: PRODUCTION_ROUTES.dashboard, icon: Home },
+      { label: 'Browse Pitches', path: '/marketplace', icon: Store },
       { label: 'Analytics', path: PRODUCTION_ROUTES.analytics, icon: BarChart3},
       { label: 'Activity', path: PRODUCTION_ROUTES.activity, icon: Activity},
       { label: 'Statistics', path: PRODUCTION_ROUTES.stats, icon: TrendingUp},
