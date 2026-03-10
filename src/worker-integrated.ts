@@ -644,10 +644,11 @@ class RouteRegistry {
       });
 
       // Initialize email service if configured
+      // FROM_EMAIL env var allows overriding the sender domain (must be verified on Resend)
       if (env.RESEND_API_KEY) {
         this.emailService = new WorkerEmailService({
           apiKey: env.RESEND_API_KEY,
-          fromEmail: 'noreply@pitchey.com',
+          fromEmail: env.FROM_EMAIL || 'onboarding@resend.dev',
           fromName: 'Pitchey',
           db: this.db
         });
