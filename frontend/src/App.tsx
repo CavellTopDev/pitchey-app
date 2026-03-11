@@ -463,6 +463,12 @@ function App() {
             {/* Enhanced Investor Routes */}
             {AllInvestorRoutes({ isAuthenticated: true, userType: 'investor' })}
           </Route>
+          {/* Production Pitch View — outside PortalLayout (full-width, no sidebar) */}
+          <Route path="/production/pitch/:id" element={
+            isAuthenticated && userType === 'production' ? <ProductionPitchView /> :
+            <Navigate to="/login/production" />
+          } />
+
           {/* Production Portal Routes - with profile guard + PortalLayout */}
           <Route path="/production/*" element={
             isAuthenticated && userType === 'production' ? <ProfileGuard userType="production" /> :
@@ -472,7 +478,6 @@ function App() {
             <Route path="onboarding" element={<OnboardingPage />} />
             <Route path="dashboard" element={<ProductionDashboard />} />
             <Route path="following" element={<Following />} />
-            <Route path="pitch/:id" element={<ProductionPitchView />} />
             <Route path="profile" element={<Profile />} />
             <Route path="messages/*" element={<Messages />} />
             <Route path="calendar" element={<Calendar />} />

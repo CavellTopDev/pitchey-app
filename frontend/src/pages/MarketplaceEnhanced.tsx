@@ -97,7 +97,7 @@ export default function MarketplaceEnhanced() {
   }
   const [tabStates, setTabStates] = useState<Record<string, TabState>>({});
   const [viewMode, setViewMode] = useState<keyof typeof VIEW_MODES>('grid');
-  const [showFilters, setShowFilters] = useState(!isMobile);
+  const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'trending');
   const [currentPage, setCurrentPage] = useState(1);

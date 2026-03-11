@@ -29,6 +29,15 @@ api.interceptors.response.use(
   }
 );
 
+function safeParseJsonArray(value: unknown): any[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : []; }
+    catch { return []; }
+  }
+  return [];
+}
+
 // Helper to transform pitch data from snake_case (API) to camelCase (frontend)
 function transformPitchData(pitch: any): any {
   if (!pitch) return pitch;
@@ -61,6 +70,9 @@ function transformPitchData(pitch: any): any {
     pitchDeck: pitch.pitch_deck_url ?? pitch.pitchDeck,
     script: pitch.script_url ?? pitch.script,
     trailer: pitch.trailer_url ?? pitch.trailer,
+    characters: safeParseJsonArray(pitch.characters),
+    themes: safeParseJsonArray(pitch.themes),
+    locations: safeParseJsonArray(pitch.locations),
   };
 }
 
