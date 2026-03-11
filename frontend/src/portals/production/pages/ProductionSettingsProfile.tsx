@@ -13,6 +13,7 @@ import { toast } from 'react-hot-toast';
 
 interface CompanyProfileData {
   companyName: string;
+  username: string;
   companyType: string;
   founded: string;
   employees: string;
@@ -42,6 +43,7 @@ export default function ProductionSettingsProfile() {
   const [loading, setLoading] = useState(false);
   const [profileData, setProfileData] = useState<CompanyProfileData>({
     companyName: user?.companyName || '',
+    username: user?.username || '',
     companyType: 'Production Company',
     founded: '',
     employees: '',
@@ -112,6 +114,7 @@ export default function ProductionSettingsProfile() {
         credentials: 'include',
         body: JSON.stringify({
           name: profileData.companyName,
+          username: profileData.username || undefined,
           bio: profileData.description,
           companyName: profileData.companyName,
           website: profileData.website,
@@ -235,7 +238,19 @@ export default function ProductionSettingsProfile() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
-                
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                  <input
+                    type="text"
+                    value={profileData.username}
+                    onChange={(e) => handleInputChange('username', e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ''))}
+                    placeholder="your-username"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Letters, numbers, dots, hyphens, underscores. Min 3 characters.</p>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Company Type</label>
                   <select

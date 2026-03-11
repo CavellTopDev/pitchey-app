@@ -11,6 +11,7 @@ import * as bcrypt from 'bcryptjs';
 export interface UserProfileUpdate {
   name?: string;
   email?: string;
+  username?: string;
   bio?: string;
   phone?: string;
   website?: string;
@@ -141,6 +142,42 @@ export class UserProfileRoutes {
         updateFields.push(`last_name = $${paramIndex++}`);
         values.push(updates.lastName);
       }
+      if (updates.username !== undefined) {
+        const trimmed = updates.username.trim().toLowerCase();
+        if (trimmed.length < 3) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: { message: 'Username must be at least 3 characters' }
+          }), {
+            status: 400,
+            headers: { ...getCorsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
+          });
+        }
+        if (!/^[a-z0-9._-]+$/.test(trimmed)) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: { message: 'Username can only contain letters, numbers, dots, hyphens, and underscores' }
+          }), {
+            status: 400,
+            headers: { ...getCorsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
+          });
+        }
+        // Check uniqueness (excluding current user)
+        const [existing] = await this.sql`
+          SELECT id FROM users WHERE LOWER(username) = ${trimmed} AND id != ${userId} LIMIT 1
+        `;
+        if (existing) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: { message: 'Username is already taken' }
+          }), {
+            status: 409,
+            headers: { ...getCorsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
+          });
+        }
+        updateFields.push(`username = $${paramIndex++}`);
+        values.push(trimmed);
+      }
       if (updates.bio !== undefined) {
         updateFields.push(`bio = $${paramIndex++}`);
         values.push(updates.bio);
@@ -184,11 +221,11 @@ export class UserProfileRoutes {
       values.push(userId);
 
       const updateQuery = `
-        UPDATE users 
+        UPDATE users
         SET ${updateFields.join(', ')}
         WHERE id = $${paramIndex}
         RETURNING
-          id, email, name, first_name as "firstName",
+          id, email, username, name, first_name as "firstName",
           last_name as "lastName", user_type as "userType",
           company_name as "companyName", bio, phone,
           website, profile_image as "profileImage", location,

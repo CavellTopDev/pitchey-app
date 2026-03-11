@@ -226,9 +226,11 @@ export default function SettingsProfile() {
                     <input
                       type="text"
                       value={profileData.username}
-                      onChange={(e) => handleInputChange('username', e.target.value)}
+                      onChange={(e) => handleInputChange('username', e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ''))}
                       className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                      placeholder="your-username"
                     />
+                    <p className="text-xs text-gray-500 mt-1">Letters, numbers, dots, hyphens, underscores. Min 3 characters.</p>
                   </div>
 
                   <div>
