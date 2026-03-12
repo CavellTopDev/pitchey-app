@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { 
-  FileText, Clock, Star, CheckCircle, XCircle, Archive, 
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import {
+  FileText, Clock, Star, CheckCircle, XCircle, Archive,
   Filter, Search, Calendar, User, DollarSign, TrendingUp,
   Eye, Download, MessageSquare, RotateCcw, Trash2,
   Database, History, Tag
@@ -30,7 +32,8 @@ interface ArchivedSubmission {
 }
 
 export default function ProductionSubmissionsArchive() {
-    
+  const navigate = useNavigate();
+
   const [submissions, setSubmissions] = useState<ArchivedSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -130,8 +133,29 @@ export default function ProductionSubmissionsArchive() {
     updateStatus(submissionId, 'archived');
   };
 
-  const handleExport = (_submissionId: string) => {
-    // Export functionality - future feature
+  const handleExport = (submission: ArchivedSubmission) => {
+    const csvContent = [
+      ['Field', 'Value'],
+      ['Title', submission.title],
+      ['Creator', submission.creator],
+      ['Genre', submission.genre],
+      ['Budget', `$${(submission.budget / 1000000).toFixed(1)}M`],
+      ['Rating', `${submission.rating}/5`],
+      ['Original Status', submission.originalStatus],
+      ['Final Status', submission.finalStatus],
+      ['Submitted', submission.submittedDate],
+      ['Archived', submission.archivedDate],
+      ['Archive Reason', submission.archiveReason],
+      ['Synopsis', `"${submission.synopsis.replace(/"/g, '""')}"`],
+    ].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `submission-${submission.id}-archive.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Export downloaded');
   };
 
   const getFinalStatusColor = (status: string) => {
@@ -410,8 +434,8 @@ export default function ProductionSubmissionsArchive() {
                       <RotateCcw className="w-4 h-4" />
                       Restore
                     </button>
-                    <button 
-                      onClick={() => handleExport(submission.id)}
+                    <button
+                      onClick={() => handleExport(submission)}
                       className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center gap-2"
                     >
                       <Download className="w-4 h-4" />
@@ -420,11 +444,17 @@ export default function ProductionSubmissionsArchive() {
                   </div>
 
                   <div className="flex gap-2">
-                    <button className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition flex items-center gap-2">
+                    <button
+                      onClick={() => navigate(`/production/pitch/${submission.id}`)}
+                      className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition flex items-center gap-2"
+                    >
                       <Eye className="w-4 h-4" />
                       View Details
                     </button>
-                    <button className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition flex items-center gap-2">
+                    <button
+                      onClick={() => navigate(`/production/messages?to=${encodeURIComponent(submission.creatorEmail)}&subject=${encodeURIComponent('Re: ' + submission.title)}`)}
+                      className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition flex items-center gap-2"
+                    >
                       <MessageSquare className="w-4 h-4" />
                       Contact Creator
                     </button>

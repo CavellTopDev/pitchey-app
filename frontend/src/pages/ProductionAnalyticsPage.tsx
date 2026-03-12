@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   BarChart3, Activity, TrendingUp, DollarSign,
   Film, Award, Briefcase, Clock, Target
@@ -7,9 +7,36 @@ import ProductionAnalytics from '@portals/production/pages/ProductionAnalytics';
 import ProductionActivity from '@portals/production/pages/ProductionActivity';
 import ProductionStats from '@portals/production/pages/ProductionStats';
 import ProductionRevenue from '@portals/production/pages/ProductionRevenue';
+import { ProductionService } from '@portals/production/services/production.service';
 
 export default function ProductionAnalyticsPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'stats' | 'revenue'>('overview');
+  const [overviewStats, setOverviewStats] = useState<{ completedProjects: number; activeProjects: number; pipelineProjects: number; totalBudget: number; spentPercent: number }>({ completedProjects: 0, activeProjects: 0, pipelineProjects: 0, totalBudget: 0, spentPercent: 0 });
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const dashboard = await ProductionService.getDashboard();
+        const stats = dashboard?.stats;
+        if (stats) {
+          const total = stats.totalProjects || 0;
+          const active = stats.activeProjects || 0;
+          const completed = total - active;
+          const budget = stats.totalBudget || 0;
+          setOverviewStats({
+            completedProjects: completed > 0 ? completed : 0,
+            activeProjects: active,
+            pipelineProjects: stats.pitchesReviewed || 0,
+            totalBudget: budget,
+            spentPercent: budget > 0 ? Math.round((active / Math.max(total, 1)) * 100) : 0,
+          });
+        }
+      } catch {
+        // Keep defaults
+      }
+    };
+    load();
+  }, []);
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -76,15 +103,14 @@ export default function ProductionAnalyticsPage() {
                         </div>
                         <div>
                           <p className="font-medium">Completed Projects</p>
-                          <p className="text-sm text-gray-500">This Quarter</p>
+                          <p className="text-sm text-gray-500">All Time</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold">8</p>
-                        <p className="text-xs text-green-600">+2 vs last quarter</p>
+                        <p className="text-2xl font-bold">{overviewStats.completedProjects}</p>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -96,24 +122,23 @@ export default function ProductionAnalyticsPage() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold">12</p>
+                        <p className="text-2xl font-bold">{overviewStats.activeProjects}</p>
                         <p className="text-xs text-gray-600">In production</p>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
                           <Clock className="w-5 h-5 text-yellow-600" />
                         </div>
                         <div>
-                          <p className="font-medium">Development Pipeline</p>
-                          <p className="text-sm text-gray-500">Pre-production</p>
+                          <p className="font-medium">Pitches Reviewed</p>
+                          <p className="text-sm text-gray-500">Total reviewed</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold">5</p>
-                        <p className="text-xs text-gray-600">Projects</p>
+                        <p className="text-2xl font-bold">{overviewStats.pipelineProjects}</p>
                       </div>
                     </div>
                   </div>
@@ -129,43 +154,35 @@ export default function ProductionAnalyticsPage() {
                     <div className="p-4 bg-purple-50 rounded-lg">
                       <div className="flex justify-between items-start mb-2">
                         <div>
-                          <p className="text-sm text-gray-600">Total Budget Allocated</p>
-                          <p className="text-2xl font-bold text-purple-900">$25.5M</p>
+                          <p className="text-sm text-gray-600">Total Budget</p>
+                          <p className="text-2xl font-bold text-purple-900">
+                            ${overviewStats.totalBudget > 0 ? (overviewStats.totalBudget / 1000000).toFixed(1) + 'M' : '0'}
+                          </p>
                         </div>
                         <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded">
-                          2024
+                          {new Date().getFullYear()}
                         </span>
                       </div>
                     </div>
-                    
+
                     <div className="space-y-3">
                       <div>
                         <div className="flex justify-between mb-2">
-                          <span className="text-sm text-gray-600">Spent</span>
-                          <span className="text-sm font-semibold">$18.2M (71%)</span>
+                          <span className="text-sm text-gray-600">Active Allocation</span>
+                          <span className="text-sm font-semibold">{overviewStats.spentPercent}%</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div className="bg-purple-600 h-2 rounded-full" style={{ width: '71%' }}></div>
+                          <div className="bg-purple-600 h-2 rounded-full" style={{ width: `${overviewStats.spentPercent}%` }}></div>
                         </div>
                       </div>
-                      
-                      <div>
-                        <div className="flex justify-between mb-2">
-                          <span className="text-sm text-gray-600">Committed</span>
-                          <span className="text-sm font-semibold">$4.8M (19%)</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div className="bg-indigo-600 h-2 rounded-full" style={{ width: '19%' }}></div>
-                        </div>
-                      </div>
-                      
+
                       <div>
                         <div className="flex justify-between mb-2">
                           <span className="text-sm text-gray-600">Available</span>
-                          <span className="text-sm font-semibold">$2.5M (10%)</span>
+                          <span className="text-sm font-semibold">{100 - overviewStats.spentPercent}%</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div className="bg-green-600 h-2 rounded-full" style={{ width: '10%' }}></div>
+                          <div className="bg-green-600 h-2 rounded-full" style={{ width: `${100 - overviewStats.spentPercent}%` }}></div>
                         </div>
                       </div>
                     </div>

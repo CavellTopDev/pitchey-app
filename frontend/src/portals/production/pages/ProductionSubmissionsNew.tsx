@@ -324,11 +324,18 @@ export default function ProductionSubmissionsNew() {
                   </div>
 
                   <div className="flex gap-2">
-                    <button className="px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg transition flex items-center gap-2">
+                    <button
+                      onClick={() => navigate(`/production/messages?to=${encodeURIComponent(submission.creatorEmail)}&subject=${encodeURIComponent('Re: ' + submission.title)}`)}
+                      className="px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg transition flex items-center gap-2"
+                    >
                       <MessageSquare className="w-4 h-4" />
                       Contact Creator
                     </button>
-                    <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">
+                    <button
+                      onClick={() => navigate(`/production/pitch/${submission.id}`)}
+                      className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                      title="View pitch details"
+                    >
                       <Download className="w-4 h-4" />
                     </button>
                     <button 

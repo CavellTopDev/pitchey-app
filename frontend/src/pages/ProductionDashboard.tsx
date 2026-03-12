@@ -903,10 +903,10 @@ function ProductionDashboard() {
             <EnhancedProductionAnalytics 
               productionPerformance={{
                 totalPitches: myPitches.length,
-                totalRevenue: 0, // You can calculate this from actual data
+                totalRevenue: myPitches.reduce((sum, p) => sum + (p.budget || 0), 0),
                 activeProjects: myPitches.filter(p => p.status === 'published').length,
                 ndaSignedCount: analytics.totalNDAs,
-                averageProjectBudget: 0, // Calculate from project data
+                averageProjectBudget: myPitches.length > 0 ? myPitches.reduce((sum, p) => sum + (p.budget || 0), 0) / myPitches.length : 0,
                 creatorInteractions: analytics.totalViews + analytics.totalLikes
               }}
             />

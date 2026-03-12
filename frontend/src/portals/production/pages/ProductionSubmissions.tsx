@@ -312,7 +312,11 @@ export default function ProductionSubmissions() {
                         <MessageSquare className="w-4 h-4" />
                         Contact
                       </button>
-                      <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">
+                      <button
+                        onClick={() => navigate(`/production/pitch/${submission.id}`)}
+                        className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                        title="View pitch details"
+                      >
                         <Download className="w-4 h-4" />
                       </button>
                     </div>

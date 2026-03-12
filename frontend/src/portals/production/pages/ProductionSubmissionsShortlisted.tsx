@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { 
-  FileText, Clock, Star, CheckCircle, XCircle, Archive, 
+import { useNavigate } from 'react-router-dom';
+import {
+  FileText, Clock, Star, CheckCircle, XCircle, Archive,
   Filter, Search, Calendar, User, DollarSign, TrendingUp,
-  Eye, Download, MessageSquare, ThumbsUp, ThumbsDown, 
+  Eye, Download, MessageSquare, ThumbsUp, ThumbsDown,
   Bookmark, Award, Target, Zap
 } from 'lucide-react';
 import { config, API_URL } from '@/config';
@@ -29,7 +30,8 @@ interface Submission {
 }
 
 export default function ProductionSubmissionsShortlisted() {
-    
+  const navigate = useNavigate();
+
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -389,15 +391,25 @@ export default function ProductionSubmissionsShortlisted() {
                   </div>
 
                   <div className="flex gap-2">
-                    <button className="px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg transition flex items-center gap-2">
+                    <button
+                      onClick={() => navigate(`/production/pitch/${submission.id}`)}
+                      className="px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg transition flex items-center gap-2"
+                    >
                       <Eye className="w-4 h-4" />
                       View Details
                     </button>
-                    <button className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition flex items-center gap-2">
+                    <button
+                      onClick={() => navigate(`/production/messages?to=${encodeURIComponent(submission.creatorEmail)}&subject=${encodeURIComponent('Re: ' + submission.title)}`)}
+                      className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition flex items-center gap-2"
+                    >
                       <MessageSquare className="w-4 h-4" />
                       Contact
                     </button>
-                    <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">
+                    <button
+                      onClick={() => navigate(`/production/pitch/${submission.id}`)}
+                      className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                      title="View pitch details"
+                    >
                       <Download className="w-4 h-4" />
                     </button>
                     <button 

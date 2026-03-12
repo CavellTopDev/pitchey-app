@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, Plus, Search, Filter, Star, MapPin, Calendar, 
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import {
+  Users, Plus, Search, Filter, Star, MapPin, Calendar,
   Mail, Phone, Globe, ExternalLink, MessageCircle, FileText,
   CheckCircle, Clock, XCircle, AlertCircle, Eye, Edit2,
   Handshake, Building, Award, TrendingUp, DollarSign
@@ -58,7 +60,8 @@ const partnerTypes = [
 ];
 
 export default function ProductionCollaborations() {
-    const { user } = useBetterAuthStore();
+  const navigate = useNavigate();
+  const { user } = useBetterAuthStore();
   const userType = user?.userType || 'production';
   
   const [collaborations, setCollaborations] = useState<Collaboration[]>([]);
@@ -388,7 +391,10 @@ export default function ProductionCollaborations() {
                         </div>
                       </div>
                     </div>
-                    <button className="px-3 py-1 text-purple-600 hover:bg-purple-50 rounded transition text-sm">
+                    <button
+                      onClick={() => toast('Document download coming soon')}
+                      className="px-3 py-1 text-purple-600 hover:bg-purple-50 rounded transition text-sm"
+                    >
                       Download
                     </button>
                   </div>
@@ -412,7 +418,7 @@ export default function ProductionCollaborations() {
             <p className="text-gray-600">Manage partnerships and external collaborations</p>
           </div>
           <button
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => toast('Collaboration creation coming soon')}
             className="mt-4 md:mt-0 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center gap-2"
           >
             <Plus className="w-5 h-5" />

@@ -163,46 +163,67 @@ export default function TeamRoles() {
   };
 
   const handleSaveRole = async (roleData: Partial<Role>) => {
+    if (!teamId) return;
     try {
-      // Local-only: custom roles don't persist to backend yet
-      if (roleData.id && !roleData.id.startsWith('new_')) {
+      // Optimistic update
+      const optimisticRole: Role = {
+        id: roleData.id || `temp_${Date.now()}`,
+        name: roleData.name || 'New Role',
+        description: roleData.description || '',
+        permissions: roleData.permissions || [],
+        memberCount: roleData.memberCount || 0,
+        isDefault: false,
+        isSystemRole: false,
+        color: roleData.color || 'gray',
+        createdAt: roleData.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (roleData.id && !roleData.id.startsWith('new_') && !roleData.id.startsWith('temp_')) {
         setRoles(prev => prev.map(r => r.id === roleData.id ? { ...r, ...roleData } as Role : r));
       } else {
-        const newRole: Role = {
-          id: roleData.id || `local_${Date.now()}`,
-          name: roleData.name || 'New Role',
-          description: roleData.description || '',
-          permissions: roleData.permissions || [],
-          memberCount: 0,
-          isDefault: false,
-          isSystemRole: false,
-          color: roleData.color || 'gray',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        setRoles(prev => [...prev, newRole]);
+        setRoles(prev => [...prev, optimisticRole]);
       }
-      setSuccessMessage('Role saved locally. Note: custom role changes are not persisted to the server yet.');
+
+      const saved = await TeamService.saveTeamRole(teamId, {
+        id: roleData.id?.startsWith('new_') || roleData.id?.startsWith('temp_') ? undefined : roleData.id,
+        name: roleData.name || 'New Role',
+        description: roleData.description || '',
+      });
+
+      // Replace optimistic with real
+      if (!roleData.id || roleData.id.startsWith('new_') || roleData.id.startsWith('temp_')) {
+        setRoles(prev => prev.map(r => r.id === optimisticRole.id ? { ...optimisticRole, id: saved.id } : r));
+      }
+
+      setSuccessMessage('Role saved successfully.');
       setEditingRole(null);
       setShowCreateRole(false);
-    } catch (err: any) {
-      console.error('Failed to save role:', err);
-      setError('Failed to save role');
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to save role:', e);
+      setError('Failed to save role: ' + e.message);
+      // Rollback
+      fetchRolesAndMembers();
     }
   };
 
   const handleDeleteRole = async (roleId: string) => {
+    if (!teamId) return;
     if (!confirm('Are you sure you want to delete this role? This action cannot be undone.')) {
       return;
     }
 
+    const previousRoles = [...roles];
     try {
-      // Local-only: custom roles don't persist to backend yet
       setRoles(prev => prev.filter(role => role.id !== roleId));
-      setSuccessMessage('Role deleted locally. Note: custom role changes are not persisted to the server yet.');
-    } catch (err: any) {
-      console.error('Failed to delete role:', err);
-      setError('Failed to delete role');
+      await TeamService.deleteTeamRole(teamId, roleId);
+      setSuccessMessage('Role deleted successfully.');
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to delete role:', e);
+      setError('Failed to delete role: ' + e.message);
+      setRoles(previousRoles);
     }
   };
 
@@ -425,8 +446,7 @@ export default function TeamRoles() {
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
           <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
           <p className="text-blue-800 text-sm">
-            Role definitions are loaded from defaults. Custom role changes are saved locally and don't persist to the server yet.
-            Member counts reflect real team data.
+            Manage your team roles and permissions. Member counts reflect real team data.
           </p>
         </div>
 

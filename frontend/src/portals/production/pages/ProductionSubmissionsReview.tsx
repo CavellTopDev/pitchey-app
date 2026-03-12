@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { 
-  FileText, Clock, Star, CheckCircle, XCircle, Archive, 
+import { useNavigate } from 'react-router-dom';
+import {
+  FileText, Clock, Star, CheckCircle, XCircle, Archive,
   Filter, Search, Calendar, User, DollarSign, TrendingUp,
-  Eye, Download, MessageSquare, ThumbsUp, ThumbsDown, 
+  Eye, Download, MessageSquare, ThumbsUp, ThumbsDown,
   AlertCircle, Timer, Edit3, Bookmark
 } from 'lucide-react';
 import { config, API_URL } from '@/config';
@@ -28,7 +29,8 @@ interface Submission {
 }
 
 export default function ProductionSubmissionsReview() {
-    
+  const navigate = useNavigate();
+
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -376,11 +378,18 @@ export default function ProductionSubmissionsReview() {
                       <Edit3 className="w-4 h-4" />
                       Add Note
                     </button>
-                    <button className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition flex items-center gap-2">
+                    <button
+                      onClick={() => navigate(`/production/messages?to=${encodeURIComponent(submission.creatorEmail)}&subject=${encodeURIComponent('Re: ' + submission.title)}`)}
+                      className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition flex items-center gap-2"
+                    >
                       <MessageSquare className="w-4 h-4" />
                       Contact
                     </button>
-                    <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">
+                    <button
+                      onClick={() => navigate(`/production/pitch/${submission.id}`)}
+                      className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                      title="View pitch details"
+                    >
                       <Download className="w-4 h-4" />
                     </button>
                   </div>
