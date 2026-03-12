@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { 
-  Users, Building2, UserCheck, TrendingUp, 
+import { useNavigate } from 'react-router-dom';
+import {
+  Users, Building2, UserCheck, TrendingUp,
   Search, Filter, Globe, Award, Star,
   Briefcase, DollarSign, Film, MessageSquare,
   Calendar, MapPin, Link2, Mail, Phone,
@@ -32,6 +33,7 @@ interface NetworkMember {
 }
 
 export default function InvestorNetwork() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'investor' | 'creator' | 'production'>('all');
@@ -106,7 +108,16 @@ export default function InvestorNetwork() {
     setFilteredMembers(filtered);
   };
 
-  const handleConnect = (memberId: string) => {
+  const handleConnect = async (memberId: string) => {
+    const API_URL = import.meta.env.VITE_API_URL || '';
+    try {
+      await fetch(`${API_URL}/api/investor/connections/${memberId}`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to send connection request:', error);
+    }
     setNetworkMembers(prev => prev.map(member =>
       member.id === memberId
         ? { ...member, connectionStatus: 'pending' }
@@ -114,7 +125,16 @@ export default function InvestorNetwork() {
     ));
   };
 
-  const handleAcceptConnection = (memberId: string) => {
+  const handleAcceptConnection = async (memberId: string) => {
+    const API_URL = import.meta.env.VITE_API_URL || '';
+    try {
+      await fetch(`${API_URL}/api/investor/connections/${memberId}/accept`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to accept connection:', error);
+    }
     setNetworkMembers(prev => prev.map(member =>
       member.id === memberId
         ? { ...member, connectionStatus: 'connected' }
@@ -344,7 +364,10 @@ export default function InvestorNetwork() {
                         <span>Active {member.lastActive}</span>
                       )}
                     </div>
-                    <button className="text-green-600 hover:text-purple-700 font-medium">
+                    <button
+                      onClick={() => navigate(`/network/${member.id}`)}
+                      className="text-green-600 hover:text-purple-700 font-medium"
+                    >
                       View Profile
                     </button>
                   </div>

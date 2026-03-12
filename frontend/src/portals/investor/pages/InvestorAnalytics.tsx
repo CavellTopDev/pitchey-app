@@ -331,7 +331,18 @@ export default function InvestorAnalytics() {
               <option value="horror">Horror</option>
             </select>
             
-            <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+            <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50" onClick={() => {
+              const csvContent = ['Sector,Growth Rate,Opportunities,Risk Level,Recommendation'].concat(
+                marketTrends.map(t => `"${t.sector}",${t.growth.toFixed(1)}%,${t.opportunities},"${t.riskLevel}","${t.recommendation}"`)
+              ).join('\n');
+              const blob = new Blob([csvContent], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'analytics.csv';
+              a.click();
+              URL.revokeObjectURL(url);
+            }}>
               <Download className="w-4 h-4 mr-2" />
               Export Analytics
             </button>

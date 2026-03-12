@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import {
   Bookmark, Star, Clock,
   Search, Eye, Share2, Trash2, FolderPlus,
@@ -288,7 +289,7 @@ export default function InvestorSaved() {
               </button>
             </div>
             
-            <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+            <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50" onClick={() => toast('Folder creation coming soon')}>
               <FolderPlus className="w-4 h-4 mr-2" />
               New Folder
             </button>
@@ -576,7 +577,7 @@ export default function InvestorSaved() {
                       <Eye className="w-4 h-4 mr-1 inline" />
                       View
                     </button>
-                    <button className="px-3 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    <button className="px-3 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors" onClick={() => { void navigator.clipboard.writeText(window.location.origin + '/pitch/' + pitch.id); toast('Link copied to clipboard'); }}>
                       <Share2 className="w-4 h-4" />
                     </button>
                     <button
@@ -650,7 +651,7 @@ export default function InvestorSaved() {
                       >
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button className="text-gray-400 hover:text-gray-600">
+                      <button className="text-gray-400 hover:text-gray-600" onClick={() => { void navigator.clipboard.writeText(window.location.origin + '/pitch/' + pitch.id); toast('Link copied to clipboard'); }}>
                         <Share2 className="w-4 h-4" />
                       </button>
                       <button

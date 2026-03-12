@@ -177,14 +177,11 @@ const CreatorProfile = () => {
   };
 
   const handleContactCreator = () => {
-    // In production, open messaging modal or navigate to messages
-    alert('Opening message composer...');
+    navigate(`/messages?recipient=${creator?.id}`);
   };
 
   const handleShareProfile = () => {
-    // Copy profile URL to clipboard
     navigator.clipboard.writeText(window.location.href);
-    alert('Profile link copied to clipboard!');
   };
 
   if (loading) {

@@ -375,7 +375,7 @@ export default function CreatorPitchesPublished() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        // Handle share
+                        navigator.clipboard.writeText(`${window.location.origin}/pitch/${pitch.id}`);
                       }}
                       className="p-2 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition"
                     >

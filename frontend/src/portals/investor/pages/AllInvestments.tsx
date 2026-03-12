@@ -387,7 +387,18 @@ const AllInvestments = () => {
               >
                 <ArrowUpDown className="h-4 w-4" />
               </Button>
-              <Button variant="outline">
+              <Button variant="outline" onClick={() => {
+                const csvContent = ['Project,Company,Genre,Creator,Amount,Current Value,ROI,Status,Stage'].concat(
+                  filteredInvestments.map(inv => `"${inv.pitchTitle || inv.pitch_title}","${inv.company}","${inv.genre}","${inv.creator}",${inv.initialAmount || 0},${inv.currentValue || 0},${inv.roi || 0}%,"${inv.status}","${inv.stage}"`)
+                ).join('\n');
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'investments.csv';
+                a.click();
+                URL.revokeObjectURL(url);
+              }}>
                 <Download className="h-4 w-4 mr-2" />
                 Export
               </Button>
@@ -498,7 +509,7 @@ const AllInvestments = () => {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" onClick={() => navigate(`/investor/investment/${investment.id}`)}>
                           <Eye className="h-4 w-4 mr-1" />
                           View
                         </Button>

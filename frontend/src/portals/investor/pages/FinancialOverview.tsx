@@ -75,7 +75,29 @@ const FinancialOverview = () => {
               <h1 className="text-3xl font-bold text-gray-900">Financial Overview</h1>
               <p className="text-gray-600 mt-2">Complete financial summary and portfolio valuation</p>
             </div>
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => {
+              const rows = [
+                ['Financial Statement'],
+                ['Total Assets', String((financialData?.available_funds || 0) + (financialData?.allocated_funds || 0))],
+                ['Available Funds', String(financialData?.available_funds || 0)],
+                ['Allocated Funds', String(financialData?.allocated_funds || 0)],
+                ['Total Returns', String(financialData?.total_returns || 0)],
+                ['Pending Amount', String(financialData?.pending_amount || 0)],
+                ['YTD Growth', `${financialData?.ytd_growth || 0}%`],
+                [],
+                ['Recent Transactions'],
+                ['Date,Type,Description,Amount'],
+                ...recentTransactions.map(t => [new Date(t.created_at).toLocaleDateString(), t.type, `"${t.description}"`, String(t.amount)])
+              ];
+              const csvContent = rows.map(r => r.join(',')).join('\n');
+              const blob = new Blob([csvContent], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'financial-statement.csv';
+              a.click();
+              URL.revokeObjectURL(url);
+            }}>
               <Download className="h-4 w-4 mr-2" />
               Export Statement
             </Button>

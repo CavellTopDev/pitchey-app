@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { 
+import { useNavigate } from 'react-router-dom';
+import {
   Users, Film, Award, TrendingUp, Star,
   Search, Filter, MapPin, Calendar, Eye,
   Heart, MessageSquare, Briefcase, Play,
@@ -41,11 +42,13 @@ interface Creator {
     type: 'award' | 'festival' | 'milestone';
     year: number;
   }[];
+  email?: string;
   lastActive?: string;
   verified: boolean;
 }
 
 export default function InvestorCreators() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState<'all' | 'director' | 'writer' | 'producer'>('all');
@@ -101,6 +104,7 @@ export default function InvestorCreators() {
             type: (a.type || 'milestone') as 'award' | 'festival' | 'milestone',
             year: a.year || 0
           })),
+          email: c.email || '',
           lastActive: c.last_active || c.lastActive || '',
           verified: c.verified || false
         }));
@@ -158,20 +162,33 @@ export default function InvestorCreators() {
     setFilteredCreators(filtered);
   };
 
-  const handleFollow = (creatorId: string) => {
-    setCreators(prev => prev.map(creator =>
-      creator.id === creatorId
-        ? { 
-            ...creator, 
-            followStatus: creator.followStatus === 'following' ? 'not-following' : 'following',
+  const handleFollow = async (creatorId: string) => {
+    const creator = creators.find(c => c.id === creatorId);
+    const isFollowing = creator?.followStatus === 'following';
+    const API_URL = import.meta.env.VITE_API_URL || '';
+    try {
+      await fetch(`${API_URL}/api/follows/${isFollowing ? 'unfollow' : 'follow'}`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetId: creatorId, type: 'user' })
+      });
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to update follow status:', error);
+    }
+    setCreators(prev => prev.map(c =>
+      c.id === creatorId
+        ? {
+            ...c,
+            followStatus: c.followStatus === 'following' ? 'not-following' : 'following',
             stats: {
-              ...creator.stats,
-              followerCount: creator.followStatus === 'following'
-                ? (creator.stats?.followerCount ?? 0) - 1
-                : (creator.stats?.followerCount ?? 0) + 1
+              ...c.stats,
+              followerCount: c.followStatus === 'following'
+                ? (c.stats?.followerCount ?? 0) - 1
+                : (c.stats?.followerCount ?? 0) + 1
             }
           }
-        : creator
+        : c
     ));
   };
 
@@ -507,12 +524,18 @@ export default function InvestorCreators() {
                       <Eye className="w-4 h-4 mr-1" />
                       {creator.stats.viewCount.toLocaleString()}
                     </button>
-                    <button className="flex items-center text-gray-600 hover:text-green-600">
+                    <button
+                      onClick={() => navigate(`/investor/messages?to=${encodeURIComponent(creator.email || '')}`)}
+                      className="flex items-center text-gray-600 hover:text-green-600"
+                    >
                       <MessageSquare className="w-4 h-4 mr-1" />
                       Message
                     </button>
                   </div>
-                  <button className="text-green-600 hover:text-purple-700 text-sm font-medium">
+                  <button
+                    onClick={() => navigate(`/creator/${creator.id}`)}
+                    className="text-green-600 hover:text-purple-700 text-sm font-medium"
+                  >
                     View Profile →
                   </button>
                 </div>

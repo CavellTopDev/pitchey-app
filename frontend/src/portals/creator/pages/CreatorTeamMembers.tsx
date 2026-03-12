@@ -535,15 +535,30 @@ export default function CreatorTeamMembers() {
 
                     {/* Actions */}
                     <div className="flex gap-2 mt-4 pt-4 border-t">
-                      <button className="flex-1 px-3 py-2 text-sm border border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 transition-colors">
+                      <button
+                        onClick={() => navigate(`/creator/messages?to=${encodeURIComponent(member.email)}`)}
+                        className="flex-1 px-3 py-2 text-sm border border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 transition-colors"
+                      >
                         <MessageSquare className="w-4 h-4 mr-1 inline" />
                         Message
                       </button>
-                      <button className="px-3 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                      <button
+                        onClick={() => navigate(`/creator/team/roles`)}
+                        className="px-3 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
                         <Edit className="w-4 h-4" />
                       </button>
                       {member.role !== 'owner' && (
-                        <button className="px-3 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors">
+                        <button
+                          onClick={() => {
+                            if (currentTeamId && confirm(`Remove ${member.name} from team?`)) {
+                              TeamService.removeMember(currentTeamId, member.id).then(() => {
+                                setMembers(prev => prev.filter(m => m.id !== member.id));
+                              }).catch(err => console.error('Failed to remove member:', err));
+                            }
+                          }}
+                          className="px-3 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       )}

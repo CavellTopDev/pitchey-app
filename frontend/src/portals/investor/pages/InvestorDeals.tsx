@@ -350,11 +350,22 @@ export default function InvestorDeals() {
             </p>
           </div>
           <div className="mt-4 sm:mt-0 flex gap-3">
-            <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+            <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50" onClick={() => {
+              const csvContent = ['Title,Status,Type,Stage,Priority,Creator,Company,Amount Requested,Risk Score,Submitted Date'].concat(
+                filteredDeals.map(d => `"${d.title}","${d.status}","${d.type}","${d.stage}","${d.priority}","${d.creator.name}","${d.creator.company || ''}",${d.investment.amountRequested},"${d.metrics.riskScore}","${d.timeline.submittedDate}"`)
+              ).join('\n');
+              const blob = new Blob([csvContent], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'deal-pipeline.csv';
+              a.click();
+              URL.revokeObjectURL(url);
+            }}>
               <Download className="w-4 h-4 mr-2" />
               Export Pipeline
             </button>
-            <button className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
+            <button className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700" onClick={() => navigate('/investor/discover')}>
               <Handshake className="w-4 h-4 mr-2" />
               New Deal
             </button>

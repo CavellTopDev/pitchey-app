@@ -167,7 +167,31 @@ export default function InvestorPerformance() {
               <option value="all">All Time</option>
             </select>
             
-            <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+            <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50" onClick={() => {
+              const rows = [
+                ['Performance Report'],
+                ['Metric,Value'],
+                ['Total Return', `${metrics?.totalReturn ?? 0}%`],
+                ['Annualized Return', `${metrics?.annualizedReturn ?? 0}%`],
+                ['Volatility', `${metrics?.volatility ?? 0}%`],
+                ['Sharpe Ratio', String(metrics?.sharpeRatio ?? 0)],
+                ['Max Drawdown', `${metrics?.maxDrawdown ?? 0}%`],
+                ['Hit Rate', `${metrics?.hitRate ?? 0}%`],
+                ['Avg Holding Period', `${metrics?.averageHoldingPeriod ?? 0} years`],
+                ['Active Investments', String(metrics?.activeInvestments ?? 0)],
+                [],
+                ['Genre,Allocation,Performance,Count'],
+                ...allocations.map(a => `"${a.genre}",${a.allocation}%,${a.performance}%,${a.count}`)
+              ];
+              const csvContent = rows.map(r => Array.isArray(r) ? r.join(',') : r).join('\n');
+              const blob = new Blob([csvContent], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'performance-report.csv';
+              a.click();
+              URL.revokeObjectURL(url);
+            }}>
               <Download className="w-4 h-4 mr-2" />
               Export Report
             </button>

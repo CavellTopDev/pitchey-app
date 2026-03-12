@@ -24,6 +24,7 @@ const InvestorDiscover = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // Per-tab state to prevent content bleeding between tabs
@@ -336,7 +337,10 @@ const InvestorDiscover = () => {
             />
           </div>
           <div className="flex gap-2">
-            <button className="px-4 py-2 border rounded-lg hover:bg-gray-50 flex items-center gap-2">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`px-4 py-2 border rounded-lg hover:bg-gray-50 flex items-center gap-2 ${showFilters ? 'bg-blue-50 border-blue-300 text-blue-700' : ''}`}
+            >
               <Filter className="w-4 h-4" />
               Filters
             </button>
@@ -356,6 +360,23 @@ const InvestorDiscover = () => {
             </div>
           </div>
         </div>
+        {showFilters && (
+          <div className="mt-4 pt-4 border-t flex flex-wrap gap-2">
+            {genres.map(genre => (
+              <button
+                key={genre}
+                onClick={() => setSelectedGenre(genre.toLowerCase().replace(' ', '-'))}
+                className={`px-3 py-1 rounded-full text-sm border ${
+                  selectedGenre === genre.toLowerCase().replace(' ', '-') || (selectedGenre === 'all' && genre === 'All Genres')
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'border-gray-300 hover:border-blue-400'
+                }`}
+              >
+                {genre}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Tabs */}

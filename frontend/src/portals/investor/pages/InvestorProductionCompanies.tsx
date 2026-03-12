@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { 
+import { useNavigate } from 'react-router-dom';
+import {
   Building2, Film, Award, TrendingUp, Globe,
   Search, Filter, MapPin, Calendar, Users,
   DollarSign, Star, BarChart3, Play, ChevronRight,
@@ -46,6 +47,7 @@ interface ProductionCompany {
 }
 
 export default function InvestorProductionCompanies() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'major' | 'independent' | 'boutique' | 'streaming'>('all');
@@ -141,7 +143,16 @@ export default function InvestorProductionCompanies() {
     setFilteredCompanies(filtered);
   };
 
-  const handleConnect = (companyId: string) => {
+  const handleConnect = async (companyId: string) => {
+    const API_URL = import.meta.env.VITE_API_URL || '';
+    try {
+      await fetch(`${API_URL}/api/investor/connections/${companyId}`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to send connection request:', error);
+    }
     setCompanies(prev => prev.map(company =>
       company.id === companyId
         ? { ...company, connectionStatus: 'in-talks' }
@@ -455,7 +466,10 @@ export default function InvestorProductionCompanies() {
                 <div className="mt-6 flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     {company.connectionStatus === 'partner' ? (
-                      <button className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700">
+                      <button
+                        onClick={() => navigate('/investor/discover')}
+                        className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700"
+                      >
                         <Briefcase className="w-4 h-4 mr-2" />
                         View Opportunities
                       </button>
@@ -474,7 +488,10 @@ export default function InvestorProductionCompanies() {
                       </button>
                     )}
                   </div>
-                  <button className="text-green-600 hover:text-purple-700 text-sm font-medium">
+                  <button
+                    onClick={() => navigate(`/production/${company.id}`)}
+                    className="text-green-600 hover:text-purple-700 text-sm font-medium"
+                  >
                     View Full Profile →
                   </button>
                 </div>

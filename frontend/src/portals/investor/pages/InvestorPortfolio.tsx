@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import {
   TrendingUp, DollarSign, PieChart, Calendar,
   Film, Eye, Star, Clock, AlertCircle, CheckCircle,
@@ -321,7 +322,18 @@ export default function InvestorPortfolio() {
             </div>
             
             <div className="flex gap-2">
-              <button className="px-4 py-2 border border-green-600 text-green-600 rounded-lg hover:bg-green-50 flex items-center gap-2 text-sm">
+              <button className="px-4 py-2 border border-green-600 text-green-600 rounded-lg hover:bg-green-50 flex items-center gap-2 text-sm" onClick={() => {
+                const csvContent = ['Title,Creator,Genre,Amount,Current Value,ROI,Stake,Status,Stage,Risk Level'].concat(
+                  filteredInvestments.map(inv => `"${inv.pitchTitle}","${inv.creator}","${inv.genre}",${inv.amount},${inv.currentValue},${inv.roi}%,${inv.stake}%,"${inv.status}","${inv.stage}","${inv.riskLevel}"`)
+                ).join('\n');
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'portfolio.csv';
+                a.click();
+                URL.revokeObjectURL(url);
+              }}>
                 <Download className="w-4 h-4" />
                 Export
               </button>
@@ -425,10 +437,10 @@ export default function InvestorPortfolio() {
                     >
                       View Details
                     </button>
-                    <button className="px-3 py-2 text-green-600 border border-green-600 rounded-lg hover:bg-green-50 transition">
+                    <button className="px-3 py-2 text-green-600 border border-green-600 rounded-lg hover:bg-green-50 transition" onClick={() => toast('Added to favorites')}>
                       <Heart className="w-4 h-4" />
                     </button>
-                    <button className="px-3 py-2 text-green-600 border border-green-600 rounded-lg hover:bg-green-50 transition">
+                    <button className="px-3 py-2 text-green-600 border border-green-600 rounded-lg hover:bg-green-50 transition" onClick={() => navigate('/investor/messages')}>
                       <MessageSquare className="w-4 h-4" />
                     </button>
                   </div>
@@ -505,10 +517,10 @@ export default function InvestorPortfolio() {
                           >
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button className="text-gray-400 hover:text-gray-600">
+                          <button className="text-gray-400 hover:text-gray-600" onClick={() => toast('Added to favorites')}>
                             <Heart className="w-4 h-4" />
                           </button>
-                          <button className="text-gray-400 hover:text-gray-600">
+                          <button className="text-gray-400 hover:text-gray-600" onClick={() => navigate('/investor/messages')}>
                             <MoreVertical className="w-4 h-4" />
                           </button>
                         </div>

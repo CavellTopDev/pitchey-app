@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import {
   PieChart, DollarSign, Target, Settings, Plus,
   BarChart3, TrendingUp, Calculator
@@ -73,7 +74,7 @@ const BudgetAllocation = () => {
               <h1 className="text-3xl font-bold text-gray-900">Budget Allocation</h1>
               <p className="text-gray-600 mt-2">Manage your investment budget across different categories</p>
             </div>
-            <Button>
+            <Button onClick={() => toast('Budget allocation coming soon')}>
               <Plus className="h-4 w-4 mr-2" />
               New Allocation
             </Button>

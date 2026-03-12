@@ -83,9 +83,13 @@ export default function CreatorFundingSettings() {
       setError(null);
       setSuccess(null);
 
-      // Save funding preferences — this would call a PUT endpoint when available
-      // For now, show success as the settings are stored locally
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const API_URL = import.meta.env.VITE_API_URL || '';
+      await fetch(`${API_URL}/api/creator/funding-settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(goals),
+      });
 
       setSuccess('Funding settings saved successfully.');
       setTimeout(() => setSuccess(null), 3000);

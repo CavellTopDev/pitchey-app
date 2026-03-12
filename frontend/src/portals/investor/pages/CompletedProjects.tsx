@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   CheckCircle, Trophy, DollarSign,
   TrendingUp, Download, Search,
@@ -31,6 +32,7 @@ interface CompletedProject {
 }
 
 const CompletedProjects = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState<CompletedProject[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -154,7 +156,18 @@ const CompletedProjects = () => {
                 Review your successful investments and their performance
               </p>
             </div>
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => {
+              const csvContent = ['Project,Company,Genre,Completion Date,Investment,Returns,ROI'].concat(
+                filteredProjects.map(p => `"${p.title}","${p.company}","${p.genre}","${p.completionDate ? new Date(p.completionDate).toLocaleDateString() : 'N/A'}",${p.investmentAmount || 0},${p.finalReturn || 0},${p.roi || 0}%`)
+              ).join('\n');
+              const blob = new Blob([csvContent], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'completed-projects.csv';
+              a.click();
+              URL.revokeObjectURL(url);
+            }}>
               <Download className="h-4 w-4 mr-2" />
               Export Report
             </Button>
@@ -300,11 +313,11 @@ const CompletedProjects = () => {
                       </div>
 
                       <div className="mt-4 flex gap-2">
-                        <Button size="sm" variant="outline" className="flex-1">
+                        <Button size="sm" variant="outline" className="flex-1" onClick={() => navigate(`/investor/investment/${project.id}`)}>
                           <FileText className="h-3 w-3 mr-1" />
                           Report
                         </Button>
-                        <Button size="sm" className="flex-1">
+                        <Button size="sm" className="flex-1" onClick={() => navigate(`/investor/investment/${project.id}`)}>
                           View Details
                           <ChevronRight className="h-3 w-3 ml-1" />
                         </Button>

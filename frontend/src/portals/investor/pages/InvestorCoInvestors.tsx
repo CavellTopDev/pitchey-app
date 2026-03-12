@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { 
+import { useNavigate } from 'react-router-dom';
+import {
   Users, TrendingUp, DollarSign, Award,
   Search, Filter, Globe, Star, Building,
   Briefcase, Film, Calendar, MapPin,
@@ -35,6 +36,7 @@ interface CoInvestor {
 }
 
 export default function InvestorCoInvestors() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStyle, setFilterStyle] = useState<'all' | 'aggressive' | 'moderate' | 'conservative'>('all');
@@ -126,7 +128,16 @@ export default function InvestorCoInvestors() {
     setFilteredInvestors(filtered);
   };
 
-  const handleConnect = (investorId: string) => {
+  const handleConnect = async (investorId: string) => {
+    const API_URL = import.meta.env.VITE_API_URL || '';
+    try {
+      await fetch(`${API_URL}/api/investor/connections/${investorId}`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to send connection request:', error);
+    }
     setCoInvestors(prev => prev.map(investor =>
       investor.id === investorId
         ? { ...investor, connectionStatus: 'pending' }
@@ -215,7 +226,7 @@ export default function InvestorCoInvestors() {
                 <TrendingUp className="w-8 h-8 text-green-500" />
                 <div className="ml-3">
                   <p className="text-sm text-gray-500">Opportunities</p>
-                  <p className="text-xl font-semibold text-gray-900">24 Active</p>
+                  <p className="text-xl font-semibold text-gray-900">{coInvestors.filter(i => i.connectionStatus === 'connected').length} Active</p>
                 </div>
               </div>
             </div>
@@ -384,11 +395,17 @@ export default function InvestorCoInvestors() {
                       <div className="flex items-center space-x-3">
                         {investor.connectionStatus === 'connected' ? (
                           <>
-                            <button className="inline-flex items-center px-4 py-2 border border-green-600 rounded-md text-sm font-medium text-green-600 hover:bg-green-50">
+                            <button
+                              onClick={() => navigate('/investor/deals')}
+                              className="inline-flex items-center px-4 py-2 border border-green-600 rounded-md text-sm font-medium text-green-600 hover:bg-green-50"
+                            >
                               <Eye className="w-4 h-4 mr-2" />
                               View Shared Deals
                             </button>
-                            <button className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700">
+                            <button
+                              onClick={() => navigate('/investor/discover')}
+                              className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700"
+                            >
                               <DollarSign className="w-4 h-4 mr-2" />
                               Propose Co-Investment
                             </button>
@@ -407,7 +424,10 @@ export default function InvestorCoInvestors() {
                           </button>
                         )}
                       </div>
-                      <button className="text-green-600 hover:text-purple-700 text-sm font-medium">
+                      <button
+                        onClick={() => navigate(`/investor/co-investor/${investor.id}`)}
+                        className="text-green-600 hover:text-purple-700 text-sm font-medium"
+                      >
                         View Full Profile →
                       </button>
                     </div>

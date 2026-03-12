@@ -253,11 +253,28 @@ export default function CreatorCollaborations() {
             </p>
           </div>
           <div className="mt-4 sm:mt-0 flex gap-3">
-            <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+            <button
+              onClick={() => {
+                const csvContent = ['Partner,Type,Status,Value'].concat(
+                  collaborations.map(c => `"${c.title}",${c.type},${c.status},${c.terms?.budget || 0}`)
+                ).join('\n');
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'collaborations-export.csv';
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            >
               <Download className="w-4 h-4 mr-2" />
               Export
             </button>
-            <button className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700">
+            <button
+              onClick={() => navigate('/creator/collaborations/new')}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700"
+            >
               <Plus className="w-4 h-4 mr-2" />
               New Collaboration
             </button>
@@ -544,11 +561,17 @@ export default function CreatorCollaborations() {
                         View Details
                       </button>
                       
-                      <button className="px-3 py-2 text-purple-600 border border-purple-300 rounded-lg hover:bg-purple-50 transition-colors">
+                      <button
+                        onClick={() => navigate(`/creator/messages?subject=${encodeURIComponent('Re: ' + collaboration.title)}`)}
+                        className="px-3 py-2 text-purple-600 border border-purple-300 rounded-lg hover:bg-purple-50 transition-colors"
+                      >
                         <MessageSquare className="w-4 h-4" />
                       </button>
-                      
-                      <button className="px-3 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+
+                      <button
+                        onClick={() => navigator.clipboard.writeText(`${window.location.origin}/collaboration/${collaboration.id}`)}
+                        className="px-3 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
                         <Share2 className="w-4 h-4" />
                       </button>
                     </div>
