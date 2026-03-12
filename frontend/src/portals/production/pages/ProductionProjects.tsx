@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Film, AlertCircle, TrendingUp, DollarSign, Users, MoreVertical, Eye, Edit, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 import { ProductionService, type ProductionProject as ApiProject } from '../services/production.service';
 
 interface Project {
@@ -71,7 +73,7 @@ const riskColors = {
 };
 
 export default function ProductionProjects() {
-
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [filter, setFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
@@ -281,14 +283,33 @@ export default function ProductionProjects() {
 
                   {/* Action Buttons */}
                   <div className="flex gap-2">
-                    <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+                    <button
+                      onClick={() => navigate(`/production/pitch/${project.id}`)}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                    >
                       <Eye className="w-4 h-4" />
                       View Details
                     </button>
-                    <button className="flex items-center justify-center p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">
+                    <button
+                      onClick={() => navigate(`/production/pitch/${project.id}`)}
+                      className="flex items-center justify-center p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                    >
                       <Edit className="w-4 h-4" />
                     </button>
-                    <button className="flex items-center justify-center p-2 text-red-600 hover:bg-red-50 rounded-lg transition">
+                    <button
+                      onClick={async () => {
+                        if (!window.confirm('Archive this project? It can be restored later.')) return;
+                        try {
+                          await ProductionService.updateProject(Number(project.id), { status: 'on-hold' } as any);
+                          setProjects(prev => prev.filter(p => p.id !== project.id));
+                          toast.success('Project archived');
+                        } catch (err) {
+                          const e = err instanceof Error ? err : new Error(String(err));
+                          toast.error(e.message || 'Failed to archive project');
+                        }
+                      }}
+                      className="flex items-center justify-center p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                    >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>

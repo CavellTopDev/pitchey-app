@@ -5,10 +5,16 @@
 interface CachedSession {
   user: unknown | null;
   timestamp: number;
+  cookieFingerprint: string;
 }
 
 const SESSION_CACHE_KEY = 'better-auth-session-cache';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+function getCookieFingerprint(): string {
+  const match = document.cookie.match(/pitchey-session=([^;]+)/);
+  return match ? match[1].substring(0, 16) : '';
+}
 
 export const sessionCache = {
   get(): CachedSession | null {
@@ -21,16 +27,23 @@ export const sessionCache = {
 
       const cached = localStorage.getItem(SESSION_CACHE_KEY);
       if (!cached) return null;
-      
+
       const session = JSON.parse(cached) as CachedSession;
       const now = Date.now();
-      
+
       // Check if cache is still valid
       if (now - session.timestamp > CACHE_DURATION) {
         localStorage.removeItem(SESSION_CACHE_KEY);
         return null;
       }
-      
+
+      // Check if cookie has changed (different user/login)
+      const currentFingerprint = getCookieFingerprint();
+      if (session.cookieFingerprint && currentFingerprint && session.cookieFingerprint !== currentFingerprint) {
+        this.clear();
+        return null;
+      }
+
       return session;
     } catch {
       return null;
@@ -41,7 +54,8 @@ export const sessionCache = {
     try {
       const session: CachedSession = {
         user,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        cookieFingerprint: getCookieFingerprint()
       };
       localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(session));
     } catch {

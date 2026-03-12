@@ -10,6 +10,7 @@ import {
   Truck, Home, Globe, Mic, Edit3, Package
 } from 'lucide-react';
 import { pitchAPI } from '@/lib/api';
+import { savedPitchesAPI } from '@/lib/api-client';
 import { useBetterAuthStore } from '@/store/betterAuthStore';
 import FormatDisplay from '@/components/FormatDisplay';
 import { getCreditCost } from '@config/subscription-plans';
@@ -83,8 +84,9 @@ const ProductionPitchView: React.FC = () => {
   const [pitch, setPitch] = useState<Pitch | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'production' | 'team' | 'schedule' | 'notes'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'production' | 'team' | 'notes'>('overview');
   const [isShortlisted, setIsShortlisted] = useState(false);
+  const [savedPitchId, setSavedPitchId] = useState<number | null>(null);
   const [notes, setNotes] = useState<ProductionNote[]>([]);
   const [newNote, setNewNote] = useState('');
   const [noteCategory, setNoteCategory] = useState<ProductionNote['category']>('general');
@@ -194,9 +196,16 @@ const ProductionPitchView: React.FC = () => {
         setTeamMembers(apiTeam);
       }
 
-      // Shortlist status still uses localStorage (it's a quick-toggle, not critical data)
-      const shortlist = JSON.parse(localStorage.getItem('production_shortlist') || '[]');
-      setIsShortlisted(shortlist.includes(id));
+      // Check saved/shortlisted status from API
+      try {
+        const saveCheck = await savedPitchesAPI.isPitchSaved(parseInt(id!, 10));
+        if (saveCheck.data?.isSaved) {
+          setIsShortlisted(true);
+          setSavedPitchId(saveCheck.data.savedPitchId ?? null);
+        }
+      } catch {
+        // Ignore — not critical
+      }
     } catch (err) {
       const e = err instanceof Error ? err : new Error(String(err));
       console.error('Failed to load production data:', e.message);
@@ -241,16 +250,28 @@ const ProductionPitchView: React.FC = () => {
     });
   };
 
-  const handleShortlistToggle = () => {
-    const shortlist = JSON.parse(localStorage.getItem('production_shortlist') || '[]');
-    if (isShortlisted) {
-      const updated = shortlist.filter((item: string) => item !== id);
-      localStorage.setItem('production_shortlist', JSON.stringify(updated));
-      setIsShortlisted(false);
-    } else {
-      shortlist.push(id);
-      localStorage.setItem('production_shortlist', JSON.stringify(shortlist));
-      setIsShortlisted(true);
+  const handleShortlistToggle = async () => {
+    const pitchId = parseInt(id!, 10);
+    const wasShortlisted = isShortlisted;
+
+    // Optimistic update
+    setIsShortlisted(!wasShortlisted);
+
+    try {
+      if (wasShortlisted && savedPitchId) {
+        await savedPitchesAPI.unsavePitch(savedPitchId);
+        setSavedPitchId(null);
+        toast.success('Removed from saved pitches');
+      } else {
+        const result = await savedPitchesAPI.savePitch(pitchId);
+        setSavedPitchId(result.data?.id ?? null);
+        toast.success('Added to saved pitches');
+      }
+    } catch (err) {
+      // Rollback
+      setIsShortlisted(wasShortlisted);
+      const e = err instanceof Error ? err : new Error(String(err));
+      toast.error(e.message);
     }
   };
 
@@ -258,8 +279,12 @@ const ProductionPitchView: React.FC = () => {
     navigate(`/production/messages?recipient=${pitch?.userId}&pitch=${id}`);
   };
 
-  const handleOptionRights = () => {
-    navigate(`/production/option-agreement?pitch=${id}`);
+  const handleSharePitch = () => {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      toast.success('Link copied to clipboard');
+    }).catch(() => {
+      toast.error('Failed to copy link');
+    });
   };
 
   const handleAddNote = async () => {
@@ -428,11 +453,11 @@ const ProductionPitchView: React.FC = () => {
           </button>
 
           <button
-            onClick={handleOptionRights}
-            className="flex items-center px-3 py-1.5 bg-orange-600 text-white rounded-lg text-sm hover:bg-orange-700"
+            onClick={handleSharePitch}
+            className="flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200"
           >
-            <Briefcase className="h-4 w-4 sm:mr-1.5" />
-            <span className="hidden sm:inline">Option Rights</span>
+            <Share2 className="h-4 w-4 sm:mr-1.5" />
+            <span className="hidden sm:inline">Share</span>
           </button>
         </div>
       </header>
@@ -445,7 +470,7 @@ const ProductionPitchView: React.FC = () => {
             {/* Tabs */}
             <div className="bg-white rounded-xl shadow-lg mb-6">
               <div className="flex border-b">
-                {['overview', 'production', 'team', 'schedule', 'notes'].map((tab) => (
+                {['overview', 'production', 'team', 'notes'].map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab as any)}
@@ -724,75 +749,6 @@ const ProductionPitchView: React.FC = () => {
               </div>
             )}
 
-            {activeTab === 'schedule' && (
-              <div className="bg-white rounded-xl shadow-lg p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Production Schedule</h2>
-                
-                <div className="space-y-6">
-                  {/* Pre-Production */}
-                  <div className="p-4 bg-blue-50 rounded-lg">
-                    <h3 className="font-semibold text-gray-900 mb-3">Pre-Production (8-12 weeks)</h3>
-                    <div className="space-y-2 text-sm text-gray-700">
-                      <div className="flex justify-between">
-                        <span>Script Finalization</span>
-                        <span>Week 1-2</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Casting</span>
-                        <span>Week 2-4</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Location Scouting</span>
-                        <span>Week 3-5</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Crew Assembly</span>
-                        <span>Week 4-6</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Production */}
-                  <div className="p-4 bg-orange-50 rounded-lg">
-                    <h3 className="font-semibold text-gray-900 mb-3">Production (6-8 weeks)</h3>
-                    <div className="space-y-2 text-sm text-gray-700">
-                      <div className="flex justify-between">
-                        <span>Principal Photography</span>
-                        <span>Week 13-18</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Pick-up Shots</span>
-                        <span>Week 19-20</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Post-Production */}
-                  <div className="p-4 bg-green-50 rounded-lg">
-                    <h3 className="font-semibold text-gray-900 mb-3">Post-Production (12-16 weeks)</h3>
-                    <div className="space-y-2 text-sm text-gray-700">
-                      <div className="flex justify-between">
-                        <span>Editing</span>
-                        <span>Week 21-26</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>VFX & Color Grading</span>
-                        <span>Week 25-30</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Sound Design & Mix</span>
-                        <span>Week 28-32</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Final Delivery</span>
-                        <span>Week 33-36</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {activeTab === 'notes' && (
               <div className="bg-white rounded-xl shadow-lg p-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">Production Notes</h2>
@@ -937,40 +893,6 @@ const ProductionPitchView: React.FC = () => {
                     Locations
                   </span>
                   <span className="font-semibold">{pitch.locations?.length || 'TBD'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Market Analysis */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Market Analysis</h3>
-              <div className="space-y-3">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm text-gray-600">Genre Popularity</span>
-                    <span className="text-sm font-medium">High</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-green-500 h-2 rounded-full" style={{ width: '80%' }} />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm text-gray-600">Competition</span>
-                    <span className="text-sm font-medium">Medium</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-yellow-500 h-2 rounded-full" style={{ width: '50%' }} />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm text-gray-600">ROI Potential</span>
-                    <span className="text-sm font-medium">High</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-green-500 h-2 rounded-full" style={{ width: '75%' }} />
-                  </div>
                 </div>
               </div>
             </div>

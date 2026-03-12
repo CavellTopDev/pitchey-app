@@ -347,7 +347,7 @@ export default function ProductionSaved() {
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Handle more options
+                          navigate(`/production/pitch/${pitch.id}`);
                         }}
                       >
                         <MoreVertical className="w-4 h-4" />

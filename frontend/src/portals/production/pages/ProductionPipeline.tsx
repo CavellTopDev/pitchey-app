@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { GitBranch, ArrowRight, Clock, TrendingUp, DollarSign, Calendar, Users, Filter, BarChart3, CheckCircle, AlertCircle } from 'lucide-react';
 import { ProductionService } from '../services/production.service';
 
@@ -56,6 +57,7 @@ const riskColors = {
 const stageOrder = ['development', 'pre-production', 'production', 'post-production', 'delivery', 'release'];
 
 export default function ProductionPipeline() {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<PipelineProject[]>([]);
   const [stats, setStats] = useState<PipelineStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,7 +86,14 @@ export default function ProductionPipeline() {
         producer: p.producer || undefined,
         estimatedCompletion: p.target_completion_date || new Date(Date.now() + 90 * 86400000).toISOString(),
         priority: p.priority || 'medium',
-        risk: 'low',
+        risk: (() => {
+          const b = Number(p.budget_allocated || p.estimated_budget) || 0;
+          const prog = Number(p.completion_percentage) || 0;
+          const days = p.start_date ? Math.max(0, Math.floor((Date.now() - new Date(p.start_date).getTime()) / 86400000)) : 0;
+          if ((b > 5000000 && prog < 30) || (days > 60 && prog < 50)) return 'high';
+          if ((b > 2000000 && prog < 50) || (days > 30 && prog < 40)) return 'medium';
+          return 'low';
+        })() as 'low' | 'medium' | 'high',
         daysInStage: p.start_date ? Math.max(0, Math.floor((Date.now() - new Date(p.start_date).getTime()) / 86400000)) : 0,
         nextMilestone: p.next_milestone || 'No milestone set',
         blockers: []
@@ -404,10 +413,16 @@ export default function ProductionPipeline() {
 
                   {/* Actions */}
                   <div className="flex gap-2">
-                    <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+                    <button
+                      onClick={() => navigate(`/production/pitch/${project.id}`)}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                    >
                       View Details
                     </button>
-                    <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">
+                    <button
+                      onClick={() => navigate('/production/analytics')}
+                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+                    >
                       <BarChart3 className="w-4 h-4" />
                     </button>
                   </div>

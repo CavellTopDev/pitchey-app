@@ -5,6 +5,7 @@ import {
   PieChart, BarChart3, Activity, CreditCard,
   AlertCircle, RefreshCw, Target
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@shared/components/ui/card';
 import { Button } from '@shared/components/ui/button';
 import { Skeleton } from '@shared/components/ui/skeleton';
@@ -194,11 +195,42 @@ export default function ProductionRevenue() {
             <p className="text-gray-600 mt-1">Track your production revenue and financial metrics</p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="flex items-center gap-2"
+              onClick={() => {
+                try {
+                  const headers = ['ID', 'Project', 'Amount', 'Date', 'Status'];
+                  const rows = revenueData.transactions.map(t => [
+                    t.id,
+                    `"${t.project.replace(/"/g, '""')}"`,
+                    t.amount,
+                    new Date(t.date).toLocaleDateString(),
+                    t.status
+                  ]);
+                  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `revenue-report-${new Date().toISOString().slice(0, 10)}.csv`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                  toast.success('Report exported');
+                } catch {
+                  toast.error('Failed to export report');
+                }
+              }}
+            >
               <Download className="w-4 h-4" />
               Export Report
             </Button>
-            <Button className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700">
+            <Button
+              className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
+              onClick={() => toast('Invoice generation coming soon')}
+            >
               <FileText className="w-4 h-4" />
               Generate Invoice
             </Button>

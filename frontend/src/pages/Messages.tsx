@@ -259,8 +259,14 @@ export default function Messages() {
   useEffect(() => {
     const recipient = searchParams.get('recipient');
     const pitchParam = searchParams.get('pitch');
+    const bodyParam = searchParams.get('body');
     if (!recipient || recipientHandledRef.current) return;
     recipientHandledRef.current = true;
+
+    // Pre-fill message input from body query param (e.g. Request Full Script)
+    if (bodyParam) {
+      setNewMessage(bodyParam);
+    }
 
     const initConversation = async () => {
       try {

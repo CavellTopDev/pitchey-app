@@ -6,6 +6,7 @@ import {
   User, DollarSign,
 } from 'lucide-react';
 import { API_URL } from '@/config';
+import { NotificationsService } from '@features/notifications/services/notifications.service';
 
 interface ActivityItem {
   id: string;
@@ -149,14 +150,27 @@ export default function ProductionActivity() {
     await loadActivityFeed();
   };
 
-  const markAsRead = (activityId: string) => {
+  const markAsRead = async (activityId: string) => {
     setActivities(prev => prev.map(activity =>
       activity.id === activityId ? { ...activity, isRead: true } : activity
     ));
+    try {
+      await NotificationsService.markAsRead(parseInt(activityId, 10));
+    } catch {
+      setActivities(prev => prev.map(activity =>
+        activity.id === activityId ? { ...activity, isRead: false } : activity
+      ));
+    }
   };
 
-  const markAllAsRead = () => {
-    setActivities(prev => prev.map(activity => ({ ...activity, isRead: true })));
+  const markAllAsRead = async () => {
+    const prev = [...activities];
+    setActivities(a => a.map(activity => ({ ...activity, isRead: true })));
+    try {
+      await NotificationsService.markAllAsRead();
+    } catch {
+      setActivities(prev);
+    }
   };
 
   const getActivityIcon = (type: string) => {

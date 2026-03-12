@@ -256,6 +256,14 @@ export const useBetterAuthStore = create<BetterAuthState>((set) => ({
         }
       });
 
+      // Detect userType mismatch (stale cache from previous login)
+      const currentUser = useBetterAuthStore.getState().user;
+      if (result.user && currentUser &&
+          (result.user as any).userType !== (currentUser as any).userType) {
+        sessionCache.clear();
+        sessionCache.set(result.user);
+      }
+
       // Update state based on result
       set({
         user: result.user || null,
