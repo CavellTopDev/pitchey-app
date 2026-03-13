@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, type ChangeEvent, type Keyboa
 import { useSearchParams } from 'react-router-dom';
 import {
   Send, Search, Filter, MessageSquare, Paperclip, MoreVertical,
-  RefreshCw, Users, Circle, Smile, FileText, Image, Video, Music,
+  RefreshCw, Users, Circle, FileText, Image, Video, Music,
   Lock, Unlock, Check, CheckCheck, Clock, X, WifiOff, PenSquare, User, Shield
 } from 'lucide-react';
 import { useMessaging } from '@features/notifications/hooks/useWebSocket';
@@ -61,7 +61,6 @@ export default function Messages() {
   const [notifications, setNotifications] = useState<{message: string, type: 'success' | 'error', id: number}[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [replyToMessage, setReplyToMessage] = useState<EnhancedMessage | null>(null);
   const [editingMessage, setEditingMessage] = useState<number | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -482,7 +481,6 @@ export default function Messages() {
       setNewMessage('');
       setSelectedFiles([]);
       setReplyToMessage(null);
-      setShowEmojiPicker(false);
 
       // Focus back to input
       messageInputRef.current?.focus();
@@ -610,15 +608,6 @@ export default function Messages() {
       return matchesSearch;
     });
   }, [conversations, searchTerm, filter]);
-
-  // Enhanced emoji and formatting
-  const commonEmojis = ['👍', '❤️', '😀', '😂', '😭', '😮', '😡', '🎉', '👏', '🔥'];
-  
-  const insertEmoji = useCallback((emoji: string) => {
-    setNewMessage(prev => prev + emoji);
-    setShowEmojiPicker(false);
-    messageInputRef.current?.focus();
-  }, []);
 
   // Connection status indicator
   const connectionStatus = useCallback(() => {
@@ -1010,14 +999,6 @@ export default function Messages() {
                                     </svg>
                                   </button>
                                   
-                                  <button
-                                    onClick={() => setShowEmojiPicker(true)}
-                                    className="p-1 bg-white border rounded-full shadow hover:bg-gray-50 text-gray-600"
-                                    title="Add reaction"
-                                  >
-                                    <Smile className="w-3 h-3" />
-                                  </button>
-                                  
                                   {message.canEdit && (
                                     <button
                                       onClick={() => setEditingMessage(message.id)}
@@ -1277,34 +1258,6 @@ export default function Messages() {
                         >
                           <Paperclip className="w-5 h-5" />
                         </button>
-                        
-                        {/* Emoji button */}
-                        <div className="relative">
-                          <button
-                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition"
-                            title="Add emoji"
-                          >
-                            <Smile className="w-5 h-5" />
-                          </button>
-                          
-                          {/* Emoji picker */}
-                          {showEmojiPicker && (
-                            <div className="absolute bottom-full left-0 mb-2 p-3 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-                              <div className="grid grid-cols-5 gap-2">
-                                {commonEmojis.map((emoji, index) => (
-                                  <button
-                                    key={index}
-                                    onClick={() => insertEmoji(emoji)}
-                                    className="text-lg hover:bg-gray-100 p-2 rounded transition"
-                                  >
-                                    {emoji}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
                         
                         {/* Message input */}
                         <div className="flex-1">

@@ -326,7 +326,13 @@ function ProductionDashboard() {
 
       // === Following section ===
       try {
-        const followingData = await pitchServicesAPI.getFollowingPitches();
+        const [followingData, savedResponse, followStatsResponse] = await Promise.all([
+          pitchServicesAPI.getFollowingPitches(),
+          savedPitchesAPI.getSavedPitches(),
+          apiClient.get<{ following: number; followers: number }>('/api/follows/stats'),
+        ]);
+
+        // Following pitches
         if (followingData) {
           if (Array.isArray(followingData)) {
             setFollowingPitches(followingData);
@@ -336,19 +342,20 @@ function ProductionDashboard() {
             setFollowingPitches([]);
           }
         } else {
-          try {
-            const fallbackResponse = await apiClient.get('/api/follows/following?type=pitches');
-            if (fallbackResponse.success) {
-              setFollowingPitches((fallbackResponse.data as any)?.following || []);
-            } else {
-              setFollowingPitches([]);
-            }
-          } catch (fallbackErr) {
-            const fbE = fallbackErr instanceof Error ? fallbackErr : new Error(String(fallbackErr));
-            console.error('Failed to fetch following data from fallback API:', fbE);
-            setFollowingPitches([]);
-          }
+          setFollowingPitches([]);
         }
+
+        // Saved pitch IDs
+        if (savedResponse.success && Array.isArray(savedResponse.data)) {
+          setSavedPitches(savedResponse.data.map((sp: any) => sp.pitchId || sp.pitch_id));
+        }
+
+        // Following creators count
+        if (followStatsResponse.success && followStatsResponse.data) {
+          const stats = followStatsResponse.data as any;
+          setFollowingCreators(new Array(safeNumber(stats.following || stats.followingCount || 0)));
+        }
+
         if (!cancelled) {
           setSectionStatus(prev => ({ ...prev, following: { loaded: true, error: null } }));
         }
@@ -1277,18 +1284,14 @@ function ProductionDashboard() {
               </div>
               
               {/* Quick Stats */}
-              <div className="grid grid-cols-4 gap-4 mt-4">
+              <div className="grid grid-cols-3 gap-4 mt-4">
                 <div className="bg-white/80 rounded-lg p-3">
                   <div className="text-sm text-gray-600">Following</div>
                   <div className="text-xl font-bold text-gray-900">{followingCreators.length || 0} Creators</div>
                 </div>
                 <div className="bg-white/80 rounded-lg p-3">
-                  <div className="text-sm text-gray-600">New Pitches</div>
-                  <div className="text-xl font-bold text-purple-600">{followingPitches.filter(p => p.isNew).length || 0} This Week</div>
-                </div>
-                <div className="bg-white/80 rounded-lg p-3">
-                  <div className="text-sm text-gray-600">NDA Access</div>
-                  <div className="text-xl font-bold text-green-600">{followingPitches.filter(p => p.ndaStatus === 'signed').length || 0} Signed</div>
+                  <div className="text-sm text-gray-600">Pitches in Feed</div>
+                  <div className="text-xl font-bold text-purple-600">{followingPitches.length || 0}</div>
                 </div>
                 <div className="bg-white/80 rounded-lg p-3">
                   <div className="text-sm text-gray-600">Saved</div>
