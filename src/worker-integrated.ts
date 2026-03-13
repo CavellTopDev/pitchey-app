@@ -8200,18 +8200,45 @@ pitchey_analytics_datapoints_per_minute 1250
       const totalViews = this.safeParseInt(overview.total_views);
       const totalLikes = this.safeParseInt(overview.total_likes);
 
+      // Calculate percentage changes: compare first half vs second half of the time period
+      const sortedDates = Array.from(dateLabels).sort();
+      const halfIdx = Math.floor(sortedDates.length / 2);
+      const firstHalfDates = sortedDates.slice(0, halfIdx);
+      const secondHalfDates = sortedDates.slice(halfIdx);
+
+      const sumMap = (dates: string[], map: Map<string, number>) =>
+        dates.reduce((sum, d) => sum + (map.get(d) || 0), 0);
+
+      const calcChange = (first: number, second: number) =>
+        first > 0 ? Math.round(((second - first) / first) * 1000) / 10 : (second > 0 ? 100 : 0);
+
+      // Build likes-by-date from pitch timeline (views already has viewsByDate)
+      const likesByDate = new Map<string, number>();
+      for (const p of pitchTimeline) {
+        const d = toDateStr(p.created_date);
+        if (d) {
+          likesByDate.set(d, (likesByDate.get(d) || 0) + this.safeParseInt(p.likes));
+        }
+      }
+
+      const viewsChange = calcChange(sumMap(firstHalfDates, viewsByDate), sumMap(secondHalfDates, viewsByDate));
+      const likesChange = calcChange(sumMap(firstHalfDates, likesByDate), sumMap(secondHalfDates, likesByDate));
+      const ndasChange = calcChange(sumMap(firstHalfDates, ndaByDate), sumMap(secondHalfDates, ndaByDate));
+      const totalNDAs = Array.from(ndaByDate.values()).reduce((sum, v) => sum + v, 0);
+
       return builder.success({
         overview: {
           totalViews,
           totalLikes,
           totalFollowers: this.safeParseInt(followers.total_followers),
-          uniqueVisitors: Math.floor(totalViews * 0.65),
           totalPitches: this.safeParseInt(overview.total_pitches),
           totalInvestments: this.safeParseInt(investments.total_investments),
           totalRevenue: this.safeParseFloat(investments.total_revenue),
+          totalNDAs,
           averageRating: this.safeParseFloat(overview.avg_rating) || null,
-          viewsChange: 0,
-          likesChange: 0,
+          viewsChange,
+          likesChange,
+          ndasChange,
           followersChange: 0,
           pitchesChange: 0,
           conversionRate: null,
