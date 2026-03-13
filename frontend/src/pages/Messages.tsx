@@ -291,9 +291,9 @@ export default function Messages() {
     initConversation();
   }, [searchParams, setSearchParams, joinConversation, hookMarkConversationAsRead, fetchConversationMessages]);
 
-  // Sync with hook conversations and messages
+  // Sync with hook conversations and messages (only when hook has real data)
   useEffect(() => {
-    if (hookConversations) {
+    if (hookConversations && hookConversations.length > 0) {
       const enhancedConvs = hookConversations.map((conv: Record<string, unknown>) => {
         const convId = conv.id as number;
         const lastMsg = conv.lastMessage as Record<string, unknown> | undefined;
@@ -314,6 +314,17 @@ export default function Messages() {
       setLoading(false);
     }
   }, [hookConversations, onlineUsers, unreadCounts]);
+
+  // Update unread counts on existing REST-fetched conversations
+  useEffect(() => {
+    if (!hookConversations || hookConversations.length === 0) {
+      setConversations(prev => prev.map(conv => ({
+        ...conv,
+        unreadCount: unreadCounts[conv.id] || 0,
+        hasUnreadMessages: (unreadCounts[conv.id] || 0) > 0,
+      })));
+    }
+  }, [unreadCounts, hookConversations]);
 
   // Sync messages for selected conversation from hook
   useEffect(() => {
