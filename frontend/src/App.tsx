@@ -104,7 +104,7 @@ const CreatorAnalyticsPage = lazyRetry(() => import('./pages/CreatorAnalyticsPag
 const ProductionAnalyticsPage = lazyRetry(() => import('./pages/ProductionAnalyticsPage'));
 
 // Production Pages
-// ProductionPitchCreate removed - production companies cannot create pitches
+const ProductionPitchCreate = lazyRetry(() => import('./pages/ProductionPitchCreate'));
 const ProductionPitchDetail = lazyRetry(() => import('./pages/ProductionPitchDetail'));
 const ProductionPitchView = lazyRetry(() => import('@portals/production/pages/ProductionPitchView'));
 
@@ -463,6 +463,11 @@ function App() {
             {/* Enhanced Investor Routes */}
             {AllInvestorRoutes({ isAuthenticated: true, userType: 'investor' })}
           </Route>
+          {/* Production Pitch Create — outside PortalLayout (full-width wizard) */}
+          <Route path="/production/pitch/new" element={
+            isAuthenticated && userType === 'production' ? <ProductionPitchCreate /> :
+            <Navigate to="/login/production" />
+          } />
           {/* Production Pitch View — outside PortalLayout (full-width, no sidebar) */}
           <Route path="/production/pitch/:id" element={
             isAuthenticated && userType === 'production' ? <ProductionPitchView /> :

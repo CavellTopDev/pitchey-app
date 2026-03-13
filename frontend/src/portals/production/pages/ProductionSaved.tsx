@@ -337,7 +337,7 @@ export default function ProductionSaved() {
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/messages?pitch=${pitch.id}`);
+                          navigate(`/production/messages?pitch=${pitch.id}`);
                         }}
                       >
                         <MessageSquare className="w-4 h-4" />

@@ -172,7 +172,7 @@ describe('PitchService', () => {
 
       const result = await PitchService.publish(1)
 
-      expect(mockApiClient.post).toHaveBeenCalledWith('/api/creator/pitches/1/publish', {})
+      expect(mockApiClient.post).toHaveBeenCalledWith('/api/pitches/1/publish', {})
       expect(result.status).toBe('published')
     })
 
@@ -189,7 +189,7 @@ describe('PitchService', () => {
 
       const result = await PitchService.archive(1)
 
-      expect(mockApiClient.post).toHaveBeenCalledWith('/api/creator/pitches/1/archive', {})
+      expect(mockApiClient.post).toHaveBeenCalledWith('/api/pitches/1/archive', {})
       expect(result.status).toBe('archived')
     })
   })

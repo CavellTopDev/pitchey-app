@@ -105,6 +105,9 @@ export const PRODUCTION_ROUTES = {
   activity: '/production/activity',
   stats: '/production/stats',
   
+  // Pitch Creation
+  pitchNew: '/production/pitch/new',
+
   // Project Management
   projects: '/production/projects',
   projectsActive: '/production/projects/active',
@@ -128,12 +131,23 @@ export const PRODUCTION_ROUTES = {
   collaborations: '/production/collaborations',
   
   // Team
+  teamManagement: '/production/team',
+  teamMembers: '/production/team/members',
   teamInvite: '/production/team/invite',
   teamRoles: '/production/team/roles',
   
+  // Communication
+  messages: '/production/messages',
+  calendar: '/production/calendar',
+
   // Other
+  profile: '/production/profile',
   following: '/production/following',
   settings: '/production/settings',
+  settingsProfile: '/production/settings/profile',
+  settingsBilling: '/production/settings/billing',
+  settingsNotifications: '/production/settings/notifications',
+  settingsSecurity: '/production/settings/security',
 
   // Legal Documents
   legalDashboard: '/legal/dashboard',

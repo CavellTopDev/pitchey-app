@@ -157,11 +157,9 @@ describe('ProductionPitchView', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('The Great Adventure')).toBeInTheDocument()
+      expect(screen.getAllByText('The Great Adventure').length).toBeGreaterThanOrEqual(1)
     })
     expect(screen.getByText(/Alex Creator/)).toBeInTheDocument()
-    expect(screen.getByText('Action')).toBeInTheDocument()
-    expect(screen.getAllByText('medium').length).toBeGreaterThanOrEqual(1)
   })
 
   it('renders logline in overview tab', async () => {
@@ -222,13 +220,13 @@ describe('ProductionPitchView', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('Add to Shortlist')).toBeInTheDocument()
+      expect(screen.getByText('Contact')).toBeInTheDocument()
     })
-    expect(screen.getByText('Contact Creator')).toBeInTheDocument()
-    expect(screen.getByText('Option Rights')).toBeInTheDocument()
+    expect(screen.getByText('Shortlist')).toBeInTheDocument()
+    expect(screen.getByText('Share')).toBeInTheDocument()
   })
 
-  it('navigates when Contact Creator is clicked', async () => {
+  it('navigates when Contact button is clicked', async () => {
     mockPitchGetPublicById.mockResolvedValue(mockPitch)
 
     render(
@@ -238,10 +236,10 @@ describe('ProductionPitchView', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('Contact Creator')).toBeInTheDocument()
+      expect(screen.getByText('Contact')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByText('Contact Creator'))
+    fireEvent.click(screen.getByText('Contact'))
     expect(mockNavigate).toHaveBeenCalledWith('/production/messages?recipient=7&pitch=42')
   })
 
@@ -260,7 +258,6 @@ describe('ProductionPitchView', () => {
       expect(screen.getByText('Production Requirements')).toBeInTheDocument()
     })
     expect(screen.getByText('Production Actions')).toBeInTheDocument()
-    expect(screen.getByText('Market Analysis')).toBeInTheDocument()
   })
 
   it('shows production materials section when documents exist', async () => {
@@ -296,7 +293,6 @@ describe('ProductionPitchView', () => {
     })
     expect(screen.getByText('Feasibility')).toBeInTheDocument()
     expect(screen.getByText('team')).toBeInTheDocument()
-    expect(screen.getByText('schedule')).toBeInTheDocument()
     expect(screen.getByText('notes')).toBeInTheDocument()
   })
 

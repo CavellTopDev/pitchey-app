@@ -170,7 +170,7 @@ describe('TeamRoles', () => {
     renderComponent()
 
     await waitFor(() => {
-      expect(screen.getByText(/Role definitions are loaded from defaults/)).toBeInTheDocument()
+      expect(screen.getByText(/Manage your team roles and permissions/)).toBeInTheDocument()
     })
   })
 

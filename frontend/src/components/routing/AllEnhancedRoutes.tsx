@@ -78,6 +78,13 @@ const ProductionSaved = lazy(() => import('@portals/production/pages/ProductionS
 const ProductionCollaborations = lazy(() => import('@portals/production/pages/ProductionCollaborations'));
 const TeamInvite = lazy(() => import('@portals/production/pages/TeamInvite'));
 const TeamRoles = lazy(() => import('@portals/production/pages/TeamRoles'));
+const ProductionPitchCreate = lazy(() => import('../../pages/ProductionPitchCreate'));
+const TeamManagement = lazy(() => import('../../pages/TeamManagement'));
+const TeamMembers = lazy(() => import('../../pages/team/TeamMembers'));
+const ProductionSettingsProfile = lazy(() => import('@portals/production/pages/ProductionSettingsProfile'));
+const ProductionSettingsBilling = lazy(() => import('@portals/production/pages/ProductionSettingsBilling'));
+const ProductionSettingsNotifications = lazy(() => import('@portals/production/pages/ProductionSettingsNotifications'));
+const ProductionSettingsSecurity = lazy(() => import('@portals/production/pages/ProductionSettingsSecurity'));
 
 // Shared pages used across portals
 const Following = lazy(() => import('../../pages/Following'));
@@ -316,7 +323,18 @@ export function AllProductionRoutes({ isAuthenticated, userType }: RoutesProps) 
         isProduction ? <ProductionCollaborations /> : <Navigate to="/login/production" />
       } />
       
+      {/* Pitch Creation */}
+      <Route path={getRelativePath(PRODUCTION_ROUTES.pitchNew, '/production')} element={
+        isProduction ? <ProductionPitchCreate /> : <Navigate to="/login/production" />
+      } />
+
       {/* Team */}
+      <Route path={getRelativePath(PRODUCTION_ROUTES.teamManagement, '/production')} element={
+        isProduction ? <TeamManagement /> : <Navigate to="/login/production" />
+      } />
+      <Route path={getRelativePath(PRODUCTION_ROUTES.teamMembers, '/production')} element={
+        isProduction ? <TeamMembers /> : <Navigate to="/login/production" />
+      } />
       <Route path={getRelativePath(PRODUCTION_ROUTES.teamInvite, '/production')} element={
         isProduction ? <TeamInvite /> : <Navigate to="/login/production" />
       } />
@@ -330,6 +348,18 @@ export function AllProductionRoutes({ isAuthenticated, userType }: RoutesProps) 
       } />
       <Route path={getRelativePath(PRODUCTION_ROUTES.settings, '/production')} element={
         isProduction ? <Settings /> : <Navigate to="/login/production" />
+      } />
+      <Route path={getRelativePath(PRODUCTION_ROUTES.settingsProfile, '/production')} element={
+        isProduction ? <ProductionSettingsProfile /> : <Navigate to="/login/production" />
+      } />
+      <Route path={getRelativePath(PRODUCTION_ROUTES.settingsBilling, '/production')} element={
+        isProduction ? <ProductionSettingsBilling /> : <Navigate to="/login/production" />
+      } />
+      <Route path={getRelativePath(PRODUCTION_ROUTES.settingsNotifications, '/production')} element={
+        isProduction ? <ProductionSettingsNotifications /> : <Navigate to="/login/production" />
+      } />
+      <Route path={getRelativePath(PRODUCTION_ROUTES.settingsSecurity, '/production')} element={
+        isProduction ? <ProductionSettingsSecurity /> : <Navigate to="/login/production" />
       } />
     </>
   );

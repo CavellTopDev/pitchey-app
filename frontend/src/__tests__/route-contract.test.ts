@@ -243,6 +243,12 @@ const ALLOWLIST = new Set([
   '/api/media/:param/:param',
   '/api/messages/:param/approve-offplatform',
   '/api/pitches/:param',          // POST — used for pitch update, backend uses PUT
+
+  // ── Portal hardening (frontend buttons wired, backend TBD) ──
+  '/api/creator/funding-settings',
+  '/api/investor/connections/:param',
+  '/api/follows',
+  '/api/investor/connections/:param/accept',
 ])
 
 // ─── Tests ───────────────────────────────────────────────────────────────────

@@ -299,7 +299,7 @@ export default function ProductionSubmissions() {
 
                     <div className="flex gap-2">
                       <button
-                        onClick={() => navigate(`/production/pitches/${submission.id}`)}
+                        onClick={() => navigate(`/production/pitch/${submission.id}`)}
                         className="px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg transition flex items-center gap-2"
                       >
                         <Eye className="w-4 h-4" />

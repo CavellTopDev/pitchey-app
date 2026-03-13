@@ -4,7 +4,7 @@ import {
   Home, BarChart3, Activity, TrendingUp, Film, Layers, PlayCircle,
   Edit, CheckCircle, FolderOpen, Plus, Eye, ThumbsUp, ThumbsDown,
   Archive, GitBranch, DollarSign, Bookmark, UserPlus, Shield,
-  Users, Settings, FileCheck
+  Users, Settings, FileCheck, Upload, UsersRound
 } from 'lucide-react';
 import { PRODUCTION_ROUTES } from '@/config/navigation.routes';
 
@@ -55,6 +55,12 @@ export const productionNavigationSections: NavigationSection[] = [
     ],
   },
   {
+    title: 'Create',
+    items: [
+      { label: 'Upload Pitch', path: PRODUCTION_ROUTES.pitchNew, icon: Upload },
+    ],
+  },
+  {
     title: 'Operations',
     items: [
       { label: 'Revenue', path: PRODUCTION_ROUTES.revenue, icon: DollarSign },
@@ -65,6 +71,8 @@ export const productionNavigationSections: NavigationSection[] = [
   {
     title: 'Team',
     items: [
+      { label: 'Team Overview', path: PRODUCTION_ROUTES.teamManagement, icon: UsersRound },
+      { label: 'Members', path: PRODUCTION_ROUTES.teamMembers, icon: Users },
       { label: 'Invite Members', path: PRODUCTION_ROUTES.teamInvite, icon: UserPlus },
       { label: 'Manage Roles', path: PRODUCTION_ROUTES.teamRoles, icon: Shield },
     ],
