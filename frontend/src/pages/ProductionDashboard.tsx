@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Building2, Eye, Heart, Users, Film, Plus,
@@ -72,6 +72,8 @@ function ProductionDashboard() {
   const [myPitches, setMyPitches] = useState<Pitch[]>([]);
   const [followingPitches, setFollowingPitches] = useState<Pitch[]>([]);
   const [followingCreators, setFollowingCreators] = useState<any[]>([]);
+  const [followingSortBy, setFollowingSortBy] = useState('recent');
+  const [followingFilterBy, setFollowingFilterBy] = useState('all');
   const [likedPitches, setLikedPitches] = useState<number[]>([]);
   const [savedPitches, setSavedPitches] = useState<number[]>([]);
   const [outgoingNDARequests, setOutgoingNDARequests] = useState<any[]>([]);
@@ -642,6 +644,35 @@ function ProductionDashboard() {
   const handleSignOut = () => {
     logout(); // This will automatically clear all storage and navigate to appropriate login page
   };
+
+  // Filtered and sorted following pitches
+  const displayFollowingPitches = useMemo(() => {
+    let filtered = [...followingPitches];
+
+    // Apply content filter
+    if (followingFilterBy === 'new') {
+      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      filtered = filtered.filter(p => new Date(p.createdAt) >= weekAgo);
+    } else if (followingFilterBy === 'nda') {
+      filtered = filtered.filter(p => p.requireNda || p.requireNDA || p.ndaStatus === 'signed' || p.hasSignedNDA);
+    } else if (followingFilterBy === 'public') {
+      filtered = filtered.filter(p => !p.requireNda && !p.requireNDA);
+    }
+
+    // Apply sort
+    if (followingSortBy === 'popular') {
+      filtered.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
+    } else if (followingSortBy === 'trending') {
+      filtered.sort((a, b) => ((b.likeCount || 0) + (b.viewCount || 0)) - ((a.likeCount || 0) + (a.viewCount || 0)));
+    } else if (followingSortBy === 'genre') {
+      filtered.sort((a, b) => (a.genre || '').localeCompare(b.genre || ''));
+    } else {
+      // 'recent' — sort by newest first
+      filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
+
+    return filtered;
+  }, [followingPitches, followingSortBy, followingFilterBy]);
 
   const handleRetrySection = useCallback((section: string) => {
     trackEvent('dashboard.retry', { section });
@@ -1257,7 +1288,9 @@ function ProductionDashboard() {
                   <p className="text-gray-600 mt-1">Stay updated with the latest from creators you follow</p>
                 </div>
                 <div className="flex gap-3">
-                  <select 
+                  <select
+                    value={followingSortBy}
+                    onChange={(e) => setFollowingSortBy(e.target.value)}
                     className="px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                   >
                     <option value="recent">Most Recent</option>
@@ -1266,6 +1299,8 @@ function ProductionDashboard() {
                     <option value="genre">By Genre</option>
                   </select>
                   <select
+                    value={followingFilterBy}
+                    onChange={(e) => setFollowingFilterBy(e.target.value)}
                     className="px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                   >
                     <option value="all">All Content</option>
@@ -1273,10 +1308,6 @@ function ProductionDashboard() {
                     <option value="nda">NDA Protected</option>
                     <option value="public">Public Access</option>
                   </select>
-                  <button className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2">
-                    <Filter className="w-4 h-4" />
-                    Advanced
-                  </button>
                 </div>
               </div>
               
@@ -1340,7 +1371,7 @@ function ProductionDashboard() {
             ) : (
               <div className="space-y-6">
                 {/* Check if there are any following pitches */}
-                {(!Array.isArray(followingPitches) || followingPitches.length === 0) ? (
+                {(!Array.isArray(displayFollowingPitches) || displayFollowingPitches.length === 0) ? (
                   <div className="bg-white rounded-xl shadow-sm p-8 text-center">
                     <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">No Followed Creators Yet</h3>
@@ -1356,7 +1387,7 @@ function ProductionDashboard() {
                     <div className="bg-white rounded-xl shadow-sm p-6">
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity from Followed Creators</h3>
                       <div className="space-y-4">
-                        {followingPitches.slice(0, 5).map((pitch) => (
+                        {displayFollowingPitches.slice(0, 5).map((pitch) => (
                       <div key={pitch.id} className="flex items-start gap-4 p-4 hover:bg-gray-50 rounded-lg transition-colors">
                         <div className="flex-shrink-0">
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
@@ -1476,7 +1507,7 @@ function ProductionDashboard() {
                       </div>
                     ))}
                   </div>
-                  {Array.isArray(followingPitches) && followingPitches.length > 5 && (
+                  {Array.isArray(displayFollowingPitches) && displayFollowingPitches.length > 5 && (
                     <div className="mt-4 text-center">
                       <Link
                         to="/production/following"
@@ -1490,7 +1521,7 @@ function ProductionDashboard() {
 
                 {/* Quick Following Overview */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {Array.isArray(followingPitches) && followingPitches.slice(0, 6).map((pitch) => (
+                  {Array.isArray(displayFollowingPitches) && displayFollowingPitches.slice(0, 6).map((pitch) => (
                     <div key={pitch.id} className={`bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-shadow border-2 ${
                       pitch.creator?.userType === 'production' ? 'border-purple-200' :
                       pitch.creator?.userType === 'investor' ? 'border-green-200' :
