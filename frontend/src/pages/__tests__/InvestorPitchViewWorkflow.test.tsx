@@ -364,8 +364,9 @@ describe('InvestorPitchView — Workflows', () => {
     await user.click(screen.getByText('Submit'));
 
     // After submit, fetchInvestmentDetail is called again
+    // Initial calls: investment-detail + notes + diligence = 3, then refresh = +1
     await waitFor(() => {
-      expect(mockGet).toHaveBeenCalledTimes(2); // Initial + refresh
+      expect(mockGet).toHaveBeenCalledTimes(4);
     });
   });
 

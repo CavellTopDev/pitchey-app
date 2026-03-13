@@ -2917,6 +2917,28 @@ class RouteRegistry {
       return investorPitchInvestmentDetailHandler(req, this.env);
     });
 
+    // Investor Pitch Data Routes (notes + diligence checklists)
+    this.register('GET', '/api/investor/pitches/:pitchId/notes', async (req) => {
+      const { getInvestorNotes } = await import('./handlers/investor-pitch-data');
+      return getInvestorNotes(req, this.env);
+    });
+    this.register('POST', '/api/investor/pitches/:pitchId/notes', async (req) => {
+      const { createInvestorNote } = await import('./handlers/investor-pitch-data');
+      return createInvestorNote(req, this.env);
+    });
+    this.register('DELETE', '/api/investor/pitches/:pitchId/notes/:noteId', async (req) => {
+      const { deleteInvestorNote } = await import('./handlers/investor-pitch-data');
+      return deleteInvestorNote(req, this.env);
+    });
+    this.register('GET', '/api/investor/pitches/:pitchId/diligence', async (req) => {
+      const { getInvestorDiligence } = await import('./handlers/investor-pitch-data');
+      return getInvestorDiligence(req, this.env);
+    });
+    this.register('PUT', '/api/investor/pitches/:pitchId/diligence', async (req) => {
+      const { updateInvestorDiligence } = await import('./handlers/investor-pitch-data');
+      return updateInvestorDiligence(req, this.env);
+    });
+
     // Creator Portal Sidebar Routes (real DB queries)
     this.register('GET', '/api/creator/activity', async (req) => {
       const { creatorActivityHandler } = await import('./handlers/creator-sidebar');

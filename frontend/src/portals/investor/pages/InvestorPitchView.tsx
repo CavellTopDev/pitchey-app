@@ -170,17 +170,33 @@ const InvestorPitchView: React.FC = () => {
     }
   }, [id, fetchPitchData, fetchInvestmentDetail]);
 
-  const loadLocalData = () => {
+  const loadLocalData = useCallback(async () => {
+    if (!id) return;
     try {
-      const savedNotes = localStorage.getItem(`investor_notes_${id}`);
-      if (savedNotes) setNotes(JSON.parse(savedNotes));
+      // Fetch notes from API
+      const notesRes = await apiClient.get<{ notes: Array<{ id: number; content: string; category: string; is_private: boolean; created_at: string }> }>(`/api/investor/pitches/${id}/notes`);
+      if (notesRes.success && notesRes.data?.notes) {
+        setNotes(notesRes.data.notes.map(n => ({
+          id: String(n.id),
+          content: n.content,
+          createdAt: n.created_at,
+          isPrivate: n.is_private,
+          category: n.category as InvestmentNote['category']
+        })));
+      }
 
-      const savedChecklist = localStorage.getItem(`diligence_${id}`);
-      if (savedChecklist) setDiligenceChecklist(JSON.parse(savedChecklist));
+      // Fetch diligence checklist from API
+      const diligenceRes = await apiClient.get<{ checklist: Record<string, boolean> }>(`/api/investor/pitches/${id}/diligence`);
+      if (diligenceRes.success && diligenceRes.data?.checklist) {
+        const saved = diligenceRes.data.checklist;
+        if (Object.keys(saved).length > 0) {
+          setDiligenceChecklist(prev => ({ ...prev, ...saved }));
+        }
+      }
     } catch {
-      // Ignore localStorage errors
+      // Non-critical — defaults will be used
     }
-  };
+  }, [id]);
 
   const handleWatchlistToggle = async () => {
     if (!id || watchlistLoading) return;
@@ -298,27 +314,51 @@ const InvestorPitchView: React.FC = () => {
     }
   };
 
-  const handleAddNote = () => {
-    if (!newNote.trim()) return;
+  const handleAddNote = async () => {
+    if (!newNote.trim() || !id) return;
 
-    const note: InvestmentNote = {
+    // Optimistic update
+    const tempNote: InvestmentNote = {
       id: Date.now().toString(),
       content: newNote,
       createdAt: new Date().toISOString(),
       isPrivate: true,
       category: noteCategory
     };
-
-    const updatedNotes = [...notes, note];
-    setNotes(updatedNotes);
-    localStorage.setItem(`investor_notes_${id}`, JSON.stringify(updatedNotes));
+    setNotes(prev => [...prev, tempNote]);
     setNewNote('');
+
+    try {
+      const res = await apiClient.post<{ note: { id: number; content: string; category: string; is_private: boolean; created_at: string } }>(
+        `/api/investor/pitches/${id}/notes`,
+        { content: tempNote.content, category: tempNote.category, isPrivate: true }
+      );
+      if (res.success && res.data?.note) {
+        // Replace temp note with real one
+        setNotes(prev => prev.map(n => n.id === tempNote.id ? {
+          id: String(res.data!.note.id),
+          content: res.data!.note.content,
+          createdAt: res.data!.note.created_at,
+          isPrivate: res.data!.note.is_private,
+          category: res.data!.note.category as InvestmentNote['category']
+        } : n));
+      }
+    } catch {
+      // Rollback on failure
+      setNotes(prev => prev.filter(n => n.id !== tempNote.id));
+    }
   };
 
-  const handleDeleteNote = (noteId: string) => {
-    const updatedNotes = notes.filter(note => note.id !== noteId);
-    setNotes(updatedNotes);
-    localStorage.setItem(`investor_notes_${id}`, JSON.stringify(updatedNotes));
+  const handleDeleteNote = async (noteId: string) => {
+    if (!id) return;
+    const prev = notes;
+    setNotes(notes.filter(note => note.id !== noteId));
+
+    try {
+      await apiClient.delete(`/api/investor/pitches/${id}/notes/${noteId}`);
+    } catch {
+      setNotes(prev); // Rollback
+    }
   };
 
   const calculateROI = () => {
@@ -345,7 +385,11 @@ const InvestorPitchView: React.FC = () => {
   const handleDiligenceUpdate = (key: keyof typeof diligenceChecklist) => {
     const updated = { ...diligenceChecklist, [key]: !diligenceChecklist[key] };
     setDiligenceChecklist(updated);
-    localStorage.setItem(`diligence_${id}`, JSON.stringify(updated));
+
+    // Persist to API (fire-and-forget)
+    if (id) {
+      void apiClient.put(`/api/investor/pitches/${id}/diligence`, { checklist: updated });
+    }
   };
 
   const getDiligenceProgress = () => {
