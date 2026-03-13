@@ -4686,15 +4686,26 @@ pitchey_analytics_datapoints_per_minute 1250
       const sortBy = url.searchParams.get('sortBy') || 'date';
       const sortOrder = url.searchParams.get('sortOrder') || 'desc';
 
+      const userId = url.searchParams.get('userId');
+
       // Build WHERE clause with sequential parameter numbering
       let whereConditions: string[] = [];
       let params: any[] = [];
       let nextParamNum = 1;
 
-      // Always add status filter
-      whereConditions.push(`p.status = $${nextParamNum}`);
-      params.push(status);
-      nextParamNum++;
+      // Add status filter (skip for 'all')
+      if (status !== 'all') {
+        whereConditions.push(`p.status = $${nextParamNum}`);
+        params.push(status);
+        nextParamNum++;
+      }
+
+      // Filter by user if requested
+      if (userId) {
+        whereConditions.push(`(p.user_id = $${nextParamNum} OR p.creator_id = $${nextParamNum})`);
+        params.push(parseInt(userId));
+        nextParamNum++;
+      }
 
       if (search) {
         const searchParam = `$${nextParamNum}`;

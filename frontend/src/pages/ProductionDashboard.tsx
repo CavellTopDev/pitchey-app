@@ -59,7 +59,7 @@ function ProductionDashboard() {
   const navigate = useNavigate();
   const { user, logout, isAuthenticated, checkSession } = useBetterAuthStore();
   const [sessionChecked, setSessionChecked] = useState(false);
-  const { getAllPitches, drafts } = usePitchStore();
+  const { drafts } = usePitchStore();
   
   // Sentry portal integration
   const { reportError, trackEvent, trackApiError } = useSentryPortal({
@@ -206,13 +206,15 @@ function ProductionDashboard() {
 
         if (safeAccess(analyticsData, 'success', false)) {
           const analyticsRaw = safeAccess(analyticsData, 'analytics', {});
+          // The API returns { overview: { totalViews, ... }, trends: { ... } }
+          const overview = safeAccess(analyticsRaw, 'overview', analyticsRaw);
           const safeAnalytics: Analytics = {
-            totalViews: safeNumber(safeAccess(analyticsRaw, 'totalViews', 0)),
-            totalLikes: safeNumber(safeAccess(analyticsRaw, 'totalLikes', 0)),
-            totalNDAs: safeNumber(safeAccess(analyticsRaw, 'totalNDAs', 0)),
-            viewsChange: safeNumber(safeAccess(analyticsRaw, 'viewsChange', 0)),
-            likesChange: safeNumber(safeAccess(analyticsRaw, 'likesChange', 0)),
-            ndasChange: safeNumber(safeAccess(analyticsRaw, 'ndasChange', 0)),
+            totalViews: safeNumber(safeAccess(overview, 'totalViews', 0)),
+            totalLikes: safeNumber(safeAccess(overview, 'totalLikes', 0)),
+            totalNDAs: safeNumber(safeAccess(overview, 'totalNDAs', 0)),
+            viewsChange: safeNumber(safeAccess(overview, 'viewsChange', 0)),
+            likesChange: safeNumber(safeAccess(overview, 'likesChange', 0)),
+            ndasChange: safeNumber(safeAccess(overview, 'ndasChange', 0)),
             topPitch: safeAccess(analyticsRaw, 'topPitch', null) as Pitch | null,
             recentActivity: safeArray(safeAccess(analyticsRaw, 'recentActivity', [])) as Activity[]
           };
@@ -305,24 +307,31 @@ function ProductionDashboard() {
         }
       }
 
-      // Get pitches from store with safe operations
-      const allStorePitches = safeArray(getAllPitches());
-
-      // Convert store pitches to dashboard format with defensive mapping
-      const dashboardPitches = safeMap(allStorePitches, (p: any) => ({
-        ...p,
-        id: safeAccess(p, 'id', 0),
-        title: safeString(safeAccess(p, 'title', 'Untitled Project')),
-        budget: safeNumber(safeAccess(p, 'budget', 0)),
-        creator: {
-          id: safeAccess(user, 'id', 1),
-          username: safeString(safeAccess(user, 'username', 'production')),
-          userType: 'production' as const,
-          companyName: safeString(safeAccess(user, 'companyName', ''))
+      // Fetch user's own pitches from API
+      try {
+        const pitchesResponse = await apiClient.get<any>(`/api/pitches?status=all&userId=${user?.id}&limit=100`);
+        if (pitchesResponse.success) {
+          const userPitches = safeArray(pitchesResponse.data?.pitches || pitchesResponse.data || []);
+          const userIdNum = Number(user?.id);
+          const dashboardPitches = safeMap(userPitches, (p: any) => ({
+            ...p,
+            id: safeNumber(p.id),
+            title: safeString(p.title || 'Untitled Project'),
+            budget: safeNumber(p.budget || p.budget_range || 0),
+            status: safeString(p.status || 'draft'),
+            creator: {
+              id: userIdNum,
+              username: safeString(user?.username || 'production'),
+              userType: 'production' as const,
+              companyName: safeString((user as any)?.companyName || '')
+            }
+          }));
+          setMyPitches(dashboardPitches);
         }
-      }));
-
-      setMyPitches(dashboardPitches);
+      } catch (err) {
+        const e = err instanceof Error ? err : new Error(String(err));
+        console.error('Failed to fetch user pitches:', e);
+      }
 
       // === Following section ===
       try {
@@ -375,24 +384,12 @@ function ProductionDashboard() {
         if (realtimeResponse.success) {
           setAnalytics(prev => ({
             ...prev,
-            topPitch: dashboardPitches[0] || null,
             recentActivity: (realtimeResponse.data as any)?.recentActivity || []
-          }));
-        } else {
-          setAnalytics(prev => ({
-            ...prev,
-            topPitch: dashboardPitches[0] || null,
-            recentActivity: []
           }));
         }
       } catch (err) {
         const e = err instanceof Error ? err : new Error(String(err));
         console.error('Failed to fetch recent activity:', e);
-        setAnalytics(prev => ({
-          ...prev,
-          topPitch: dashboardPitches[0] || null,
-          recentActivity: []
-        }));
       }
 
     } catch (err) {
@@ -411,7 +408,7 @@ function ProductionDashboard() {
         }));
       }
     }
-  }, [getAllPitches, isAuthenticated, user?.id, user?.username, user?.companyName, trackEvent, reportError, trackApiError]);
+  }, [isAuthenticated, user?.id, user?.username, user?.companyName, trackEvent, reportError, trackApiError]);
 
   useEffect(() => {
     // Only fetch data after session is verified
