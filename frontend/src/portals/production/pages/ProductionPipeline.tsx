@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GitBranch, ArrowRight, Clock, TrendingUp, DollarSign, Calendar, Users, Filter, BarChart3, CheckCircle, AlertCircle, Eye } from 'lucide-react';
+import { GitBranch, ArrowRight, ArrowLeft, Clock, TrendingUp, DollarSign, Calendar, Users, Filter, BarChart3, CheckCircle, AlertCircle, Eye } from 'lucide-react';
 import { ProductionService } from '../services/production.service';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'react-hot-toast';
@@ -62,12 +62,36 @@ const stageOrder = ['development', 'pre-production', 'production', 'post-product
 export default function ProductionPipeline() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<PipelineProject[]>([]);
-  const [stats, setStats] = useState<PipelineStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedStage, setSelectedStage] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [riskFilter, setRiskFilter] = useState<string>('all');
+
+  const stats = useMemo<PipelineStats | null>(() => {
+    if (projects.length === 0 && !loading) return null;
+    if (projects.length === 0) return null;
+    const projectsByStage: Record<string, number> = {};
+    for (const p of projects) {
+      projectsByStage[p.stage] = (projectsByStage[p.stage] || 0) + 1;
+    }
+    return {
+      totalProjects: projects.length,
+      totalBudget: projects.reduce((sum, p) => sum + p.budget, 0),
+      averageProgress: Math.round(projects.reduce((sum, p) => sum + p.progress, 0) / projects.length),
+      projectsByStage,
+      upcomingDeadlines: projects.filter(p => {
+        const days = Math.ceil((new Date(p.estimatedCompletion).getTime() - Date.now()) / 86400000);
+        return days <= 14 && days > 0;
+      }).length,
+      blockedProjects: projects.filter(p => p.blockers.length > 0).length,
+      onTrackProjects: projects.filter(p => p.progress >= 50).length,
+      behindSchedule: projects.filter(p => {
+        const days = Math.ceil((new Date(p.estimatedCompletion).getTime() - Date.now()) / 86400000);
+        return days <= 0;
+      }).length,
+    };
+  }, [projects, loading]);
 
   useEffect(() => {
     fetchPipelineData();
@@ -103,35 +127,12 @@ export default function ProductionPipeline() {
         blockers: []
       }));
       setProjects(mapped);
-
-      // Compute stats from mapped projects
-      const projectsByStage: Record<string, number> = {};
-      for (const p of mapped) {
-        projectsByStage[p.stage] = (projectsByStage[p.stage] || 0) + 1;
-      }
-      setStats({
-        totalProjects: mapped.length,
-        totalBudget: mapped.reduce((sum, p) => sum + p.budget, 0),
-        averageProgress: mapped.length > 0 ? Math.round(mapped.reduce((sum, p) => sum + p.progress, 0) / mapped.length) : 0,
-        projectsByStage,
-        upcomingDeadlines: mapped.filter(p => {
-          const days = Math.ceil((new Date(p.estimatedCompletion).getTime() - Date.now()) / 86400000);
-          return days <= 14 && days > 0;
-        }).length,
-        blockedProjects: mapped.filter(p => p.blockers.length > 0).length,
-        onTrackProjects: mapped.filter(p => p.progress >= 50).length,
-        behindSchedule: mapped.filter(p => {
-          const days = Math.ceil((new Date(p.estimatedCompletion).getTime() - Date.now()) / 86400000);
-          return days <= 0;
-        }).length,
-      });
       setError(null);
     } catch (err) {
       const e = err instanceof Error ? err : new Error(String(err));
       console.error('Error fetching pipeline data:', e);
       setError(e.message);
       setProjects([]);
-      setStats(null);
     } finally {
       setLoading(false);
     }
@@ -152,6 +153,24 @@ export default function ProductionPipeline() {
     } catch (err) {
       const e = err instanceof Error ? err : new Error(String(err));
       toast.error(e.message || 'Failed to advance stage');
+    }
+  };
+
+  const handleRegressStage = async (projectId: string, currentStage: string) => {
+    const idx = stageOrder.indexOf(currentStage);
+    if (idx <= 0) return;
+    const prev = stageOrder[idx - 1];
+    const label = prev.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-');
+    if (!window.confirm(`Move project back to ${label}?`)) return;
+    try {
+      await apiClient.put(`/api/production/projects/${projectId}`, { stage: prev });
+      setProjects(prv => prv.map(p =>
+        p.id === projectId ? { ...p, stage: prev as PipelineProject['stage'] } : p
+      ));
+      toast.success(`Moved back to ${label}`);
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      toast.error(e.message || 'Failed to move stage back');
     }
   };
 
@@ -446,24 +465,36 @@ export default function ProductionPipeline() {
                     )}
                     {(() => {
                       const idx = stageOrder.indexOf(project.stage);
-                      if (idx >= 0 && idx < stageOrder.length - 1) {
-                        const next = stageOrder[idx + 1];
-                        const label = next.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-');
-                        return (
-                          <button
-                            onClick={() => void handleAdvanceStage(project.id, project.stage)}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm"
-                          >
-                            <ArrowRight className="w-4 h-4" />
-                            Move to {label}
-                          </button>
-                        );
-                      }
+                      const canGoBack = idx > 0;
+                      const canGoForward = idx >= 0 && idx < stageOrder.length - 1;
+                      const isReleased = idx === stageOrder.length - 1;
+
                       return (
-                        <span className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
-                          <CheckCircle className="w-4 h-4" />
-                          Released
-                        </span>
+                        <>
+                          {canGoBack && (
+                            <button
+                              onClick={() => void handleRegressStage(project.id, project.stage)}
+                              className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm"
+                            >
+                              <ArrowLeft className="w-4 h-4" />
+                              Move Back
+                            </button>
+                          )}
+                          {canGoForward ? (
+                            <button
+                              onClick={() => void handleAdvanceStage(project.id, project.stage)}
+                              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm"
+                            >
+                              <ArrowRight className="w-4 h-4" />
+                              Move to {stageOrder[idx + 1].split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-')}
+                            </button>
+                          ) : isReleased ? (
+                            <span className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
+                              <CheckCircle className="w-4 h-4" />
+                              Released
+                            </span>
+                          ) : null}
+                        </>
                       );
                     })()}
                   </div>
