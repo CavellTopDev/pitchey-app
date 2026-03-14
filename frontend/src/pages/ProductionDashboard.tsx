@@ -70,6 +70,7 @@ function ProductionDashboard() {
   const { isConnected, connectionQuality, isReconnecting } = useWebSocket();
   const [activeTab, setActiveTab] = useState<'overview' | 'my-pitches' | 'following' | 'ndas'>('overview');
   const [myPitches, setMyPitches] = useState<Pitch[]>([]);
+  const [pipelineCount, setPipelineCount] = useState(0);
   const [followingPitches, setFollowingPitches] = useState<Pitch[]>([]);
   const [followingCreators, setFollowingCreators] = useState<any[]>([]);
   const [followingSortBy, setFollowingSortBy] = useState('recent');
@@ -309,9 +310,13 @@ function ProductionDashboard() {
         }
       }
 
-      // Fetch user's own pitches from API
+      // Fetch user's own pitches and pipeline projects in parallel
       try {
-        const pitchesResponse = await apiClient.get<any>(`/api/pitches?status=all&userId=${user?.id}&limit=100`);
+        const [pitchesResponse, pipelineResponse] = await Promise.all([
+          apiClient.get<any>(`/api/pitches?status=all&userId=${user?.id}&limit=100`),
+          apiClient.get<any>('/api/production/projects'),
+        ]);
+
         if (pitchesResponse.success) {
           const userPitches = safeArray(pitchesResponse.data?.pitches || pitchesResponse.data || []);
           const userIdNum = Number(user?.id);
@@ -329,6 +334,11 @@ function ProductionDashboard() {
             }
           }));
           setMyPitches(dashboardPitches);
+        }
+
+        if (pipelineResponse.success) {
+          const projects = safeArray(pipelineResponse.data?.projects || []);
+          setPipelineCount(projects.filter((p: any) => p.status === 'active').length);
         }
       } catch (err) {
         const e = err instanceof Error ? err : new Error(String(err));
@@ -935,11 +945,11 @@ function ProductionDashboard() {
             </div>
 
             {/* Enhanced Production Analytics */}
-            <EnhancedProductionAnalytics 
+            <EnhancedProductionAnalytics
               productionPerformance={{
                 totalPitches: myPitches.length,
                 totalRevenue: myPitches.reduce((sum, p) => sum + (p.budget || 0), 0),
-                activeProjects: myPitches.filter(p => p.status === 'published').length,
+                activeProjects: pipelineCount,
                 ndaSignedCount: analytics.totalNDAs,
                 averageProjectBudget: myPitches.length > 0 ? myPitches.reduce((sum, p) => sum + (p.budget || 0), 0) / myPitches.length : 0,
                 creatorInteractions: analytics.totalViews + analytics.totalLikes
