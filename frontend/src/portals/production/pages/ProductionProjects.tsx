@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Film, AlertCircle, TrendingUp, DollarSign, Plus, MoreVertical, Eye, Edit, Trash2 } from 'lucide-react';
+import { Film, AlertCircle, TrendingUp, DollarSign, Plus, MoreVertical, Eye, Edit, Trash2, ArrowRight, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { apiClient } from '@/lib/api-client';
@@ -26,6 +26,18 @@ interface PipelineProject {
   notes: string | null;
   created_at: string;
   updated_at: string;
+}
+
+const STAGE_ORDER = ['development', 'pre-production', 'production', 'post-production', 'delivery', 'release'] as const;
+
+function getNextStage(current: string): string | null {
+  const idx = STAGE_ORDER.indexOf(current as typeof STAGE_ORDER[number]);
+  if (idx < 0 || idx >= STAGE_ORDER.length - 1) return null;
+  return STAGE_ORDER[idx + 1];
+}
+
+function formatStageName(stage: string): string {
+  return stage.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-');
 }
 
 const stageColors: Record<string, string> = {
@@ -88,6 +100,22 @@ export default function ProductionProjects() {
   useEffect(() => {
     void loadProjects();
   }, [loadProjects]);
+
+  const handleAdvanceStage = async (projectId: number, currentStage: string) => {
+    const next = getNextStage(currentStage);
+    if (!next) return;
+    if (!window.confirm(`Move project to ${formatStageName(next)}?`)) return;
+    try {
+      await apiClient.put(`/api/production/projects/${projectId}`, { stage: next });
+      setProjects(prev => prev.map(p =>
+        p.id === projectId ? { ...p, stage: next } : p
+      ));
+      toast.success(`Moved to ${formatStageName(next)}`);
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      toast.error(e.message || 'Failed to advance stage');
+    }
+  };
 
   const handleArchiveProject = async (projectId: number) => {
     if (!window.confirm('Archive this project?')) return;
@@ -314,22 +342,33 @@ export default function ProductionProjects() {
 
                   {/* Actions */}
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => navigate(project.pitch_id ? `/production/pitch/${project.pitch_id}` : `/production/projects`)}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
-                    >
-                      <Eye className="w-4 h-4" />
-                      View Details
-                    </button>
-                    <button
-                      onClick={() => navigate(`/production/projects`)}
-                      className="flex items-center justify-center p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
+                    {project.pitch_id && (
+                      <button
+                        onClick={() => navigate(`/production/pitch/${project.pitch_id}`)}
+                        className="flex items-center justify-center gap-2 px-3 py-2 text-purple-600 hover:bg-purple-50 rounded-lg transition text-sm"
+                      >
+                        <Eye className="w-4 h-4" />
+                        View Pitch
+                      </button>
+                    )}
+                    {getNextStage(project.stage) && (
+                      <button
+                        onClick={() => void handleAdvanceStage(project.id, project.stage)}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm"
+                      >
+                        <ArrowRight className="w-4 h-4" />
+                        Move to {formatStageName(getNextStage(project.stage)!)}
+                      </button>
+                    )}
+                    {project.stage === 'release' && (
+                      <span className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
+                        Released
+                      </span>
+                    )}
                     <button
                       onClick={() => void handleArchiveProject(project.id)}
                       className="flex items-center justify-center p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                      title="Archive project"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GitBranch, ArrowRight, Clock, TrendingUp, DollarSign, Calendar, Users, Filter, BarChart3, CheckCircle, AlertCircle } from 'lucide-react';
+import { GitBranch, ArrowRight, Clock, TrendingUp, DollarSign, Calendar, Users, Filter, BarChart3, CheckCircle, AlertCircle, Eye } from 'lucide-react';
 import { ProductionService } from '../services/production.service';
+import { apiClient } from '@/lib/api-client';
+import { toast } from 'react-hot-toast';
 
 interface PipelineProject {
   id: string;
@@ -132,6 +134,24 @@ export default function ProductionPipeline() {
       setStats(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAdvanceStage = async (projectId: string, currentStage: string) => {
+    const idx = stageOrder.indexOf(currentStage);
+    if (idx < 0 || idx >= stageOrder.length - 1) return;
+    const next = stageOrder[idx + 1];
+    const label = next.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-');
+    if (!window.confirm(`Move project to ${label}?`)) return;
+    try {
+      await apiClient.put(`/api/production/projects/${projectId}`, { stage: next });
+      setProjects(prev => prev.map(p =>
+        p.id === projectId ? { ...p, stage: next as PipelineProject['stage'] } : p
+      ));
+      toast.success(`Moved to ${label}`);
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      toast.error(e.message || 'Failed to advance stage');
     }
   };
 
@@ -415,18 +435,37 @@ export default function ProductionPipeline() {
 
                   {/* Actions */}
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => navigate(project.pitch_id ? `/production/pitch/${project.pitch_id}` : `/production/projects`)}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
-                    >
-                      View Details
-                    </button>
-                    <button
-                      onClick={() => navigate('/production/analytics')}
-                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
-                    >
-                      <BarChart3 className="w-4 h-4" />
-                    </button>
+                    {project.pitch_id && (
+                      <button
+                        onClick={() => navigate(`/production/pitch/${project.pitch_id}`)}
+                        className="flex items-center justify-center gap-2 px-3 py-2 text-purple-600 hover:bg-purple-50 rounded-lg transition text-sm"
+                      >
+                        <Eye className="w-4 h-4" />
+                        View Pitch
+                      </button>
+                    )}
+                    {(() => {
+                      const idx = stageOrder.indexOf(project.stage);
+                      if (idx >= 0 && idx < stageOrder.length - 1) {
+                        const next = stageOrder[idx + 1];
+                        const label = next.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-');
+                        return (
+                          <button
+                            onClick={() => void handleAdvanceStage(project.id, project.stage)}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm"
+                          >
+                            <ArrowRight className="w-4 h-4" />
+                            Move to {label}
+                          </button>
+                        );
+                      }
+                      return (
+                        <span className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
+                          <CheckCircle className="w-4 h-4" />
+                          Released
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
