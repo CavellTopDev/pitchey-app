@@ -452,7 +452,8 @@ export async function productionPipelineHandler(request: Request, env: Env) {
             u.email as creator_email
           FROM pitches p
           JOIN users u ON p.user_id = u.id
-          WHERE p.status = ${status}
+          WHERE (p.user_id = ${user.id} OR p.creator_id = ${user.id})
+            AND p.status = ${status}
           ORDER BY p.created_at DESC
           LIMIT ${limit}
         `;
