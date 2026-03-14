@@ -10,7 +10,7 @@ import {
   Truck, Home, Globe, Mic, Edit3, Package
 } from 'lucide-react';
 import { pitchAPI } from '@/lib/api';
-import { savedPitchesAPI } from '@/lib/api-client';
+import apiClient, { savedPitchesAPI } from '@/lib/api-client';
 import { useBetterAuthStore } from '@/store/betterAuthStore';
 import FormatDisplay from '@/components/FormatDisplay';
 import { getCreditCost } from '@config/subscription-plans';
@@ -835,9 +835,27 @@ const ProductionPitchView: React.FC = () => {
                   <ChevronRight className="h-4 w-4" />
                 </button>
                 {!pitch?.hasSignedNDA && (
-                  <p className="text-xs text-gray-500 mt-1 text-center">
-                    NDA required ({getCreditCost('nda_request')} credits)
-                  </p>
+                  <button
+                    onClick={async () => {
+                      if (!id) return;
+                      if (!confirm(`Request NDA access? This costs ${getCreditCost('nda_request')} credits.`)) return;
+                      try {
+                        const res = await apiClient.post('/api/ndas/request', { pitchId: id });
+                        if (res.success) {
+                          toast.success('NDA request sent');
+                        } else {
+                          toast.error((res.error as any)?.message || 'Failed to request NDA');
+                        }
+                      } catch (err) {
+                        const e = err instanceof Error ? err : new Error(String(err));
+                        toast.error(e.message);
+                      }
+                    }}
+                    className="w-full flex items-center justify-between px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
+                  >
+                    <span>Request NDA ({getCreditCost('nda_request')} credits)</span>
+                    <Shield className="h-4 w-4" />
+                  </button>
                 )}
                 <button
                   onClick={() => setShowScheduleModal(true)}
