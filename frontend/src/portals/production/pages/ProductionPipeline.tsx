@@ -115,11 +115,30 @@ export default function ProductionPipeline() {
         estimatedCompletion: p.target_completion_date || new Date(Date.now() + 90 * 86400000).toISOString(),
         priority: p.priority || 'medium',
         risk: (() => {
-          const b = Number(p.budget_allocated || p.estimated_budget) || 0;
           const prog = Number(p.completion_percentage) || 0;
-          const days = p.start_date ? Math.max(0, Math.floor((Date.now() - new Date(p.start_date).getTime()) / 86400000)) : 0;
-          if ((b > 5000000 && prog < 30) || (days > 60 && prog < 50)) return 'high';
-          if ((b > 2000000 && prog < 50) || (days > 30 && prog < 40)) return 'medium';
+          const startDate = p.start_date ? new Date(p.start_date).getTime() : 0;
+          const endDate = p.target_completion_date ? new Date(p.target_completion_date).getTime() : 0;
+          const now = Date.now();
+
+          // If no start date or project hasn't started yet, low risk
+          if (!startDate || now < startDate) return 'low';
+
+          const totalDuration = endDate > startDate ? endDate - startDate : 0;
+          const elapsed = now - startDate;
+
+          // How far through the timeline (0-1)
+          const timeRatio = totalDuration > 0 ? Math.min(elapsed / totalDuration, 1) : 0;
+          // Expected progress based on timeline position
+          const expectedProgress = timeRatio * 100;
+          // How far behind: positive = behind schedule
+          const progressGap = expectedProgress - prog;
+
+          // Overdue (past deadline) with incomplete work
+          if (timeRatio >= 1 && prog < 100) return 'high';
+          // More than 30% behind expected progress
+          if (progressGap > 30) return 'high';
+          // More than 15% behind expected progress
+          if (progressGap > 15) return 'medium';
           return 'low';
         })() as 'low' | 'medium' | 'high',
         daysInStage: p.start_date ? Math.max(0, Math.floor((Date.now() - new Date(p.start_date).getTime()) / 86400000)) : 0,
