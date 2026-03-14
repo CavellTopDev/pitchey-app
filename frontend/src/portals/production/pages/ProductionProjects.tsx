@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Film, AlertCircle, TrendingUp, DollarSign, Plus, MoreVertical, Eye, Edit, Trash2, X } from 'lucide-react';
+import { Film, AlertCircle, TrendingUp, DollarSign, Plus, MoreVertical, Eye, Edit, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { apiClient } from '@/lib/api-client';
+import StartProjectModal from '../components/StartProjectModal';
 
 interface PipelineProject {
   id: number;
@@ -63,8 +64,6 @@ export default function ProductionProjects() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createForm, setCreateForm] = useState({ title: '', stage: 'development', priority: 'medium', budget: '', startDate: '', notes: '' });
-  const [creating, setCreating] = useState(false);
 
   const loadProjects = useCallback(async () => {
     try {
@@ -89,37 +88,6 @@ export default function ProductionProjects() {
   useEffect(() => {
     void loadProjects();
   }, [loadProjects]);
-
-  const handleCreateProject = async () => {
-    if (!createForm.title.trim()) {
-      toast.error('Project title is required');
-      return;
-    }
-    setCreating(true);
-    try {
-      const response = await apiClient.post<{ project: PipelineProject }>('/api/production/projects', {
-        title: createForm.title,
-        stage: createForm.stage,
-        priority: createForm.priority,
-        budget: createForm.budget ? parseFloat(createForm.budget) : 0,
-        startDate: createForm.startDate || null,
-        notes: createForm.notes || null,
-      });
-      if (response.success && response.data?.project) {
-        setProjects(prev => [response.data!.project, ...prev]);
-        setShowCreateModal(false);
-        setCreateForm({ title: '', stage: 'development', priority: 'medium', budget: '', startDate: '', notes: '' });
-        toast.success('Project created');
-      } else {
-        toast.error('Failed to create project');
-      }
-    } catch (err) {
-      const e = err instanceof Error ? err : new Error(String(err));
-      toast.error(e.message || 'Failed to create project');
-    } finally {
-      setCreating(false);
-    }
-  };
 
   const handleArchiveProject = async (projectId: number) => {
     if (!window.confirm('Archive this project?')) return;
@@ -373,103 +341,13 @@ export default function ProductionProjects() {
         )}
       </div>
 
-      {/* Create Project Modal */}
+      {/* Create Project Modal — with pitch picker */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold text-gray-900">New Production Project</h2>
-              <button onClick={() => setShowCreateModal(false)} className="p-1 text-gray-400 hover:text-gray-600 rounded">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-                <input
-                  type="text"
-                  value={createForm.title}
-                  onChange={(e) => setCreateForm(prev => ({ ...prev, title: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                  placeholder="Project title"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Stage</label>
-                  <select
-                    value={createForm.stage}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, stage: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                  >
-                    <option value="development">Development</option>
-                    <option value="pre-production">Pre-Production</option>
-                    <option value="production">Production</option>
-                    <option value="post-production">Post-Production</option>
-                    <option value="delivery">Delivery</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-                  <select
-                    value={createForm.priority}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, priority: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Budget ($)</label>
-                <input
-                  type="number"
-                  value={createForm.budget}
-                  onChange={(e) => setCreateForm(prev => ({ ...prev, budget: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                  placeholder="e.g. 500000"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                <input
-                  type="date"
-                  value={createForm.startDate}
-                  onChange={(e) => setCreateForm(prev => ({ ...prev, startDate: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                <textarea
-                  value={createForm.notes}
-                  onChange={(e) => setCreateForm(prev => ({ ...prev, notes: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                  rows={3}
-                  placeholder="Project notes..."
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 p-4 border-t">
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => void handleCreateProject()}
-                disabled={creating || !createForm.title.trim()}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
-              >
-                {creating ? 'Creating...' : 'Create Project'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <StartProjectModal
+          showPicker
+          onClose={() => setShowCreateModal(false)}
+          onCreated={() => void loadProjects()}
+        />
       )}
     </div>
   );
