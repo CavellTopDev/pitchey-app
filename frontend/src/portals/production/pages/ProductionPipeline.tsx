@@ -5,6 +5,7 @@ import { ProductionService } from '../services/production.service';
 
 interface PipelineProject {
   id: string;
+  pitch_id?: number | null;
   title: string;
   genre: string;
   stage: 'development' | 'pre-production' | 'production' | 'post-production' | 'delivery' | 'release';
@@ -76,6 +77,7 @@ export default function ProductionPipeline() {
       const data = await ProductionService.getProjects({ limit: 50 });
       const mapped: PipelineProject[] = (data.projects || []).map((p: any) => ({
         id: p.id?.toString() || '',
+        pitch_id: p.pitch_id || null,
         title: p.title || 'Untitled',
         genre: p.genre || 'Unknown',
         stage: p.stage || 'development',
@@ -414,7 +416,7 @@ export default function ProductionPipeline() {
                   {/* Actions */}
                   <div className="flex gap-2">
                     <button
-                      onClick={() => navigate(`/production/pitch/${project.id}`)}
+                      onClick={() => navigate(project.pitch_id ? `/production/pitch/${project.pitch_id}` : `/production/projects`)}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
                     >
                       View Details
