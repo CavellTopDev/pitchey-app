@@ -158,36 +158,39 @@ export const EnhancedProductionAnalytics: React.FC<ProductionAnalyticsProps> = (
     // Calculate time-based multipliers for realistic variation
     const multiplier = range === '7d' ? 0.25 : range === '30d' ? 1 : range === '90d' ? 3 : 12;
 
+    const totalProjects = Number(metrics.total_projects) || 0;
+    const totalBudget = Number(metrics.total_budget) || 0;
+
     return {
       kpis: {
-        activeProjects: Number(metrics.active_projects) || Math.round(8 * (range === '7d' ? 0.8 : 1)),
-        totalBudget: Number(metrics.total_budget) || 0,
-        avgProjectCost: Number(metrics.total_budget) / Math.max(Number(metrics.total_projects), 1) || 1875000,
-        completionRate: Number(metrics.avg_completion_rate) || 87,
-        partnerships: Math.round(24 * multiplier / 12),
-        monthlyRevenue: Number(successData.total_revenue) / multiplier || 850000,
+        activeProjects: Number(metrics.active_projects) || 0,
+        totalBudget,
+        avgProjectCost: totalProjects > 0 ? totalBudget / totalProjects : 0,
+        completionRate: Number(metrics.avg_completion_rate) || 0,
+        partnerships: Number(metrics.partnerships) || 0,
+        monthlyRevenue: Number(successData.total_revenue) || 0,
         crewUtilization: crewData.length > 0
           ? crewData.reduce((acc: number, c: any) => acc + (Number(c.utilization_rate) || 0), 0) / crewData.length
-          : 82,
+          : 0,
         onTimeDelivery: timelineData.length > 0
           ? timelineData.reduce((acc: number, t: any) => acc + (Number(t.on_time_percentage) || 0), 0) / timelineData.length
-          : 75,
+          : 0,
         costVariance: metrics.total_budget && metrics.total_spent
           ? ((Number(metrics.total_spent) - Number(metrics.total_budget)) / Number(metrics.total_budget)) * 100
-          : -5.2,
+          : 0,
         clientSatisfaction: Number(successData.client_satisfaction) || 0,
       },
       changes: {
-        projectsChange: range === '7d' ? 15 : range === '30d' ? 33 : range === '90d' ? 45 : 60,
-        budgetChange: range === '7d' ? 8 : range === '30d' ? 22 : range === '90d' ? 35 : 50,
-        costChange: -5,
-        completionChange: range === '7d' ? 3 : range === '30d' ? 8 : range === '90d' ? 12 : 18,
-        partnershipsChange: range === '7d' ? 5 : range === '30d' ? 20 : range === '90d' ? 35 : 55,
-        revenueChange: range === '7d' ? 5 : range === '30d' ? 15 : range === '90d' ? 28 : 45,
-        utilizationChange: 3,
-        deliveryChange: -2,
-        varianceChange: 1.5,
-        satisfactionChange: 0.2,
+        projectsChange: Number(metrics.projects_change) || 0,
+        budgetChange: Number(metrics.budget_change) || 0,
+        costChange: Number(metrics.cost_change) || 0,
+        completionChange: Number(metrics.completion_change) || 0,
+        partnershipsChange: Number(metrics.partnerships_change) || 0,
+        revenueChange: Number(successData.revenue_change) || 0,
+        utilizationChange: 0,
+        deliveryChange: 0,
+        varianceChange: 0,
+        satisfactionChange: 0,
       },
       charts: {
         projectPipeline: timelineData.length > 0
@@ -532,60 +535,84 @@ export const EnhancedProductionAnalytics: React.FC<ProductionAnalyticsProps> = (
         )}
       </div>
 
-      {/* Operational Insights */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="bg-white rounded-xl border p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Production Health</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">Pipeline Status</span>
-              <span className="font-semibold text-green-600">Healthy</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">Budget Control</span>
-              <span className="font-semibold text-green-600">On Track</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">Resource Efficiency</span>
-              <span className="font-semibold text-yellow-600">Good</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">Quality Control</span>
-              <span className="font-semibold text-green-600">Excellent</span>
+      {/* Operational Insights — only show when there's real data */}
+      {analyticsData.kpis.activeProjects > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="bg-white rounded-xl border p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Production Health</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Pipeline Status</span>
+                <span className={`font-semibold ${analyticsData.kpis.activeProjects > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                  {analyticsData.kpis.activeProjects > 0 ? 'Active' : 'No projects'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Budget Control</span>
+                <span className={`font-semibold ${analyticsData.kpis.costVariance <= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {analyticsData.kpis.costVariance <= 0 ? 'On Track' : 'Over Budget'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Completion Rate</span>
+                <span className={`font-semibold ${analyticsData.kpis.completionRate >= 80 ? 'text-green-600' : analyticsData.kpis.completionRate >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                  {analyticsData.kpis.completionRate}%
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">On-Time Delivery</span>
+                <span className={`font-semibold ${analyticsData.kpis.onTimeDelivery >= 80 ? 'text-green-600' : analyticsData.kpis.onTimeDelivery >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                  {analyticsData.kpis.onTimeDelivery}%
+                </span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-white rounded-xl border p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Risk Factors</h3>
-          <div className="space-y-3">
-            <div className="bg-yellow-50 p-3 rounded-lg">
-              <p className="text-sm text-yellow-800">3 projects at risk of delays</p>
-            </div>
-            <div className="bg-red-50 p-3 rounded-lg">
-              <p className="text-sm text-red-800">Budget overrun on 1 project</p>
-            </div>
-            <div className="bg-blue-50 p-3 rounded-lg">
-              <p className="text-sm text-blue-800">Resource shortage in VFX</p>
+          <div className="bg-white rounded-xl border p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Key Metrics</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Active Projects</span>
+                <span className="font-semibold text-gray-900">{analyticsData.kpis.activeProjects}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Total Budget</span>
+                <span className="font-semibold text-gray-900">
+                  {analyticsData.kpis.totalBudget > 0 ? `$${(analyticsData.kpis.totalBudget / 1000000).toFixed(1)}M` : '$0'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Avg Project Cost</span>
+                <span className="font-semibold text-gray-900">
+                  {analyticsData.kpis.avgProjectCost > 0 ? `$${(analyticsData.kpis.avgProjectCost / 1000000).toFixed(1)}M` : '$0'}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-white rounded-xl border p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Optimization Opportunities</h3>
-          <div className="space-y-3">
-            <div className="border-l-4 border-green-500 pl-3">
-              <p className="text-sm text-gray-700">Increase crew utilization by 15%</p>
-            </div>
-            <div className="border-l-4 border-blue-500 pl-3">
-              <p className="text-sm text-gray-700">Streamline post-production workflow</p>
-            </div>
-            <div className="border-l-4 border-purple-500 pl-3">
-              <p className="text-sm text-gray-700">Expand documentary portfolio</p>
+          <div className="bg-white rounded-xl border p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Monthly Revenue</span>
+                <span className="font-semibold text-gray-900">
+                  {analyticsData.kpis.monthlyRevenue > 0 ? `$${(analyticsData.kpis.monthlyRevenue / 1000).toFixed(0)}K` : '$0'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Partnerships</span>
+                <span className="font-semibold text-gray-900">{analyticsData.kpis.partnerships}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Client Satisfaction</span>
+                <span className="font-semibold text-gray-900">
+                  {analyticsData.kpis.clientSatisfaction > 0 ? analyticsData.kpis.clientSatisfaction.toFixed(1) : 'N/A'}
+                </span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
