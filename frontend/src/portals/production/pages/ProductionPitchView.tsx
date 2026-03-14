@@ -116,11 +116,20 @@ const ProductionPitchView: React.FC = () => {
   ]);
 
   const isOwner = !!(pitch?.userId && authUser?.id && String(pitch.userId) === String(authUser.id));
+  const [hasExistingProject, setHasExistingProject] = useState(false);
 
   useEffect(() => {
     if (id) {
       fetchPitchData();
       loadProductionData();
+      // Check if a pipeline project already exists for this pitch
+      void apiClient.get<{ projects: Array<{ id: number }> }>(`/api/production/projects?pitchId=${id}`)
+        .then(res => {
+          if (res.success && res.data?.projects && res.data.projects.length > 0) {
+            setHasExistingProject(true);
+          }
+        })
+        .catch(() => {});
     }
   }, [id]);
 
@@ -830,13 +839,23 @@ const ProductionPitchView: React.FC = () => {
               <div className="bg-white rounded-xl shadow-lg p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Pitch</h3>
                 <div className="space-y-2">
-                  <button
-                    onClick={() => setShowStartProjectModal(true)}
-                    className="w-full flex items-center justify-between px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                  >
-                    <span>Start Project</span>
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
+                  {hasExistingProject ? (
+                    <button
+                      onClick={() => navigate('/production/pipeline')}
+                      className="w-full flex items-center justify-between px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    >
+                      <span>View in Pipeline</span>
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setShowStartProjectModal(true)}
+                      className="w-full flex items-center justify-between px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                    >
+                      <span>Start Project</span>
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
@@ -892,13 +911,23 @@ const ProductionPitchView: React.FC = () => {
                     <span>Start Negotiations</span>
                     <ChevronRight className="h-4 w-4" />
                   </button>
-                  <button
-                    onClick={() => setShowStartProjectModal(true)}
-                    className="w-full flex items-center justify-between px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                  >
-                    <span>Start Project</span>
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
+                  {hasExistingProject ? (
+                    <button
+                      onClick={() => navigate('/production/pipeline')}
+                      className="w-full flex items-center justify-between px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    >
+                      <span>View in Pipeline</span>
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setShowStartProjectModal(true)}
+                      className="w-full flex items-center justify-between px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                    >
+                      <span>Start Project</span>
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             )}
