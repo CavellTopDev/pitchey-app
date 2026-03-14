@@ -1,10 +1,9 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  Home, BarChart3, Activity, TrendingUp, Film, Layers, PlayCircle,
-  Edit, CheckCircle, FolderOpen, Plus, Eye, ThumbsUp, ThumbsDown,
-  Archive, GitBranch, DollarSign, Bookmark, UserPlus, Shield,
-  Users, Settings, FileCheck, Upload, UsersRound
+  Home, Activity, Film, FolderOpen, Upload,
+  Bookmark, Users, GitBranch, DollarSign,
+  MessageSquare, Calendar, Settings, Shield, UserPlus
 } from 'lucide-react';
 import { PRODUCTION_ROUTES } from '@/config/navigation.routes';
 
@@ -13,7 +12,6 @@ interface NavigationItem {
   path: string;
   icon: React.ElementType;
   badge?: number | string;
-
 }
 
 interface NavigationSection {
@@ -26,61 +24,50 @@ export const productionNavigationSections: NavigationSection[] = [
     title: 'Dashboard',
     items: [
       { label: 'Overview', path: PRODUCTION_ROUTES.dashboard, icon: Home },
-      { label: 'Analytics', path: PRODUCTION_ROUTES.analytics, icon: BarChart3 },
       { label: 'Activity', path: PRODUCTION_ROUTES.activity, icon: Activity },
-      { label: 'Statistics', path: PRODUCTION_ROUTES.stats, icon: TrendingUp },
     ],
   },
   {
     title: 'Projects',
     items: [
       { label: 'All Projects', path: PRODUCTION_ROUTES.projects, icon: Film },
-      { label: 'Active', path: PRODUCTION_ROUTES.projectsActive, icon: PlayCircle },
-      { label: 'In Development', path: PRODUCTION_ROUTES.projectsDevelopment, icon: Edit },
-      { label: 'Post-Production', path: PRODUCTION_ROUTES.projectsPost, icon: Layers },
-      { label: 'Completed', path: PRODUCTION_ROUTES.projectsCompleted, icon: CheckCircle },
       { label: 'Pipeline', path: PRODUCTION_ROUTES.pipeline, icon: GitBranch },
     ],
   },
   {
     title: 'Submissions',
     items: [
-      { label: 'All Submissions', path: PRODUCTION_ROUTES.submissions, icon: FolderOpen },
-      { label: 'New', path: PRODUCTION_ROUTES.submissionsNew, icon: Plus },
-      { label: 'Under Review', path: PRODUCTION_ROUTES.submissionsReview, icon: Eye },
-      { label: 'Shortlisted', path: PRODUCTION_ROUTES.submissionsShortlisted, icon: FileCheck },
-      { label: 'Accepted', path: PRODUCTION_ROUTES.submissionsAccepted, icon: ThumbsUp },
-      { label: 'Rejected', path: PRODUCTION_ROUTES.submissionsRejected, icon: ThumbsDown },
-      { label: 'Archive', path: PRODUCTION_ROUTES.submissionsArchive, icon: Archive },
+      { label: 'Submissions', path: PRODUCTION_ROUTES.submissions, icon: FolderOpen },
     ],
   },
   {
-    title: 'Create',
+    title: 'Pitches',
     items: [
-      { label: 'Upload Pitch', path: PRODUCTION_ROUTES.pitchNew, icon: Upload },
+      { label: 'Create Pitch', path: PRODUCTION_ROUTES.pitchNew, icon: Upload },
+      { label: 'Saved Pitches', path: PRODUCTION_ROUTES.saved, icon: Bookmark },
+      { label: 'Following', path: PRODUCTION_ROUTES.following, icon: Users },
+    ],
+  },
+  {
+    title: 'Team',
+    items: [
+      { label: 'Members', path: PRODUCTION_ROUTES.teamManagement, icon: Users },
+      { label: 'Invite', path: PRODUCTION_ROUTES.teamInvite, icon: UserPlus },
     ],
   },
   {
     title: 'Operations',
     items: [
       { label: 'Revenue', path: PRODUCTION_ROUTES.revenue, icon: DollarSign },
-      { label: 'Saved Pitches', path: PRODUCTION_ROUTES.saved, icon: Bookmark },
       { label: 'Collaborations', path: PRODUCTION_ROUTES.collaborations, icon: GitBranch },
+      { label: 'NDAs', path: '/production/dashboard', icon: Shield },
     ],
   },
   {
-    title: 'Team',
+    title: '',
     items: [
-      { label: 'Team Overview', path: PRODUCTION_ROUTES.teamManagement, icon: UsersRound },
-      { label: 'Members', path: PRODUCTION_ROUTES.teamMembers, icon: Users },
-      { label: 'Invite Members', path: PRODUCTION_ROUTES.teamInvite, icon: UserPlus },
-      { label: 'Manage Roles', path: PRODUCTION_ROUTES.teamRoles, icon: Shield },
-    ],
-  },
-  {
-    title: 'Account',
-    items: [
-      { label: 'Following', path: PRODUCTION_ROUTES.following, icon: Users },
+      { label: 'Messages', path: PRODUCTION_ROUTES.messages, icon: MessageSquare },
+      { label: 'Calendar', path: PRODUCTION_ROUTES.calendar, icon: Calendar },
       { label: 'Settings', path: PRODUCTION_ROUTES.settings, icon: Settings },
     ],
   },
@@ -95,25 +82,28 @@ export function EnhancedProductionNav() {
       <div className="p-4">
         <h2 className="text-xl font-bold text-blue-600 mb-4">Production Portal</h2>
 
-        {productionNavigationSections.map((section) => (
-          <div key={section.title} className="mb-6">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              {section.title}
-            </h3>
+        {productionNavigationSections.map((section, sectionIdx) => (
+          <div key={section.title || `section-${sectionIdx}`} className="mb-5">
+            {section.title && (
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                {section.title}
+              </h3>
+            )}
             <div className="space-y-1">
               {section.items.map((item) => {
                 const Icon = item.icon;
-                const isActive = location.pathname === item.path;
-                
+                const isActive = location.pathname === item.path ||
+                  (item.path !== PRODUCTION_ROUTES.dashboard && location.pathname.startsWith(item.path));
+
                 return (
                   <button
-                    key={item.path}
+                    key={item.path + item.label}
                     onClick={() => navigate(item.path)}
                     className={`
                       w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm
                       transition-colors duration-200
-                      ${isActive 
-                        ? 'bg-blue-50 text-blue-600 font-medium' 
+                      ${isActive
+                        ? 'bg-blue-50 text-blue-600 font-medium'
                         : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                       }
                     `}
