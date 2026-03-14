@@ -115,6 +115,8 @@ const ProductionPitchView: React.FC = () => {
     { role: 'Composer', name: '', status: 'pending' }
   ]);
 
+  const isOwner = !!(pitch?.userId && authUser?.id && String(pitch.userId) === String(authUser.id));
+
   useEffect(() => {
     if (id) {
       fetchPitchData();
@@ -446,13 +448,15 @@ const ProductionPitchView: React.FC = () => {
             <span className="hidden sm:inline">{isShortlisted ? 'Shortlisted' : 'Shortlist'}</span>
           </button>
 
-          <button
-            onClick={handleContactCreator}
-            className="flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
-          >
-            <MessageSquare className="h-4 w-4 sm:mr-1.5" />
-            <span className="hidden sm:inline">Contact</span>
-          </button>
+          {!isOwner && (
+            <button
+              onClick={handleContactCreator}
+              className="flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+            >
+              <MessageSquare className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Contact</span>
+            </button>
+          )}
 
           <button
             onClick={handleSharePitch}
@@ -821,68 +825,83 @@ const ProductionPitchView: React.FC = () => {
 
           {/* Right Column - Sidebar */}
           <div className="space-y-6">
-            {/* Production Actions */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Production Actions</h3>
-              <div className="space-y-2">
-                <button
-                  onClick={() => {
-                    navigate(`/production/messages?recipient=${pitch?.userId}&pitch=${id}&subject=${encodeURIComponent(`Script Request: ${pitch?.title}`)}&body=${encodeURIComponent(`Hi ${pitch?.creatorName || 'there'},\n\nI'm interested in your pitch "${pitch?.title}" and would like to request the full script for review.\n\nLooking forward to discussing this further.`)}`);
-                  }}
-                  className="w-full flex items-center justify-between px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
-                >
-                  <span>Request Full Script</span>
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-                {!pitch?.hasSignedNDA && (
+            {/* Production Actions — only for pitches by other users */}
+            {isOwner ? (
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Pitch</h3>
+                <div className="space-y-2">
                   <button
-                    onClick={async () => {
-                      if (!id) return;
-                      if (!confirm(`Request NDA access? This costs ${getCreditCost('nda_request')} credits.`)) return;
-                      try {
-                        const res = await apiClient.post('/api/ndas/request', { pitchId: id });
-                        if (res.success) {
-                          toast.success('NDA request sent');
-                        } else {
-                          toast.error((res.error as any)?.message || 'Failed to request NDA');
-                        }
-                      } catch (err) {
-                        const e = err instanceof Error ? err : new Error(String(err));
-                        toast.error(e.message);
-                      }
-                    }}
-                    className="w-full flex items-center justify-between px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
+                    onClick={() => setShowStartProjectModal(true)}
+                    className="w-full flex items-center justify-between px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
                   >
-                    <span>Request NDA ({getCreditCost('nda_request')} credits)</span>
-                    <Shield className="h-4 w-4" />
+                    <span>Start Project</span>
+                    <ChevronRight className="h-4 w-4" />
                   </button>
-                )}
-                <button
-                  onClick={() => setShowScheduleModal(true)}
-                  className="w-full flex items-center justify-between px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  <span>Schedule Meeting</span>
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => {
-                    navigate(`/production/messages?recipient=${pitch?.userId}&pitch=${id}`);
-                    toast('Start your negotiation discussion');
-                  }}
-                  className="w-full flex items-center justify-between px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                >
-                  <span>Start Negotiations</span>
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => setShowStartProjectModal(true)}
-                  className="w-full flex items-center justify-between px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                >
-                  <span>Start Project</span>
-                  <ChevronRight className="h-4 w-4" />
-                </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Production Actions</h3>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => {
+                      navigate(`/production/messages?recipient=${pitch?.userId}&pitch=${id}&subject=${encodeURIComponent(`Script Request: ${pitch?.title}`)}&body=${encodeURIComponent(`Hi ${pitch?.creatorName || 'there'},\n\nI'm interested in your pitch "${pitch?.title}" and would like to request the full script for review.\n\nLooking forward to discussing this further.`)}`);
+                    }}
+                    className="w-full flex items-center justify-between px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+                  >
+                    <span>Request Full Script</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                  {!pitch?.hasSignedNDA && (
+                    <button
+                      onClick={async () => {
+                        if (!id) return;
+                        if (!confirm(`Request NDA access? This costs ${getCreditCost('nda_request')} credits.`)) return;
+                        try {
+                          const res = await apiClient.post('/api/ndas/request', { pitchId: id });
+                          if (res.success) {
+                            toast.success('NDA request sent');
+                          } else {
+                            toast.error((res.error as any)?.message || 'Failed to request NDA');
+                          }
+                        } catch (err) {
+                          const e = err instanceof Error ? err : new Error(String(err));
+                          toast.error(e.message);
+                        }
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
+                    >
+                      <span>Request NDA ({getCreditCost('nda_request')} credits)</span>
+                      <Shield className="h-4 w-4" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowScheduleModal(true)}
+                    className="w-full flex items-center justify-between px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    <span>Schedule Meeting</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigate(`/production/messages?recipient=${pitch?.userId}&pitch=${id}`);
+                      toast('Start your negotiation discussion');
+                    }}
+                    className="w-full flex items-center justify-between px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    <span>Start Negotiations</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setShowStartProjectModal(true)}
+                    className="w-full flex items-center justify-between px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                  >
+                    <span>Start Project</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Production Requirements */}
             <div className="bg-white rounded-xl shadow-lg p-6">
