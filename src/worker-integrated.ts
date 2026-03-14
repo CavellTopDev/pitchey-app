@@ -16707,18 +16707,24 @@ Signatures: [To be completed upon signing]
       if (!authCheck.authorized) return authCheck.response;
 
       const body = await request.json() as any;
-      const { title, description, status, budget, startDate, endDate, genre, format, relatedPitchId } = body;
+      const { title, pitchId, stage, priority, budget, startDate, targetCompletionDate, notes } = body;
 
       if (!title) {
         return new ApiResponseBuilder(request).error(ErrorCode.VALIDATION_ERROR, 'Project title is required');
       }
 
+      const budgetNum = parseFloat(budget) || 0;
+
       const result = await this.db.query(
-        `INSERT INTO production_projects (production_company_id, title, description, status, budget, start_date, end_date, genre, format, related_pitch_id, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+        `INSERT INTO production_pipeline
+         (production_company_id, pitch_id, title, stage, status, priority,
+          budget_allocated, budget_remaining, start_date, target_completion_date, notes,
+          created_at, updated_at)
+         VALUES ($1, $2, $3, $4, 'active', $5, $6, $6, $7, $8, $9, NOW(), NOW())
          RETURNING *`,
-        [authCheck.user.id, title, description || null, status || 'development', budget || null,
-         startDate || null, endDate || null, genre || null, format || null, relatedPitchId || null]
+        [authCheck.user.id, pitchId || null, title, stage || 'development',
+         priority || 'medium', budgetNum, startDate || null,
+         targetCompletionDate || null, notes || null]
       ) as any[];
 
       return new ApiResponseBuilder(request).success({ project: result[0] });
@@ -16736,19 +16742,28 @@ Signatures: [To be completed upon signing]
       const url = new URL(request.url);
       const projectId = url.pathname.split('/').pop();
       const body = await request.json() as any;
-      const { title, description, status, budget, startDate, endDate, genre, format } = body;
+      const { title, stage, status, priority, budget, budgetSpent, startDate, targetCompletionDate, completionPercentage, notes } = body;
 
       const result = await this.db.query(
-        `UPDATE production_projects
-         SET title = COALESCE($1, title), description = COALESCE($2, description),
-             status = COALESCE($3, status), budget = COALESCE($4, budget),
-             start_date = COALESCE($5, start_date), end_date = COALESCE($6, end_date),
-             genre = COALESCE($7, genre), format = COALESCE($8, format), updated_at = NOW()
-         WHERE id = $9 AND production_company_id = $10
+        `UPDATE production_pipeline
+         SET title = COALESCE($1, title), stage = COALESCE($2, stage),
+             status = COALESCE($3, status), priority = COALESCE($4, priority),
+             budget_allocated = COALESCE($5, budget_allocated),
+             budget_spent = COALESCE($6, budget_spent),
+             budget_remaining = COALESCE($5, budget_allocated) - COALESCE($6, budget_spent, 0),
+             start_date = COALESCE($7, start_date),
+             target_completion_date = COALESCE($8, target_completion_date),
+             completion_percentage = COALESCE($9, completion_percentage),
+             notes = COALESCE($10, notes),
+             updated_at = NOW()
+         WHERE id = $11 AND production_company_id = $12
          RETURNING *`,
-        [title || null, description || null, status || null, budget || null,
-         startDate || null, endDate || null, genre || null, format || null,
-         projectId, authCheck.user.id]
+        [title || null, stage || null, status || null, priority || null,
+         budget != null ? parseFloat(budget) : null,
+         budgetSpent != null ? parseFloat(budgetSpent) : null,
+         startDate || null, targetCompletionDate || null,
+         completionPercentage != null ? parseInt(completionPercentage) : null,
+         notes || null, projectId, authCheck.user.id]
       ) as any[];
 
       if (!result || result.length === 0) {

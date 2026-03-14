@@ -65,9 +65,9 @@ export default function ProductionProjectsDevelopment() {
   const fetchDevelopmentProjects = async () => {
     try {
       setLoading(true);
-    const response = await fetch(`${API_URL}/api/production/projects?status=development`, {
+    const response = await fetch(`${API_URL}/api/production/projects?stage=development`, {
       method: 'GET',
-      credentials: 'include' // Send cookies for Better Auth session
+      credentials: 'include'
     });
 
       if (!response.ok) {

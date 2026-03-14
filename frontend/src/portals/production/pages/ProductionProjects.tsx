@@ -1,165 +1,181 @@
-import { useState, useEffect } from 'react';
-import { Film, AlertCircle, TrendingUp, DollarSign, Users, MoreVertical, Eye, Edit, Trash2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Film, AlertCircle, TrendingUp, DollarSign, Plus, MoreVertical, Eye, Edit, Trash2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ProductionService, type ProductionProject as ApiProject } from '../services/production.service';
+import { apiClient } from '@/lib/api-client';
 
-interface Project {
-  id: string;
+interface PipelineProject {
+  id: number;
   title: string;
-  genre: string;
-  status: 'development' | 'production' | 'post-production' | 'completed';
-  budget: number;
-  startDate: string;
-  endDate?: string;
-  progress: number;
-  team: number;
-  director?: string;
-  producer?: string;
-  risk: 'low' | 'medium' | 'high';
+  stage: string;
+  status: string;
+  priority: string;
+  budget_allocated: number;
+  budget_spent: number;
+  budget_remaining: number;
+  completion_percentage: number;
+  start_date: string | null;
+  target_completion_date: string | null;
+  next_milestone: string | null;
+  milestone_date: string | null;
+  pitch_id: number | null;
+  genre: string | null;
+  format: string | null;
+  logline: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
-// Transform API project to local format
-function transformProject(apiProject: ApiProject): Project {
-  // The API returns raw pitch rows, so handle both formats
-  const raw = apiProject as unknown as Record<string, unknown>;
-
-  // Calculate progress based on status
-  const statusProgress: Record<string, number> = {
-    'draft': 5,
-    'published': 10,
-    'development': 20,
-    'pre-production': 35,
-    'production': 60,
-    'post-production': 85,
-    'completed': 100,
-    'on-hold': 10
-  };
-
-  // Parse budget from various formats
-  const rawBudget = apiProject.budget || raw.estimated_budget || raw.budget_range || 0;
-  let budget = 0;
-  if (typeof rawBudget === 'number') {
-    budget = rawBudget;
-  } else if (typeof rawBudget === 'string') {
-    const cleaned = rawBudget.replace(/[^0-9.]/g, '');
-    budget = parseFloat(cleaned) || 0;
-  }
-
-  // Calculate risk based on budget vs spent ratio
-  let risk: 'low' | 'medium' | 'high' = 'low';
-  if (apiProject.budget > 0 && apiProject.spentBudget) {
-    const spentRatio = apiProject.spentBudget / apiProject.budget;
-    if (spentRatio > 0.9) risk = 'high';
-    else if (spentRatio > 0.7) risk = 'medium';
-  }
-
-  // Find director and producer from team
-  const director = apiProject.team?.find(t => t.role.toLowerCase().includes('director'))?.name;
-  const producer = apiProject.team?.find(t => t.role.toLowerCase().includes('producer'))?.name;
-
-  // Parse date from various formats
-  const dateStr = apiProject.startDate || (raw.created_at as string) || '';
-  const status = (raw.status as string) || apiProject.status || 'development';
-
-  return {
-    id: String(apiProject.id),
-    title: apiProject.title || (raw.title as string) || 'Untitled',
-    genre: apiProject.pitch?.genre || (raw.genre as string) || 'Drama',
-    status: status as Project['status'],
-    budget,
-    startDate: dateStr,
-    endDate: apiProject.endDate,
-    progress: statusProgress[status] || 0,
-    team: apiProject.team?.length || 0,
-    director,
-    producer,
-    risk
-  };
-}
-
-const statusColors: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-800',
-  published: 'bg-emerald-100 text-emerald-800',
+const stageColors: Record<string, string> = {
   development: 'bg-blue-100 text-blue-800',
   'pre-production': 'bg-indigo-100 text-indigo-800',
   production: 'bg-purple-100 text-purple-800',
   'post-production': 'bg-orange-100 text-orange-800',
-  completed: 'bg-green-100 text-green-800',
-  'on-hold': 'bg-yellow-100 text-yellow-800'
+  delivery: 'bg-teal-100 text-teal-800',
+  release: 'bg-green-100 text-green-800',
 };
 
-const riskColors = {
-  low: 'text-green-600',
-  medium: 'text-yellow-600',
-  high: 'text-red-600'
+const priorityColors: Record<string, string> = {
+  low: 'text-gray-600',
+  medium: 'text-blue-600',
+  high: 'text-orange-600',
+  urgent: 'text-red-600',
 };
+
+function formatBudget(amount: number): string {
+  if (!amount || amount === 0) return 'TBD';
+  if (amount >= 1000000) return `$${(amount / 1000000).toFixed(1)}M`;
+  if (amount >= 1000) return `$${(amount / 1000).toFixed(0)}K`;
+  return `$${amount.toFixed(0)}`;
+}
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return 'Not set';
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? 'Not set' : d.toLocaleDateString();
+}
 
 export default function ProductionProjects() {
   const navigate = useNavigate();
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<PipelineProject[]>([]);
   const [filter, setFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState({ title: '', stage: 'development', priority: 'medium', budget: '', startDate: '', notes: '' });
+  const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
-    void loadProjects();
-  }, []);
-
-  const loadProjects = async () => {
+  const loadProjects = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-
-      const response = await ProductionService.getProjects();
-
-      if (response.projects && response.projects.length > 0) {
-        setProjects(response.projects.map(transformProject));
+      const response = await apiClient.get<{ projects: PipelineProject[] }>('/api/production/projects');
+      if (response.success) {
+        setProjects(response.data?.projects || []);
       } else {
-        // If no projects from API, set empty array
         setProjects([]);
       }
     } catch (err) {
-      console.error('Failed to load projects:', err);
+      const e = err instanceof Error ? err : new Error(String(err));
+      console.error('Failed to load projects:', e);
       setError('Failed to load projects. Please try again.');
       setProjects([]);
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    void loadProjects();
+  }, [loadProjects]);
+
+  const handleCreateProject = async () => {
+    if (!createForm.title.trim()) {
+      toast.error('Project title is required');
+      return;
+    }
+    setCreating(true);
+    try {
+      const response = await apiClient.post<{ project: PipelineProject }>('/api/production/projects', {
+        title: createForm.title,
+        stage: createForm.stage,
+        priority: createForm.priority,
+        budget: createForm.budget ? parseFloat(createForm.budget) : 0,
+        startDate: createForm.startDate || null,
+        notes: createForm.notes || null,
+      });
+      if (response.success && response.data?.project) {
+        setProjects(prev => [response.data!.project, ...prev]);
+        setShowCreateModal(false);
+        setCreateForm({ title: '', stage: 'development', priority: 'medium', budget: '', startDate: '', notes: '' });
+        toast.success('Project created');
+      } else {
+        toast.error('Failed to create project');
+      }
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      toast.error(e.message || 'Failed to create project');
+    } finally {
+      setCreating(false);
+    }
   };
 
-  const filteredProjects = filter === 'all' 
-    ? projects 
-    : projects.filter(p => p.status === filter);
+  const handleArchiveProject = async (projectId: number) => {
+    if (!window.confirm('Archive this project?')) return;
+    try {
+      await apiClient.put(`/api/production/projects/${projectId}`, { status: 'cancelled' });
+      setProjects(prev => prev.filter(p => p.id !== projectId));
+      toast.success('Project archived');
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      toast.error(e.message || 'Failed to archive project');
+    }
+  };
+
+  const filteredProjects = filter === 'all'
+    ? projects
+    : projects.filter(p => p.stage === filter);
 
   const stats = {
     total: projects.length,
-    active: projects.filter(p => p.status !== 'completed').length,
-    budget: projects.reduce((sum, p) => sum + p.budget, 0),
-    teamSize: projects.reduce((sum, p) => sum + p.team, 0)
+    active: projects.filter(p => p.status === 'active').length,
+    budget: projects.reduce((sum, p) => sum + (Number(p.budget_allocated) || 0), 0),
+    avgProgress: projects.length > 0
+      ? Math.round(projects.reduce((sum, p) => sum + (p.completion_percentage || 0), 0) / projects.length)
+      : 0,
   };
 
   return (
     <div>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Error State */}
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Production Projects</h1>
+            <p className="text-gray-600 mt-1">Manage your production pipeline</p>
+          </div>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+          >
+            <Plus className="w-4 h-4" />
+            New Project
+          </button>
+        </div>
+
+        {/* Error */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
             <div className="flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-red-600" />
               <p className="text-red-700">{error}</p>
-              <button
-                onClick={() => { void loadProjects(); }}
-                className="ml-auto text-red-600 hover:text-red-800 font-medium"
-              >
-                Retry
-              </button>
+              <button onClick={() => void loadProjects()} className="ml-auto text-red-600 hover:text-red-800 font-medium">Retry</button>
             </div>
           </div>
         )}
 
-        {/* Stats Cards */}
+        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
@@ -170,36 +186,31 @@ export default function ProductionProjects() {
               <Film className="w-8 h-8 text-purple-600" />
             </div>
           </div>
-
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Active Projects</p>
+                <p className="text-sm text-gray-600">Active</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.active}</p>
               </div>
               <TrendingUp className="w-8 h-8 text-blue-600" />
             </div>
           </div>
-
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total Budget</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats.budget > 0 ? `$${(stats.budget / 1000000).toFixed(1)}M` : '$0'}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">{formatBudget(stats.budget)}</p>
               </div>
               <DollarSign className="w-8 h-8 text-green-600" />
             </div>
           </div>
-
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Team Members</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.teamSize}</p>
+                <p className="text-sm text-gray-600">Avg Progress</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.avgProgress}%</p>
               </div>
-              <Users className="w-8 h-8 text-indigo-600" />
+              <TrendingUp className="w-8 h-8 text-indigo-600" />
             </div>
           </div>
         </div>
@@ -207,20 +218,18 @@ export default function ProductionProjects() {
         {/* Filter Tabs */}
         <div className="bg-white rounded-lg shadow mb-6">
           <div className="border-b">
-            <nav className="flex -mb-px">
-              {['all', 'published', 'development', 'production', 'post-production', 'completed'].map((status) => (
+            <nav className="flex -mb-px overflow-x-auto">
+              {['all', 'development', 'pre-production', 'production', 'post-production', 'delivery', 'release'].map((stage) => (
                 <button
-                  key={status}
-                  onClick={() => setFilter(status)}
-                  className={`
-                    py-3 px-6 text-sm font-medium capitalize border-b-2 transition-colors
-                    ${filter === status
+                  key={stage}
+                  onClick={() => setFilter(stage)}
+                  className={`py-3 px-6 text-sm font-medium capitalize border-b-2 transition-colors whitespace-nowrap ${
+                    filter === stage
                       ? 'border-purple-600 text-purple-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }
-                  `}
+                  }`}
                 >
-                  {status.replace('-', ' ')}
+                  {stage === 'all' ? 'All' : stage.replace('-', ' ')}
                 </button>
               ))}
             </nav>
@@ -230,7 +239,28 @@ export default function ProductionProjects() {
         {/* Projects Grid */}
         {loading ? (
           <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600" />
+          </div>
+        ) : filteredProjects.length === 0 ? (
+          <div className="text-center py-16 bg-white rounded-lg shadow">
+            <Film className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {projects.length === 0 ? 'No projects yet' : 'No projects in this stage'}
+            </h3>
+            <p className="text-gray-500 mb-6">
+              {projects.length === 0
+                ? 'Create your first production project to start tracking progress'
+                : 'Move projects through stages as they progress'}
+            </p>
+            {projects.length === 0 && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+              >
+                <Plus className="w-5 h-5" />
+                Create First Project
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -240,11 +270,14 @@ export default function ProductionProjects() {
                   <div className="flex justify-between items-start mb-4">
                     <div>
                       <h3 className="text-xl font-bold text-gray-900">{project.title}</h3>
-                      <p className="text-sm text-gray-600">{project.genre}</p>
+                      {project.genre && <p className="text-sm text-gray-600">{project.genre}</p>}
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[project.status] || 'bg-gray-100 text-gray-800'}`}>
-                        {project.status.replace('-', ' ')}
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${stageColors[project.stage] || 'bg-gray-100 text-gray-800'}`}>
+                        {project.stage.replace('-', ' ')}
+                      </span>
+                      <span className={`text-xs font-medium ${priorityColors[project.priority] || 'text-gray-600'}`}>
+                        {project.priority}
                       </span>
                       <button className="p-1 hover:bg-gray-100 rounded">
                         <MoreVertical className="w-4 h-4 text-gray-500" />
@@ -252,85 +285,69 @@ export default function ProductionProjects() {
                     </div>
                   </div>
 
-                  {/* Progress Bar */}
+                  {/* Progress */}
                   <div className="mb-4">
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-gray-600">Progress</span>
-                      <span className="font-medium">{project.progress}%</span>
+                      <span className="font-medium">{project.completion_percentage || 0}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
+                      <div
                         className="bg-gradient-to-r from-purple-600 to-indigo-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${project.progress}%` }}
+                        style={{ width: `${project.completion_percentage || 0}%` }}
                       />
                     </div>
                   </div>
 
-                  {/* Project Details */}
+                  {/* Details */}
                   <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
                     <div>
                       <p className="text-gray-600">Budget</p>
-                      <p className="font-semibold">{project.budget > 0 ? `$${(project.budget / 1000000).toFixed(1)}M` : 'TBD'}</p>
+                      <p className="font-semibold">{formatBudget(Number(project.budget_allocated))}</p>
                     </div>
                     <div>
-                      <p className="text-gray-600">Team Size</p>
-                      <p className="font-semibold">{project.team} members</p>
+                      <p className="text-gray-600">Spent</p>
+                      <p className="font-semibold">{formatBudget(Number(project.budget_spent))}</p>
                     </div>
                     <div>
                       <p className="text-gray-600">Start Date</p>
-                      <p className="font-semibold">{project.startDate && !isNaN(new Date(project.startDate).getTime()) ? new Date(project.startDate).toLocaleDateString() : 'Not set'}</p>
+                      <p className="font-semibold">{formatDate(project.start_date)}</p>
                     </div>
                     <div>
-                      <p className="text-gray-600">Risk Level</p>
-                      <p className={`font-semibold ${riskColors[project.risk]}`}>
-                        {project.risk.charAt(0).toUpperCase() + project.risk.slice(1)}
-                      </p>
+                      <p className="text-gray-600">Target</p>
+                      <p className="font-semibold">{formatDate(project.target_completion_date)}</p>
                     </div>
                   </div>
 
-                  {/* Team Info */}
-                  {(project.director || project.producer) && (
-                    <div className="border-t pt-4 mb-4">
-                      {project.director && (
-                        <p className="text-sm text-gray-600">
-                          Director: <span className="font-medium text-gray-900">{project.director}</span>
-                        </p>
-                      )}
-                      {project.producer && (
-                        <p className="text-sm text-gray-600">
-                          Producer: <span className="font-medium text-gray-900">{project.producer}</span>
-                        </p>
-                      )}
+                  {/* Next Milestone */}
+                  {project.next_milestone && (
+                    <div className="border-t pt-3 mb-4">
+                      <p className="text-sm text-gray-600">
+                        Next: <span className="font-medium text-gray-900">{project.next_milestone}</span>
+                        {project.milestone_date && (
+                          <span className="text-gray-500"> — {formatDate(project.milestone_date as string)}</span>
+                        )}
+                      </p>
                     </div>
                   )}
 
-                  {/* Action Buttons */}
+                  {/* Actions */}
                   <div className="flex gap-2">
                     <button
-                      onClick={() => navigate(`/production/pitch/${project.id}`)}
+                      onClick={() => navigate(project.pitch_id ? `/production/pitch/${project.pitch_id}` : `/production/projects`)}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
                     >
                       <Eye className="w-4 h-4" />
                       View Details
                     </button>
                     <button
-                      onClick={() => navigate(`/production/pitch/${project.id}`)}
+                      onClick={() => navigate(`/production/projects`)}
                       className="flex items-center justify-center p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
                     >
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={async () => {
-                        if (!window.confirm('Archive this project? It can be restored later.')) return;
-                        try {
-                          await ProductionService.updateProject(Number(project.id), { status: 'on-hold' } as any);
-                          setProjects(prev => prev.filter(p => p.id !== project.id));
-                          toast.success('Project archived');
-                        } catch (err) {
-                          const e = err instanceof Error ? err : new Error(String(err));
-                          toast.error(e.message || 'Failed to archive project');
-                        }
-                      }}
+                      onClick={() => void handleArchiveProject(project.id)}
                       className="flex items-center justify-center p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -341,14 +358,106 @@ export default function ProductionProjects() {
             ))}
           </div>
         )}
-
-        {filteredProjects.length === 0 && !loading && (
-          <div className="text-center py-12">
-            <Film className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">No projects found</p>
-          </div>
-        )}
       </div>
+
+      {/* Create Project Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-lg font-semibold text-gray-900">New Production Project</h2>
+              <button onClick={() => setShowCreateModal(false)} className="p-1 text-gray-400 hover:text-gray-600 rounded">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                <input
+                  type="text"
+                  value={createForm.title}
+                  onChange={(e) => setCreateForm(prev => ({ ...prev, title: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                  placeholder="Project title"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Stage</label>
+                  <select
+                    value={createForm.stage}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, stage: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                  >
+                    <option value="development">Development</option>
+                    <option value="pre-production">Pre-Production</option>
+                    <option value="production">Production</option>
+                    <option value="post-production">Post-Production</option>
+                    <option value="delivery">Delivery</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                  <select
+                    value={createForm.priority}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, priority: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Budget ($)</label>
+                <input
+                  type="number"
+                  value={createForm.budget}
+                  onChange={(e) => setCreateForm(prev => ({ ...prev, budget: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                  placeholder="e.g. 500000"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                <input
+                  type="date"
+                  value={createForm.startDate}
+                  onChange={(e) => setCreateForm(prev => ({ ...prev, startDate: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea
+                  value={createForm.notes}
+                  onChange={(e) => setCreateForm(prev => ({ ...prev, notes: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                  rows={3}
+                  placeholder="Project notes..."
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 p-4 border-t">
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void handleCreateProject()}
+                disabled={creating || !createForm.title.trim()}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
+              >
+                {creating ? 'Creating...' : 'Create Project'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

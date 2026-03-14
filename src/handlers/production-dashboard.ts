@@ -428,35 +428,68 @@ export async function productionPipelineHandler(request: Request, env: Env) {
     const sql = neon(env.DATABASE_URL);
     
     if (request.method === 'GET') {
-      // Get published pitches as potential production projects
+      // Get production pipeline projects for this user
       try {
-        const status = url.searchParams.get('status') || 'published';
+        const stage = url.searchParams.get('stage');
+        const statusFilter = url.searchParams.get('status');
         const limit = parseInt(url.searchParams.get('limit') || '50');
 
-        const projects = await sql`
-          SELECT
-            p.id,
-            p.title,
-            p.genre,
-            p.logline,
-            p.short_synopsis,
-            p.format,
-            p.estimated_budget,
-            p.budget_range,
-            p.status,
-            p.created_at,
-            p.updated_at,
-            p.view_count,
-            p.like_count,
-            u.username as creator_username,
-            u.email as creator_email
-          FROM pitches p
-          JOIN users u ON p.user_id = u.id
-          WHERE (p.user_id = ${user.id} OR p.creator_id = ${user.id})
-            AND p.status = ${status}
-          ORDER BY p.created_at DESC
-          LIMIT ${limit}
-        `;
+        // Valid pipeline stages and statuses
+        const validStages = ['development', 'pre-production', 'production', 'post-production', 'delivery', 'release'];
+        const validStatuses = ['active', 'paused', 'completed', 'cancelled'];
+
+        let projects;
+        if (stage && validStages.includes(stage)) {
+          projects = await sql`
+            SELECT
+              pp.id, pp.title, pp.stage, pp.status, pp.priority,
+              pp.budget_allocated, pp.budget_spent, pp.budget_remaining,
+              pp.completion_percentage, pp.start_date, pp.target_completion_date,
+              pp.next_milestone, pp.milestone_date, pp.notes,
+              pp.pitch_id, pp.created_at, pp.updated_at,
+              p.genre, p.format, p.logline, p.short_synopsis,
+              p.view_count, p.like_count
+            FROM production_pipeline pp
+            LEFT JOIN pitches p ON pp.pitch_id = p.id
+            WHERE pp.production_company_id = ${user.id}
+              AND pp.stage = ${stage}
+            ORDER BY pp.updated_at DESC
+            LIMIT ${limit}
+          `;
+        } else if (statusFilter && validStatuses.includes(statusFilter)) {
+          projects = await sql`
+            SELECT
+              pp.id, pp.title, pp.stage, pp.status, pp.priority,
+              pp.budget_allocated, pp.budget_spent, pp.budget_remaining,
+              pp.completion_percentage, pp.start_date, pp.target_completion_date,
+              pp.next_milestone, pp.milestone_date, pp.notes,
+              pp.pitch_id, pp.created_at, pp.updated_at,
+              p.genre, p.format, p.logline, p.short_synopsis,
+              p.view_count, p.like_count
+            FROM production_pipeline pp
+            LEFT JOIN pitches p ON pp.pitch_id = p.id
+            WHERE pp.production_company_id = ${user.id}
+              AND pp.status = ${statusFilter}
+            ORDER BY pp.updated_at DESC
+            LIMIT ${limit}
+          `;
+        } else {
+          projects = await sql`
+            SELECT
+              pp.id, pp.title, pp.stage, pp.status, pp.priority,
+              pp.budget_allocated, pp.budget_spent, pp.budget_remaining,
+              pp.completion_percentage, pp.start_date, pp.target_completion_date,
+              pp.next_milestone, pp.milestone_date, pp.notes,
+              pp.pitch_id, pp.created_at, pp.updated_at,
+              p.genre, p.format, p.logline, p.short_synopsis,
+              p.view_count, p.like_count
+            FROM production_pipeline pp
+            LEFT JOIN pitches p ON pp.pitch_id = p.id
+            WHERE pp.production_company_id = ${user.id}
+            ORDER BY pp.updated_at DESC
+            LIMIT ${limit}
+          `;
+        }
 
         return new Response(JSON.stringify({
           success: true,

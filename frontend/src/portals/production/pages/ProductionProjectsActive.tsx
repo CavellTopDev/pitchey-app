@@ -67,9 +67,9 @@ export default function ProductionProjectsActive() {
   const fetchActiveProjects = async () => {
     try {
       setLoading(true);
-    const response = await fetch(`${API_URL}/api/production/projects?status=active`, {
+    const response = await fetch(`${API_URL}/api/production/projects?stage=production`, {
       method: 'GET',
-      credentials: 'include' // Send cookies for Better Auth session
+      credentials: 'include'
     });
 
       if (!response.ok) {
