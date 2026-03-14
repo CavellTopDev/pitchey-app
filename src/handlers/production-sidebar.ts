@@ -269,7 +269,8 @@ export async function productionSubmissionsHandler(
   }
 
   try {
-    // "new" = published pitches not yet saved/reviewed by this production user
+    // "new" = NDA-signed pitches not yet reviewed by this production user
+    // Only shows pitches where this user has a signed NDA (via ndas or nda_requests table)
     // Other statuses = saved_pitches entries with matching review_status
     if (statusFilter === 'new') {
       const [submissions, countResult] = await Promise.all([
@@ -284,7 +285,13 @@ export async function productionSubmissionsHandler(
           FROM pitches p
           JOIN users u ON p.user_id = u.id
           LEFT JOIN saved_pitches sp ON sp.pitch_id = p.id AND sp.user_id = ${userId}
-          WHERE p.status = 'published' AND sp.id IS NULL
+          WHERE p.status = 'published'
+            AND sp.id IS NULL
+            AND (
+              EXISTS (SELECT 1 FROM ndas n WHERE n.pitch_id = p.id AND COALESCE(n.signer_id, n.user_id) = ${userId} AND n.status = 'signed')
+              OR EXISTS (SELECT 1 FROM nda_requests nr WHERE nr.pitch_id = p.id AND nr.requester_id = ${userId} AND nr.status = 'approved')
+              OR p.user_id = ${userId} OR p.creator_id = ${userId}
+            )
           ORDER BY p.created_at DESC
           LIMIT ${limit} OFFSET ${offset}
         `.catch(() => []),
@@ -292,7 +299,13 @@ export async function productionSubmissionsHandler(
           SELECT COUNT(*)::int AS total
           FROM pitches p
           LEFT JOIN saved_pitches sp ON sp.pitch_id = p.id AND sp.user_id = ${userId}
-          WHERE p.status = 'published' AND sp.id IS NULL
+          WHERE p.status = 'published'
+            AND sp.id IS NULL
+            AND (
+              EXISTS (SELECT 1 FROM ndas n WHERE n.pitch_id = p.id AND COALESCE(n.signer_id, n.user_id) = ${userId} AND n.status = 'signed')
+              OR EXISTS (SELECT 1 FROM nda_requests nr WHERE nr.pitch_id = p.id AND nr.requester_id = ${userId} AND nr.status = 'approved')
+              OR p.user_id = ${userId} OR p.creator_id = ${userId}
+            )
         `.catch(() => [{ total: 0 }]),
       ]);
 
