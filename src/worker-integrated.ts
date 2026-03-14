@@ -2141,6 +2141,10 @@ class RouteRegistry {
     // Pitch routes
     this.register('GET', '/api/pitches', this.getPitches.bind(this));
     this.register('POST', '/api/pitches', this.createPitch.bind(this));
+    this.register('POST', '/api/pitches/ai-extract', async (req) => {
+      const { aiPitchExtract } = await import('./handlers/ai-pitch-extract');
+      return aiPitchExtract(req, this.env);
+    });
     this.register('GET', '/api/pitches/public/:id', this.getPublicPitch.bind(this));
     this.register('GET', '/api/pitches/following', this.getPitchesFollowing.bind(this));
     this.register('GET', '/api/pitches/search', this.searchPitches.bind(this));  // Add search BEFORE :id

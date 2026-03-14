@@ -65,6 +65,11 @@ export const CREDIT_COSTS: CreditCost[] = [
     action: 'nda_request',
     credits: 10,
     description: 'NDA request to access pitch details'
+  },
+  {
+    action: 'ai_extract',
+    credits: 5,
+    description: 'AI auto-fill pitch from uploaded document'
   }
 ];
 

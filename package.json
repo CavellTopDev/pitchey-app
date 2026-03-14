@@ -40,6 +40,7 @@
     "perf:setup": "cd performance/lighthouse && npm install"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "@neondatabase/serverless": "^1.0.2",
     "@sendgrid/mail": "^8.1.6",
     "@sentry/cloudflare": "^8.40.0",

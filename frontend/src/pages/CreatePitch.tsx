@@ -43,6 +43,8 @@ export default function CreatePitch() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState<'form' | 'creating' | 'uploading' | 'complete'>('form');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [aiExtracting, setAiExtracting] = useState(false);
+  const aiFileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Track online/offline status
   useEffect(() => {
@@ -460,26 +462,114 @@ export default function CreatePitch() {
     }
   };
 
+  const handleAiExtract = async (file: File) => {
+    setAiExtracting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/pitches/ai-extract`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        error('AI Extraction Failed', data.error || 'Could not extract data from document');
+        return;
+      }
+
+      const extracted = data.data?.extracted;
+      if (!extracted) return;
+
+      // Auto-fill form fields from AI extraction
+      const updates: Partial<PitchFormData> = {};
+      if (extracted.title) updates.title = extracted.title;
+      if (extracted.logline) updates.logline = extracted.logline;
+      if (extracted.genre) updates.genre = extracted.genre;
+      if (extracted.shortSynopsis) updates.shortSynopsis = extracted.shortSynopsis;
+      if (extracted.themes && Array.isArray(extracted.themes)) updates.themes = extracted.themes;
+      if (extracted.toneAndStyle) updates.toneAndStyle = extracted.toneAndStyle;
+      if (extracted.comparableFilms) updates.comps = extracted.comparableFilms;
+      if (extracted.worldDescription) updates.worldDescription = extracted.worldDescription;
+      if (extracted.characters && Array.isArray(extracted.characters)) {
+        updates.characters = extracted.characters.map((c: any) => ({
+          name: c.name || '',
+          description: c.description || '',
+          age: c.age || '',
+          gender: c.gender || '',
+        }));
+      }
+
+      // Apply updates to form
+      setValues(updates);
+
+      success(
+        'AI Extraction Complete',
+        `Filled ${Object.keys(updates).length} fields from "${file.name}". ${data.data.creditsUsed} credits used.`
+      );
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      error('AI Extraction Failed', e.message);
+    } finally {
+      setAiExtracting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-50">
+      {/* Hidden file input for AI extraction */}
+      <input
+        ref={aiFileInputRef}
+        type="file"
+        accept=".pdf,.txt,.docx"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void handleAiExtract(file);
+          e.target.value = '';
+        }}
+      />
+
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4">
-            <button
-              {...a11y.button.getAttributes({
-                type: 'button',
-                ariaLabel: 'Go back to creator dashboard'
-              })}
-              onClick={() => navigate('/creator/dashboard')}
-              className={`p-2 text-gray-500 hover:text-gray-700 transition rounded-lg hover:bg-gray-100 ${a11y.classes.focusVisible}`}
-            >
-              <ArrowLeft className="w-5 h-5" aria-hidden="true" />
-            </button>
-            <div>
-              <h1 id="page-title" className="text-2xl font-bold text-gray-900">Create New Pitch</h1>
-              <p className="text-sm text-gray-500">Share your creative vision with potential investors</p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                {...a11y.button.getAttributes({
+                  type: 'button',
+                  ariaLabel: 'Go back'
+                })}
+                onClick={() => navigate(isProduction ? '/production/projects' : '/creator/dashboard')}
+                className={`p-2 text-gray-500 hover:text-gray-700 transition rounded-lg hover:bg-gray-100 ${a11y.classes.focusVisible}`}
+              >
+                <ArrowLeft className="w-5 h-5" aria-hidden="true" />
+              </button>
+              <div>
+                <h1 id="page-title" className="text-2xl font-bold text-gray-900">Create New Pitch</h1>
+                <p className="text-sm text-gray-500">Share your creative vision with potential investors</p>
+              </div>
             </div>
+            <button
+              onClick={() => aiFileInputRef.current?.click()}
+              disabled={aiExtracting}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition disabled:opacity-50 text-sm font-medium shadow-sm"
+            >
+              {aiExtracting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Extracting...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  Auto-fill from Document
+                </>
+              )}
+            </button>
           </div>
         </div>
       </header>
