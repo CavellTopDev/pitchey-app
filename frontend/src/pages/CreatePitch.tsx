@@ -10,6 +10,7 @@ import { useFormValidation } from '@/shared/hooks/useFormValidation';
 import { usePitchUploadManager } from '@features/pitches/hooks/usePitchUploadManager';
 import { PitchFormSchema, type PitchFormData, getCharacterCountInfo } from '../schemas/pitch.schema';
 import { a11y } from '../utils/accessibility';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { MESSAGES, VALIDATION_MESSAGES, SUCCESS_MESSAGES, ERROR_MESSAGES } from '@config/messages';
 import { CharacterManagement } from '@features/pitches/components/CharacterManagement';
 import type { Character } from '@shared/types/character';
@@ -37,6 +38,8 @@ import {
 export default function CreatePitch() {
   const navigate = useNavigate();
   const { success, error } = useToast();
+  const { user } = useBetterAuthStore();
+  const isProduction = user?.userType === 'production';
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState<'form' | 'creating' | 'uploading' | 'complete'>('form');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -427,7 +430,7 @@ export default function CreatePitch() {
         success(SUCCESS_MESSAGES.PITCH_CREATED || 'Pitch created successfully', 'Your pitch has been created and is ready for review.');
 
         // PHASE 4: Navigate only after everything completes
-        navigate('/creator/pitches');
+        navigate(isProduction ? '/production/projects' : '/creator/pitches');
       } catch (err: any) {
         console.error('Error creating pitch:', err);
         const errorMessage = err.message || ERROR_MESSAGES?.UNEXPECTED_ERROR || 'An unexpected error occurred';

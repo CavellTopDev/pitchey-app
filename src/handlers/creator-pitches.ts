@@ -14,7 +14,7 @@ export async function creatorPitchesHandler(request: Request, env: Env): Promise
   const corsHeaders = getCorsHeaders(origin);
 
   // Require creator role
-  const roleCheck = await requireRole(request, env, 'creator');
+  const roleCheck = await requireRole(request, env, ['creator', 'production']);
   if ('error' in roleCheck) {
     return roleCheck.error;
   }
@@ -192,7 +192,7 @@ export async function creatorActivitiesHandler(request: Request, env: Env): Prom
   const corsHeaders = getCorsHeaders(origin);
 
   // Require creator role
-  const roleCheck = await requireRole(request, env, 'creator');
+  const roleCheck = await requireRole(request, env, ['creator', 'production']);
   if ('error' in roleCheck) {
     return roleCheck.error;
   }

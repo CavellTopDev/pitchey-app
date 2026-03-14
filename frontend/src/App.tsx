@@ -465,7 +465,7 @@ function App() {
           </Route>
           {/* Production Pitch Create — outside PortalLayout (full-width wizard) */}
           <Route path="/production/pitch/new" element={
-            isAuthenticated && userType === 'production' ? <ProductionPitchCreate /> :
+            isAuthenticated && userType === 'production' ? <CreatePitch /> :
             <Navigate to="/login/production" />
           } />
           {/* Production Pitch View — outside PortalLayout (full-width, no sidebar) */}
