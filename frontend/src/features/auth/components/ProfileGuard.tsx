@@ -11,9 +11,15 @@ interface ProfileGuardProps {
 export function ProfileGuard({ userType }: ProfileGuardProps) {
   const { user } = useBetterAuthStore();
   const location = useLocation();
-  const complete = isProfileComplete(user);
   const onboardingPath = `/${userType}/onboarding`;
   const onOnboarding = location.pathname === onboardingPath;
+
+  // Wait for auth to settle before making redirect decisions
+  if (!user) {
+    return null;
+  }
+
+  const complete = isProfileComplete(user);
 
   if (!complete && onOnboarding) {
     return <Outlet />;
