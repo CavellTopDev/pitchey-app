@@ -25,6 +25,7 @@ import NDAManagementPanel from '@features/ndas/components/NDAManagementPanel';
 import FormatDisplay from '../components/FormatDisplay';
 import { EnhancedProductionAnalytics } from '@features/analytics/components/Analytics/EnhancedProductionAnalytics';
 import { withPortalErrorBoundary } from '../components/ErrorBoundary/PortalErrorBoundary';
+import StartProjectModal from '@portals/production/components/StartProjectModal';
 import { useSentryPortal } from '@/shared/hooks/useSentryPortal';
 import { useWebSocket } from '@shared/contexts/WebSocketContext';
 import {
@@ -75,6 +76,7 @@ function ProductionDashboard() {
   const [followingCreators, setFollowingCreators] = useState<any[]>([]);
   const [followingSortBy, setFollowingSortBy] = useState('recent');
   const [followingFilterBy, setFollowingFilterBy] = useState('all');
+  const [startProjectPitch, setStartProjectPitch] = useState<{ id: number; title: string; genre?: string; logline?: string; budget?: any } | null>(null);
   const [likedPitches, setLikedPitches] = useState<number[]>([]);
   const [savedPitches, setSavedPitches] = useState<number[]>([]);
   const [outgoingNDARequests, setOutgoingNDARequests] = useState<any[]>([]);
@@ -1504,6 +1506,16 @@ function ProductionDashboard() {
                                 <span className="text-sm">Request NDA</span>
                               </button>
                             )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setStartProjectPitch({ id: pitch.id, title: pitch.title, genre: pitch.genre, logline: pitch.logline, budget: pitch.budget });
+                              }}
+                              className="flex items-center gap-1 px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                            >
+                              <Film className="w-4 h-4" />
+                              <span className="text-sm">Start Project</span>
+                            </button>
                             <Link
                               to={`/pitch/${pitch.id}`}
                               onClick={(e) => e.stopPropagation()}
@@ -2208,6 +2220,12 @@ function ProductionDashboard() {
             </div>
           </div>
         </div>
+      )}
+      {startProjectPitch && (
+        <StartProjectModal
+          pitch={startProjectPitch}
+          onClose={() => setStartProjectPitch(null)}
+        />
       )}
     </div>
   );

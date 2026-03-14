@@ -331,6 +331,19 @@ export default function ProductionProjects() {
                     </div>
                   )}
 
+                  {/* Linked Pitch */}
+                  {project.pitch_id && (
+                    <div className="border-t pt-3 mb-4">
+                      <button
+                        onClick={() => navigate(`/production/pitch/${project.pitch_id}`)}
+                        className="text-sm text-purple-600 hover:text-purple-700 flex items-center gap-1"
+                      >
+                        <Film className="w-3.5 h-3.5" />
+                        View original pitch
+                      </button>
+                    </div>
+                  )}
+
                   {/* Actions */}
                   <div className="flex gap-2">
                     <button
