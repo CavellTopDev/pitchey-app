@@ -21,8 +21,13 @@ interface Project {
 
 // Transform API project to local format
 function transformProject(apiProject: ApiProject): Project {
+  // The API returns raw pitch rows, so handle both formats
+  const raw = apiProject as unknown as Record<string, unknown>;
+
   // Calculate progress based on status
   const statusProgress: Record<string, number> = {
+    'draft': 5,
+    'published': 10,
     'development': 20,
     'pre-production': 35,
     'production': 60,
@@ -31,10 +36,20 @@ function transformProject(apiProject: ApiProject): Project {
     'on-hold': 10
   };
 
+  // Parse budget from various formats
+  const rawBudget = apiProject.budget || raw.estimated_budget || raw.budget_range || 0;
+  let budget = 0;
+  if (typeof rawBudget === 'number') {
+    budget = rawBudget;
+  } else if (typeof rawBudget === 'string') {
+    const cleaned = rawBudget.replace(/[^0-9.]/g, '');
+    budget = parseFloat(cleaned) || 0;
+  }
+
   // Calculate risk based on budget vs spent ratio
   let risk: 'low' | 'medium' | 'high' = 'low';
-  if (apiProject.budget > 0) {
-    const spentRatio = (apiProject.spentBudget || 0) / apiProject.budget;
+  if (apiProject.budget > 0 && apiProject.spentBudget) {
+    const spentRatio = apiProject.spentBudget / apiProject.budget;
     if (spentRatio > 0.9) risk = 'high';
     else if (spentRatio > 0.7) risk = 'medium';
   }
@@ -43,15 +58,19 @@ function transformProject(apiProject: ApiProject): Project {
   const director = apiProject.team?.find(t => t.role.toLowerCase().includes('director'))?.name;
   const producer = apiProject.team?.find(t => t.role.toLowerCase().includes('producer'))?.name;
 
+  // Parse date from various formats
+  const dateStr = apiProject.startDate || (raw.created_at as string) || '';
+  const status = (raw.status as string) || apiProject.status || 'development';
+
   return {
     id: String(apiProject.id),
-    title: apiProject.title,
-    genre: apiProject.pitch?.genre || 'Drama',
-    status: apiProject.status as Project['status'],
-    budget: apiProject.budget,
-    startDate: apiProject.startDate,
+    title: apiProject.title || (raw.title as string) || 'Untitled',
+    genre: apiProject.pitch?.genre || (raw.genre as string) || 'Drama',
+    status: status as Project['status'],
+    budget,
+    startDate: dateStr,
     endDate: apiProject.endDate,
-    progress: statusProgress[apiProject.status] || 0,
+    progress: statusProgress[status] || 0,
     team: apiProject.team?.length || 0,
     director,
     producer,
@@ -59,11 +78,15 @@ function transformProject(apiProject: ApiProject): Project {
   };
 }
 
-const statusColors = {
+const statusColors: Record<string, string> = {
+  draft: 'bg-gray-100 text-gray-800',
+  published: 'bg-emerald-100 text-emerald-800',
   development: 'bg-blue-100 text-blue-800',
+  'pre-production': 'bg-indigo-100 text-indigo-800',
   production: 'bg-purple-100 text-purple-800',
   'post-production': 'bg-orange-100 text-orange-800',
-  completed: 'bg-green-100 text-green-800'
+  completed: 'bg-green-100 text-green-800',
+  'on-hold': 'bg-yellow-100 text-yellow-800'
 };
 
 const riskColors = {
@@ -163,7 +186,7 @@ export default function ProductionProjects() {
               <div>
                 <p className="text-sm text-gray-600">Total Budget</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  ${(stats.budget / 1000000).toFixed(1)}M
+                  {stats.budget > 0 ? `$${(stats.budget / 1000000).toFixed(1)}M` : '$0'}
                 </p>
               </div>
               <DollarSign className="w-8 h-8 text-green-600" />
@@ -185,7 +208,7 @@ export default function ProductionProjects() {
         <div className="bg-white rounded-lg shadow mb-6">
           <div className="border-b">
             <nav className="flex -mb-px">
-              {['all', 'development', 'production', 'post-production', 'completed'].map((status) => (
+              {['all', 'published', 'development', 'production', 'post-production', 'completed'].map((status) => (
                 <button
                   key={status}
                   onClick={() => setFilter(status)}
@@ -220,7 +243,7 @@ export default function ProductionProjects() {
                       <p className="text-sm text-gray-600">{project.genre}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[project.status]}`}>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[project.status] || 'bg-gray-100 text-gray-800'}`}>
                         {project.status.replace('-', ' ')}
                       </span>
                       <button className="p-1 hover:bg-gray-100 rounded">
@@ -247,7 +270,7 @@ export default function ProductionProjects() {
                   <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
                     <div>
                       <p className="text-gray-600">Budget</p>
-                      <p className="font-semibold">${(project.budget / 1000000).toFixed(1)}M</p>
+                      <p className="font-semibold">{project.budget > 0 ? `$${(project.budget / 1000000).toFixed(1)}M` : 'TBD'}</p>
                     </div>
                     <div>
                       <p className="text-gray-600">Team Size</p>
@@ -255,7 +278,7 @@ export default function ProductionProjects() {
                     </div>
                     <div>
                       <p className="text-gray-600">Start Date</p>
-                      <p className="font-semibold">{new Date(project.startDate).toLocaleDateString()}</p>
+                      <p className="font-semibold">{project.startDate && !isNaN(new Date(project.startDate).getTime()) ? new Date(project.startDate).toLocaleDateString() : 'Not set'}</p>
                     </div>
                     <div>
                       <p className="text-gray-600">Risk Level</p>
