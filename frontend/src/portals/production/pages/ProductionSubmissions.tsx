@@ -7,10 +7,12 @@ import {
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'react-hot-toast';
+import { useBetterAuthStore } from '@/store/betterAuthStore';
 import StartProjectModal from '@portals/production/components/StartProjectModal';
 
 interface Submission {
   id: string;
+  userId: string;
   title: string;
   creator: string;
   creatorEmail: string;
@@ -37,6 +39,7 @@ const statusConfig = {
 export default function ProductionSubmissions() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user: authUser } = useBetterAuthStore();
   
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,6 +92,7 @@ export default function ProductionSubmissions() {
 
       const mapped: Submission[] = unique.map((s: any) => ({
         id: s.id?.toString() || '',
+        userId: String(s.user_id || ''),
         title: s.title || 'Untitled',
         creator: s.creator || 'Unknown Creator',
         creatorEmail: s.creator_email || '',
@@ -356,13 +360,15 @@ export default function ProductionSubmissions() {
                         <Eye className="w-4 h-4" />
                         View
                       </button>
-                      <button
-                        onClick={() => navigate(`/production/messages?to=${encodeURIComponent(submission.creatorEmail)}&subject=${encodeURIComponent('Re: ' + submission.title)}`)}
-                        className="px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-lg transition flex items-center gap-1.5 text-sm"
-                      >
-                        <MessageSquare className="w-4 h-4" />
-                        Contact
-                      </button>
+                      {submission.userId !== String(authUser?.id) && (
+                        <button
+                          onClick={() => navigate(`/production/messages?to=${encodeURIComponent(submission.creatorEmail)}&subject=${encodeURIComponent('Re: ' + submission.title)}`)}
+                          className="px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-lg transition flex items-center gap-1.5 text-sm"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                          Contact
+                        </button>
+                      )}
                     </div>
 
                     <div className="flex gap-2">

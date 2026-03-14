@@ -276,7 +276,7 @@ export async function productionSubmissionsHandler(
       const [submissions, countResult] = await Promise.all([
         sql`
           SELECT
-            p.id, p.title, p.genre, p.logline, p.short_synopsis, p.format,
+            p.id, p.user_id, p.title, p.genre, p.logline, p.short_synopsis, p.format,
             p.estimated_budget, p.budget_range, p.status, p.view_count,
             p.like_count, p.created_at, p.updated_at,
             COALESCE(u.name, u.first_name || ' ' || u.last_name, u.email) AS creator,
