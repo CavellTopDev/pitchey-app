@@ -432,6 +432,7 @@ export async function productionPipelineHandler(request: Request, env: Env) {
       try {
         const stage = url.searchParams.get('stage');
         const statusFilter = url.searchParams.get('status');
+        const pitchIdFilter = url.searchParams.get('pitchId');
         const limit = parseInt(url.searchParams.get('limit') || '50');
 
         // Valid pipeline stages and statuses
@@ -439,7 +440,25 @@ export async function productionPipelineHandler(request: Request, env: Env) {
         const validStatuses = ['active', 'paused', 'completed', 'cancelled'];
 
         let projects;
-        if (stage && validStages.includes(stage)) {
+        if (pitchIdFilter) {
+          // Check if a project already exists for a specific pitch
+          projects = await sql`
+            SELECT
+              pp.id, pp.title, pp.stage, pp.status, pp.priority,
+              pp.budget_allocated, pp.budget_spent, pp.budget_remaining,
+              pp.completion_percentage, pp.start_date, pp.target_completion_date,
+              pp.next_milestone, pp.milestone_date, pp.notes,
+              pp.pitch_id, pp.created_at, pp.updated_at,
+              p.genre, p.format, p.logline, p.short_synopsis,
+              p.view_count, p.like_count
+            FROM production_pipeline pp
+            LEFT JOIN pitches p ON pp.pitch_id = p.id
+            WHERE pp.production_company_id = ${user.id}
+              AND pp.pitch_id = ${parseInt(pitchIdFilter)}
+            ORDER BY pp.updated_at DESC
+            LIMIT ${limit}
+          `;
+        } else if (stage && validStages.includes(stage)) {
           projects = await sql`
             SELECT
               pp.id, pp.title, pp.stage, pp.status, pp.priority,

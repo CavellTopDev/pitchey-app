@@ -152,10 +152,43 @@ Detailed context split by domain to keep LLM context focused:
 | "Submit for Review" workflow | `frontend/src/pages/ManagePitches.tsx` — draft pitches get Send button → `under_review` status | DONE |
 | Dead imports cleanup in App.tsx | Removed 4 unused `ProductionSettings*` imports + duplicate `/creator/:creatorId` route | DONE |
 
+### Stage 6: Platform Integration (Mar 2026)
+
+#### 6A. Pitch-to-Project Conversion — DONE
+
+Production users can convert any pitch into a tracked production project.
+
+| Component | File | Status |
+|-----------|------|--------|
+| StartProjectModal (reusable) | `frontend/src/portals/production/components/StartProjectModal.tsx` | DONE |
+| "Start Project" button on pitch view | `frontend/src/portals/production/pages/ProductionPitchView.tsx` | DONE |
+| "Start Project" button on saved pitches | `frontend/src/portals/production/pages/ProductionSaved.tsx` | DONE |
+| Backend pitchId filter (duplicate prevention) | `src/handlers/production-dashboard.ts` GET `?pitchId=X` | DONE |
+| Pre-fills title, budget, genre, logline, timeline from pitch | StartProjectModal | DONE |
+
+Flow: View pitch → "Start Project" → modal pre-fills from pitch data → creates `production_pipeline` row with `pitch_id` FK → navigates to projects page.
+
+#### 6B. Data Integrity Fixes (Mar 2026) — DONE
+
+| Fix | Details | Status |
+|-----|---------|--------|
+| pitchStore localStorage persist removed | Was causing stale pitch counts across sessions | DONE |
+| Investor notes/diligence → API | Migration 044: `investor_notes` + `investor_diligence_checklists` tables | DONE |
+| Analytics dashboard hardcoded fallbacks removed | 8 active projects, $850K revenue, etc. all zeroed | DONE |
+| Production projects scoped to user | Was returning all published pitches | DONE |
+| Following tab filters wired | Sort (recent/popular/trending/genre) + filter (all/new/nda/public) | DONE |
+| Analytics overview reads from `overview` sub-object | Was reading flat keys, all values were 0 | DONE |
+| Time-series percentage changes computed | viewsChange/likesChange/ndasChange from first-half vs second-half | DONE |
+| Messages emoji picker removed | Per user request | DONE |
+| Messages duplicate "New Conversation" removed | Per user request | DONE |
+| Conversation vanishing bug fixed | hookConversations sync guard | DONE |
+| Production projects use `production_pipeline` table | Was querying `pitches` table instead | DONE |
+| Production users can create pitches | `creator-pitches.ts` accepts both creator + production roles | DONE |
+
 ### Current Numbers
-- 607 API routes, 135 pages, 165 components, 26 services, 4 stores
+- 612+ API routes, 135 pages, 166 components, 26 services, 4 stores
 - 166 test files, 3109 tests (82% page coverage)
-- 114 backend service files, 56 handlers, 66 migrations
+- 114 backend service files, 57 handlers, 67 migrations
 - TypeScript: zero errors (CI-enforced)
 - 3 portals (Creator, Investor, Production) + Admin shell
 - WebSocket + polling fallback live in production

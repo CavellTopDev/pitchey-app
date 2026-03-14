@@ -18,6 +18,7 @@ import { ScheduleMeetingModal } from '@/components/UIActions/ScheduleMeetingModa
 import { toast } from 'react-hot-toast';
 import { ProductionService } from '../services/production.service';
 import type { ProductionNoteResponse, ProductionTeamMember } from '../services/production.service';
+import StartProjectModal from '../components/StartProjectModal';
 
 interface Pitch {
   id: string;
@@ -104,6 +105,7 @@ const ProductionPitchView: React.FC = () => {
     legalClearance: false
   });
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showStartProjectModal, setShowStartProjectModal] = useState(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([
     { role: 'Director', name: '', status: 'pending' },
     { role: 'Producer', name: '', status: 'pending' },
@@ -854,6 +856,13 @@ const ProductionPitchView: React.FC = () => {
                   <span>Start Negotiations</span>
                   <ChevronRight className="h-4 w-4" />
                 </button>
+                <button
+                  onClick={() => setShowStartProjectModal(true)}
+                  className="w-full flex items-center justify-between px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                >
+                  <span>Start Project</span>
+                  <ChevronRight className="h-4 w-4" />
+                </button>
               </div>
             </div>
 
@@ -959,6 +968,22 @@ const ProductionPitchView: React.FC = () => {
         meetingType="production"
         defaultSubject={`Production Discussion: ${pitch.title}`}
       />
+
+      {showStartProjectModal && (
+        <StartProjectModal
+          pitch={{
+            id: Number(pitch.id),
+            title: pitch.title,
+            genre: pitch.genre,
+            budget: pitch.budget,
+            estimatedBudget: pitch.estimatedBudget,
+            productionTimeline: pitch.productionTimeline,
+            logline: pitch.logline,
+            shortSynopsis: pitch.shortSynopsis,
+          }}
+          onClose={() => setShowStartProjectModal(false)}
+        />
+      )}
     </div>
   );
 };
