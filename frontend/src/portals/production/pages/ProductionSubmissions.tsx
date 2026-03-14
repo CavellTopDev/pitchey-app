@@ -411,7 +411,15 @@ export default function ProductionSubmissions() {
                           Start Project
                         </button>
                       )}
-                      {submission.status !== 'archived' && (
+                      {submission.status === 'archived' ? (
+                        <button
+                          onClick={() => void updateSubmissionStatus(submission.id, 'reviewing')}
+                          className="px-3 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg transition text-sm flex items-center gap-1.5"
+                        >
+                          <Clock className="w-3.5 h-3.5" />
+                          Unarchive
+                        </button>
+                      ) : (
                         <button
                           onClick={() => void updateSubmissionStatus(submission.id, 'archived')}
                           className="px-3 py-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition text-sm flex items-center gap-1.5"
