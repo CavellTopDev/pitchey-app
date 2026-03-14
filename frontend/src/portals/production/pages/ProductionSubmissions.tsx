@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { 
-  FileText, Clock, Star, CheckCircle, XCircle, Archive, 
+import {
+  FileText, Clock, Star, CheckCircle, XCircle, Archive,
   Filter, Search, Calendar, User, DollarSign, TrendingUp,
-  Eye, Download, MessageSquare, ThumbsUp, ThumbsDown
+  Eye, Download, MessageSquare, ThumbsUp, ThumbsDown, Film
 } from 'lucide-react';
+import { apiClient } from '@/lib/api-client';
+import { toast } from 'react-hot-toast';
+import StartProjectModal from '@portals/production/components/StartProjectModal';
 
 interface Submission {
   id: string;
@@ -39,6 +42,7 @@ export default function ProductionSubmissions() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('all');
+  const [startProjectPitch, setStartProjectPitch] = useState<{ id: number; title: string; genre?: string } | null>(null);
   
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'all');
 
@@ -105,6 +109,29 @@ export default function ProductionSubmissions() {
       setSubmissions([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateSubmissionStatus = async (pitchId: string, newStatus: string) => {
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${API_URL}/api/production/submissions/${pitchId}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) throw new Error('Failed to update status');
+
+      // Update local state
+      const mappedStatus = mapReviewStatus(newStatus);
+      setSubmissions(prev =>
+        prev.map(s => s.id === pitchId ? { ...s, status: mappedStatus } : s)
+      );
+      toast.success(`Moved to ${newStatus}`);
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      toast.error(e.message);
     }
   };
 
@@ -320,36 +347,78 @@ export default function ProductionSubmissions() {
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-center pt-4 border-t">
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <FileText className="w-4 h-4" />
-                        {submission.attachments} files
-                      </span>
-                    </div>
-
+                  <div className="flex flex-wrap justify-between items-center pt-4 border-t gap-3">
                     <div className="flex gap-2">
                       <button
                         onClick={() => navigate(`/production/pitch/${submission.id}`)}
-                        className="px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg transition flex items-center gap-2"
+                        className="px-3 py-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition flex items-center gap-1.5 text-sm"
                       >
                         <Eye className="w-4 h-4" />
-                        View Details
+                        View
                       </button>
                       <button
                         onClick={() => navigate(`/production/messages?to=${encodeURIComponent(submission.creatorEmail)}&subject=${encodeURIComponent('Re: ' + submission.title)}`)}
-                        className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition flex items-center gap-2"
+                        className="px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-lg transition flex items-center gap-1.5 text-sm"
                       >
                         <MessageSquare className="w-4 h-4" />
                         Contact
                       </button>
-                      <button
-                        onClick={() => navigate(`/production/pitch/${submission.id}`)}
-                        className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
-                        title="View pitch details"
-                      >
-                        <Download className="w-4 h-4" />
-                      </button>
+                    </div>
+
+                    <div className="flex gap-2">
+                      {submission.status === 'new' && (
+                        <button
+                          onClick={() => void updateSubmissionStatus(submission.id, 'reviewing')}
+                          className="px-3 py-1.5 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 rounded-lg transition text-sm flex items-center gap-1.5"
+                        >
+                          <Clock className="w-3.5 h-3.5" />
+                          Review
+                        </button>
+                      )}
+                      {(submission.status === 'new' || submission.status === 'review') && (
+                        <button
+                          onClick={() => void updateSubmissionStatus(submission.id, 'shortlisted')}
+                          className="px-3 py-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-lg transition text-sm flex items-center gap-1.5"
+                        >
+                          <Star className="w-3.5 h-3.5" />
+                          Shortlist
+                        </button>
+                      )}
+                      {(submission.status === 'review' || submission.status === 'shortlisted') && (
+                        <>
+                          <button
+                            onClick={() => void updateSubmissionStatus(submission.id, 'accepted')}
+                            className="px-3 py-1.5 bg-green-100 text-green-700 hover:bg-green-200 rounded-lg transition text-sm flex items-center gap-1.5"
+                          >
+                            <CheckCircle className="w-3.5 h-3.5" />
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => void updateSubmissionStatus(submission.id, 'rejected')}
+                            className="px-3 py-1.5 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg transition text-sm flex items-center gap-1.5"
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                            Reject
+                          </button>
+                        </>
+                      )}
+                      {submission.status === 'accepted' && (
+                        <button
+                          onClick={() => setStartProjectPitch({ id: parseInt(submission.id), title: submission.title, genre: submission.genre })}
+                          className="px-3 py-1.5 bg-purple-600 text-white hover:bg-purple-700 rounded-lg transition text-sm flex items-center gap-1.5"
+                        >
+                          <Film className="w-3.5 h-3.5" />
+                          Start Project
+                        </button>
+                      )}
+                      {submission.status !== 'archived' && (
+                        <button
+                          onClick={() => void updateSubmissionStatus(submission.id, 'archived')}
+                          className="px-3 py-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition text-sm flex items-center gap-1.5"
+                        >
+                          <Archive className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -361,10 +430,26 @@ export default function ProductionSubmissions() {
         {filteredSubmissions.length === 0 && !loading && (
           <div className="text-center py-12 bg-white rounded-lg">
             <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">No submissions found</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {statusFilter === 'all' || statusFilter === 'new'
+                ? 'No submissions yet'
+                : `No ${statusFilter} submissions`}
+            </h3>
+            <p className="text-gray-500 text-sm">
+              {statusFilter === 'all' || statusFilter === 'new'
+                ? 'Sign NDAs with creators to see their pitches here for review'
+                : 'Move submissions through the pipeline to see them here'}
+            </p>
           </div>
         )}
       </div>
+
+      {startProjectPitch && (
+        <StartProjectModal
+          pitch={startProjectPitch}
+          onClose={() => setStartProjectPitch(null)}
+        />
+      )}
     </div>
   );
 }
