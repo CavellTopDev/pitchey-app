@@ -40,27 +40,50 @@ export default function ProductionSubmissions() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('all');
   
-  const statusFilter = searchParams.get('status') || 'all';
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'all');
 
   useEffect(() => {
-    fetchSubmissions();
-  }, [statusFilter]);
+    void fetchAllSubmissions();
+  }, []);
 
-  const fetchSubmissions = async () => {
+  const fetchAllSubmissions = async () => {
     try {
       setLoading(true);
       const API_URL = import.meta.env.VITE_API_URL || '';
-      const response = await fetch(`${API_URL}/api/production/submissions?status=${statusFilter === 'all' ? 'new' : statusFilter}&limit=50`, {
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' }
+
+      // Fetch both "new" (NDA-signed, unreviewed) and all reviewed submissions
+      const [newRes, reviewedRes] = await Promise.all([
+        fetch(`${API_URL}/api/production/submissions?status=new&limit=100`, {
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
+        }),
+        fetch(`${API_URL}/api/production/submissions?status=reviewing&limit=100`, {
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
+        }),
+      ]);
+
+      const allItems: any[] = [];
+
+      if (newRes.ok) {
+        const newData = await newRes.json();
+        allItems.push(...(newData.data?.submissions || []));
+      }
+      if (reviewedRes.ok) {
+        const reviewedData = await reviewedRes.json();
+        allItems.push(...(reviewedData.data?.submissions || []));
+      }
+
+      // Deduplicate by id
+      const seen = new Set<string>();
+      const unique = allItems.filter(s => {
+        const key = String(s.id);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
       });
 
-      if (!response.ok) throw new Error('Failed to fetch submissions');
-
-      const data = await response.json();
-      const items = data.data?.submissions || [];
-
-      const mapped: Submission[] = items.map((s: any) => ({
+      const mapped: Submission[] = unique.map((s: any) => ({
         id: s.id?.toString() || '',
         title: s.title || 'Untitled',
         creator: s.creator || 'Unknown Creator',
@@ -200,11 +223,19 @@ export default function ProductionSubmissions() {
               ))}
             </select>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => setStatusFilter('all')}
+                className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                  statusFilter === 'all' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <span className="hidden md:inline">All</span>
+              </button>
               {Object.entries(statusConfig).map(([status, config]) => (
                 <button
                   key={status}
-                  onClick={() => navigate(`?status=${status}`)}
+                  onClick={() => setStatusFilter(status)}
                   className={`
                     px-4 py-2 rounded-lg transition-colors flex items-center gap-2
                     ${statusFilter === status 
