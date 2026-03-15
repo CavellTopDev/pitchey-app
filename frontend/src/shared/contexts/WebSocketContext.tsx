@@ -258,7 +258,34 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       disconnect();
     }
   }, [shouldAutoConnect, isConnected, disconnect]);
-  
+
+  // Handle tab visibility changes — disconnect when hidden, reconnect with fresh token on return
+  const hiddenByVisibility = useRef(false);
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden) {
+        // Tab went to background — cleanly close to avoid stale token errors on resume
+        if (isConnected) {
+          hiddenByVisibility.current = true;
+          disconnect();
+        }
+      } else {
+        // Tab became visible again — reconnect with a fresh token
+        if (hiddenByVisibility.current && shouldAutoConnect && !isConnected) {
+          hiddenByVisibility.current = false;
+          // Small delay to let browser networking stabilize
+          setTimeout(() => {
+            if (!document.hidden) {
+              connect();
+            }
+          }, 500);
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [isConnected, shouldAutoConnect, disconnect, connect]);
+
   // Handle incoming messages
   function handleMessage(message: WebSocketMessage) {
     // Notify all general message subscribers first
